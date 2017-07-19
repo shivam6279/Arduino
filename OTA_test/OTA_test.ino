@@ -74,16 +74,16 @@ void loop(){
     return;
   }
   delay(1000);
-  if(SD.exists("TEMP_OTA.HEX")){
+  /*if(SD.exists("TEMP_OTA.HEX")){
     SD.remove("TEMP_OTA.HEX");
     Serial.println("OTA_temp.hex removed");
-  }
+  }*/
   if(SD.exists("firmware.BIN")){
     SD.remove("firmware.BIN");
     Serial.println("firmware.bin removed");
   }
   delay(1000);
-  downloadBin();
+  //downloadBin();
   delay(1000);
   Serial.println("Converting .hex file to .bin");
   SD_copy();
@@ -97,8 +97,6 @@ void loop(){
 bool downloadBin(){  
   int i;
   char ch, temp_version[10];
-  data = SD.open("temp_ota.hex", FILE_WRITE);
-  data.close();
   data = SD.open("temp_ota.hex", FILE_WRITE);
   Serial.println("Uploading data");
   while(Serial1.available()) Serial1.read();
@@ -146,7 +144,7 @@ bool downloadBin(){
   }
   Serial.println("\nSuccessfully connected to server");
   Serial1.println("AT+QHTTPREAD=30\r");
-  while(Serial1.read() != '/');
+  /*while(Serial1.read() != '/');
   do{
     ch = Serial1.read();
   }while(ch < 48 || ch > 57);
@@ -155,21 +153,22 @@ bool downloadBin(){
     while(!Serial1.available());
     ch = Serial1.read();
   }
-  temp_version[i] = '\0';
+  temp_version[i] = '\0';*/
   for(i = 0; i < 3;){
     if(Serial1.read() ==  '>') i++;
   }
-  Serial1.read();
-  Serial1.read();
-  Serial1.read();
-  Serial1.read();
-  Serial1.read();
+  ch = Serial1.read();
+  while(!isDigit(ch) && ch != ':') ch = Serial1.read();
+  data.write(ch);
   i = 0;
   while(1){
     while(Serial1.available()){
-      data.write(Serial1.read());
+      ch = Serial1.read();
+      if(ch == 'O') break;
+      data.write(ch);
       i = 0;
     }
+    if(ch == 'O') break;
     while(Serial1.available() == 0){
       i++;
       delay(1);
@@ -177,16 +176,17 @@ bool downloadBin(){
     }
     if(i > 3000) break;
   }
+  data.seek(data.position() - 1);
   data.close();
-  Serial.println("Version number: " + String(temp_version));
+  while(Serial1.available()) Serial1.read();
   Serial.println("Done");
   return true;
 }
 
 bool SD_copy(){
-  unsigned char buff[41], ch;
-  int i, j;
-  long int tt;
+  unsigned char buff[45], ch;
+  int i, j, temp_checksum;
+  long int tt, checksum = 0;
   if(!SD.exists("TEMP_OTA.HEX")){
     return 0;
   }
@@ -201,8 +201,9 @@ bool SD_copy(){
   data_temp.seek(data_temp.position() - 1);
   j = 0;
   while(data_temp.available()){
-    data_temp.read(buff, 41);
-    for(i = 0; i < 41; i++){
+    data_temp.read(buff, 45);
+    for(i = 9, checksum = 0; i < 41; i++){
+      //Serial.write(buff[i]);
       if((buff[i] >= 48 && buff[i] <= 58) || (buff[i] >= 97 && buff[i] <= 102)){
         if(buff[i] >= 97 && buff[i] <= 102){
           buff[i] -= 87;
@@ -218,6 +219,7 @@ bool SD_copy(){
           buff[i] -= 48;
         }
         ch = buff[i - 1] * 16 + buff[i];
+        checksum += ch;
         data.write(ch); 
         if(++j == 200){
           j = 0;
@@ -225,6 +227,24 @@ bool SD_copy(){
         }
       }
     }
+    if((buff[i] >= 48 && buff[i] <= 58) || (buff[i] >= 97 && buff[i] <= 102)){
+      if(buff[i] >= 97 && buff[i] <= 102){
+        buff[i] -= 87;
+      }
+      else{
+        buff[i] -= 48;
+      }
+      i++;
+      if(buff[i] >= 97 && buff[i] <= 102){
+        buff[i] -= 87;
+      }
+      else{
+        buff[i] -= 48;
+      }
+      temp_checksum = buff[i - 1] * 16 + buff[i];
+    }
+    if((checksum - temp_checksum) % 0x100 == 0) Serial.println("Checksum approved");
+    else Serial.println("Checksum failed");
   }
   data.flush();
   data.close();
