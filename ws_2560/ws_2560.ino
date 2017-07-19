@@ -21,7 +21,6 @@
 
 //------------------------------------Settings-------------------------------------
 //String id = "207";     
-const String version_number = "1.12";
 String phone_number = "+919220592205";
 
 #define HT_mode 0// 0 for SHT21, 1 for DST, 2 for none
@@ -124,7 +123,6 @@ void setup(){
   
   #if serial_output
   Serial.println("Sensor id: " + String(id));
-  Serial.println("Version: " + version_number);
   Serial.println("Data upload frequency: " + (String)data_upload_frequency + " minutes");
   Serial.println("Data read frequency: " + (String)data_read_frequency + " minutes");
   if(HT_mode == 0) Serial.println("Using SHT21"); else if(HT_mode == 1) Serial.println("Using DHT22"); else Serial.println("No HT sensor");
@@ -194,7 +192,7 @@ void loop(){
         #endif
         if(SD.exists("TEMP_OTA.HEX")) SD.remove("TEMP_OTA.HEX");
         if(SD.exists("firmware.BIN")) SD.remove("firmware.BIN");
-        if(download_bin()){
+        if(download_hex()){
           #if serial_output
           Serial.println("\nNew firmware downloaded");
           Serial.println("Converting .hex file to .bin");
@@ -211,7 +209,7 @@ void loop(){
           }
           else{
             #if serial_output
-            Serial.println("SD card copy failed");
+            Serial.println("SD card copy error- hex file checksum failed");
             #endif
           }
         }
@@ -469,9 +467,9 @@ bool SubmitHttpRequest(){
   else return false;
 }
 
-bool download_bin(){  
+bool download_hex(){  
   int i;
-  char ch, temp_version[10];
+  char ch;
   datalog = SD.open("temp_ota.hex", FILE_WRITE);
   while(Serial1.available()) Serial1.read();
   Serial1.println("AT+QIFGCNT=0\r");
@@ -531,33 +529,21 @@ bool download_bin(){
   #endif  
   if(ch != 'O') return false;
   Serial1.println("AT+QHTTPREAD=30\r");
-  while(Serial1.read() != '/');
-  do{
-    ch = Serial1.read();
-  }while(ch < 48 || ch > 57);
-  for(i = 0; ((ch >= 48 && ch <= 57) || ch == '.'); i++){
-    temp_version[i] = ch;
-    while(!Serial1.available());
-    ch = Serial1.read();
-  }
-  temp_version[i] = '\0';
-  /*if(String(temp_version) == version_number){
-    return false;
-  }*/
   for(i = 0; i < 3;){
     if(Serial1.read() ==  '>') i++;
   }
-  Serial1.read();
-  Serial1.read();
-  Serial1.read();
-  Serial1.read();
-  Serial1.read();
+  ch = Serial1.read();
+  while(!isDigit(ch) && ch != ':') ch = Serial1.read();
+  datalog.write(ch);
   i = 0;
   while(1){
     while(Serial1.available()){
-      datalog.write(Serial1.read());
+      ch = Serial1.read();
+      if(ch == 'O') break;
+      datalog.write(ch);
       i = 0;
     }
+    if(ch == 'O') break;
     while(Serial1.available() == 0){
       i++;
       delay(1);
@@ -565,20 +551,18 @@ bool download_bin(){
     }
     if(i > 3000) break;
   }
+  datalog.seek(datalog.position() - 1);
   datalog.close();
-  #if serial_output
-  Serial.println("New version downloaded: v" + String(temp_version));
-  Serial.println("Previous version: v" + version_number);
-  #endif
+  while(Serial1.available()) Serial1.read();
   return true;
 }
 
 bool SD_copy(){
-  unsigned char buff[41], ch;
-  int i, j;
-  long int tt;
+  unsigned char buff[45], ch, n, t_ch[2];
+  uint16_t i, j, temp_checksum;
+  long int checksum;
   if(!SD.exists("TEMP_OTA.HEX")){
-    return false;
+    return 0;
   }
   data_temp = SD.open("TEMP_OTA.HEX", FILE_READ);
   datalog = SD.open("firmware.bin", O_WRITE | O_CREAT);
@@ -587,40 +571,77 @@ bool SD_copy(){
   while((ch < 97 && ch > 58) || ch < 48 || ch > 102){
     ch = data_temp.read();
   }
-  tt = millis();
   data_temp.seek(data_temp.position() - 1);
   j = 0;
   while(data_temp.available()){
-    data_temp.read(buff, 41);
-    for(i = 0; i < 41; i++){
-      if((buff[i] >= 48 && buff[i] <= 58) || (buff[i] >= 97 && buff[i] <= 102)){
-        if(buff[i] >= 97 && buff[i] <= 102){
-          buff[i] -= 87;
-        }
+    data_temp.read(buff, 9);
+    for(i = 1, checksum = 0; i < 9; i++){
+      t_ch[0] = buff[i++];
+      t_ch[1] = buff[i];
+      if((t_ch[0] >= 48 && t_ch[0] <= 57) || (t_ch[0] >= 97 && t_ch[0] <= 102) || (t_ch[0] >= 65 && t_ch[0] <= 70)){
+        if((t_ch[0] >= 48 && t_ch[0] <= 57)) t_ch[0] -= 48;
         else{
-          buff[i] -= 48;
+          if(t_ch[0] >= 97 && t_ch[0] <= 102) t_ch[0] -= 87;
+          else t_ch[0] -= 55;
         }
-        i++;
-        if(buff[i] >= 97 && buff[i] <= 102){
-          buff[i] -= 87;
-        }
+        if((t_ch[1] >= 48 && t_ch[1] <= 57)) t_ch[1] -= 48;
         else{
-          buff[i] -= 48;
+          if(t_ch[1] >= 97 && t_ch[1] <= 102) t_ch[1] -= 87;
+          else t_ch[1] -= 55;
         }
-        ch = buff[i - 1] * 16 + buff[i];
-        datalog.write(ch); 
+        ch = t_ch[0] * 16 + t_ch[1];
+        checksum += ch;
+        if(i == 2) n = ch;
+      }
+    }
+    data_temp.read(buff, (n*2)+4);
+    for(i = 0; i < (n*2); i++){
+      t_ch[0] = buff[i++];
+      t_ch[1] = buff[i];
+      if((t_ch[0] >= 48 && t_ch[0] <= 57) || (t_ch[0] >= 97 && t_ch[0] <= 102) || (t_ch[0] >= 65 && t_ch[0] <= 70)){
+        if((t_ch[0] >= 48 && t_ch[0] <= 57)) t_ch[0] -= 48;
+        else{
+          if(t_ch[0] >= 97 && t_ch[0] <= 102) t_ch[0] -= 87;
+          else t_ch[0] -= 55;
+        }
+        if((t_ch[1] >= 48 && t_ch[1] <= 57)) t_ch[1] -= 48;
+        else{
+          if(t_ch[1] >= 97 && t_ch[1] <= 102) t_ch[1] -= 87;
+          else t_ch[1] -= 55;
+        }
+        ch = t_ch[0] * 16 + t_ch[1];
+        checksum += ch;
+        datalog.write(ch);
         if(++j == 200){
           j = 0;
           datalog.flush();
         }
       }
     }
+    t_ch[0] = buff[(n*2)];
+    t_ch[1] = buff[(n*2) + 1];
+    if((t_ch[0] >= 48 && t_ch[0] <= 57) || (t_ch[0] >= 97 && t_ch[0] <= 102) || (t_ch[0] >= 65 && t_ch[0] <= 70)){
+      if((t_ch[0] >= 48 && t_ch[0] <= 57)){
+        t_ch[0] -= 48;
+      }
+      else{
+        if(t_ch[0] >= 97 && t_ch[0] <= 102) t_ch[0] -= 87;
+        else t_ch[0] -= 55;
+      }
+      if((t_ch[1] >= 48 && t_ch[1] <= 57)){
+        t_ch[1] -= 48;
+      }
+      else{
+        if(t_ch[1] >= 97 && t_ch[1] <= 102) t_ch[1] -= 87;
+        else t_ch[1] -= 55;
+      }
+      temp_checksum = t_ch[0] * 16 + t_ch[1];
+    }
+    if((checksum + temp_checksum) % 0x100 != 0) return false;
   }
   datalog.flush();
   datalog.close();
   data_temp.close();
-  tt = millis() - tt;
-  Serial.println("Time taken: " + String(float(tt) / 1000.0));
   return true;
 }
 

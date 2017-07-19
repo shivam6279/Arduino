@@ -49,7 +49,7 @@ void setup(){
 
   //GSM_module_reset();
   digitalWrite(upload_led, HIGH);
-  delay(10000);//Wait for the SIM to log on to the network
+  //delay(10000);//Wait for the SIM to log on to the network
   digitalWrite(upload_led, LOW);
   Serial1.print("AT+CMGF=1\r"); delay(200);
   #if serial_response
@@ -88,6 +88,7 @@ void loop(){
   Serial.println("Converting .hex file to .bin");
   SD_copy();
   Serial.println("Done, restarting");
+  while(1);
   EEPROM.write(0x1FF,0xF0);
   wdt_enable(WDTO_500MS);
   wdt_reset();
@@ -144,16 +145,6 @@ bool downloadBin(){
   }
   Serial.println("\nSuccessfully connected to server");
   Serial1.println("AT+QHTTPREAD=30\r");
-  /*while(Serial1.read() != '/');
-  do{
-    ch = Serial1.read();
-  }while(ch < 48 || ch > 57);
-  for(i = 0; ((ch >= 48 && ch <= 57) || ch == '.'); i++){
-    temp_version[i] = ch;
-    while(!Serial1.available());
-    ch = Serial1.read();
-  }
-  temp_version[i] = '\0';*/
   for(i = 0; i < 3;){
     if(Serial1.read() ==  '>') i++;
   }
@@ -184,9 +175,9 @@ bool downloadBin(){
 }
 
 bool SD_copy(){
-  unsigned char buff[45], ch;
-  int i, j, temp_checksum;
-  long int tt, checksum = 0;
+  unsigned char buff[45], ch, n, t_ch[2];
+  uint16_t i, j, temp_checksum;
+  long int checksum;
   if(!SD.exists("TEMP_OTA.HEX")){
     return 0;
   }
@@ -197,61 +188,78 @@ bool SD_copy(){
   while((ch < 97 && ch > 58) || ch < 48 || ch > 102){
     ch = data_temp.read();
   }
-  tt = millis();
   data_temp.seek(data_temp.position() - 1);
   j = 0;
   while(data_temp.available()){
-    data_temp.read(buff, 45);
-    for(i = 9, checksum = 0; i < 41; i++){
-      //Serial.write(buff[i]);
-      if((buff[i] >= 48 && buff[i] <= 58) || (buff[i] >= 97 && buff[i] <= 102)){
-        if(buff[i] >= 97 && buff[i] <= 102){
-          buff[i] -= 87;
-        }
+    data_temp.read(buff, 9);
+    for(i = 1, checksum = 0; i < 9; i++){
+      t_ch[0] = buff[i++];
+      t_ch[1] = buff[i];
+      if((t_ch[0] >= 48 && t_ch[0] <= 57) || (t_ch[0] >= 97 && t_ch[0] <= 102) || (t_ch[0] >= 65 && t_ch[0] <= 70)){
+        if((t_ch[0] >= 48 && t_ch[0] <= 57)) t_ch[0] -= 48;
         else{
-          buff[i] -= 48;
+          if(t_ch[0] >= 97 && t_ch[0] <= 102) t_ch[0] -= 87;
+          else t_ch[0] -= 55;
         }
-        i++;
-        if(buff[i] >= 97 && buff[i] <= 102){
-          buff[i] -= 87;
-        }
+        if((t_ch[1] >= 48 && t_ch[1] <= 57)) t_ch[1] -= 48;
         else{
-          buff[i] -= 48;
+          if(t_ch[1] >= 97 && t_ch[1] <= 102) t_ch[1] -= 87;
+          else t_ch[1] -= 55;
         }
-        ch = buff[i - 1] * 16 + buff[i];
+        ch = t_ch[0] * 16 + t_ch[1];
         checksum += ch;
-        data.write(ch); 
+        if(i == 2) n = ch;
+      }
+    }
+    data_temp.read(buff, (n*2)+4);
+    for(i = 0; i < (n*2); i++){
+      t_ch[0] = buff[i++];
+      t_ch[1] = buff[i];
+      if((t_ch[0] >= 48 && t_ch[0] <= 57) || (t_ch[0] >= 97 && t_ch[0] <= 102) || (t_ch[0] >= 65 && t_ch[0] <= 70)){
+        if((t_ch[0] >= 48 && t_ch[0] <= 57)) t_ch[0] -= 48;
+        else{
+          if(t_ch[0] >= 97 && t_ch[0] <= 102) t_ch[0] -= 87;
+          else t_ch[0] -= 55;
+        }
+        if((t_ch[1] >= 48 && t_ch[1] <= 57)) t_ch[1] -= 48;
+        else{
+          if(t_ch[1] >= 97 && t_ch[1] <= 102) t_ch[1] -= 87;
+          else t_ch[1] -= 55;
+        }
+        ch = t_ch[0] * 16 + t_ch[1];
+        checksum += ch;
+        data.write(ch);
         if(++j == 200){
           j = 0;
           data.flush();
         }
       }
     }
-    if((buff[i] >= 48 && buff[i] <= 58) || (buff[i] >= 97 && buff[i] <= 102)){
-      if(buff[i] >= 97 && buff[i] <= 102){
-        buff[i] -= 87;
+    t_ch[0] = buff[(n*2)];
+    t_ch[1] = buff[(n*2) + 1];
+    if((t_ch[0] >= 48 && t_ch[0] <= 57) || (t_ch[0] >= 97 && t_ch[0] <= 102) || (t_ch[0] >= 65 && t_ch[0] <= 70)){
+      if((t_ch[0] >= 48 && t_ch[0] <= 57)){
+        t_ch[0] -= 48;
       }
       else{
-        buff[i] -= 48;
+        if(t_ch[0] >= 97 && t_ch[0] <= 102) t_ch[0] -= 87;
+        else t_ch[0] -= 55;
       }
-      i++;
-      if(buff[i] >= 97 && buff[i] <= 102){
-        buff[i] -= 87;
+      if((t_ch[1] >= 48 && t_ch[1] <= 57)){
+        t_ch[1] -= 48;
       }
       else{
-        buff[i] -= 48;
+        if(t_ch[1] >= 97 && t_ch[1] <= 102) t_ch[1] -= 87;
+        else t_ch[1] -= 55;
       }
-      temp_checksum = buff[i - 1] * 16 + buff[i];
+      temp_checksum = t_ch[0] * 16 + t_ch[1];
     }
-    if((checksum - temp_checksum) % 0x100 == 0) Serial.println("Checksum approved");
-    else Serial.println("Checksum failed");
+    if((checksum + temp_checksum) % 0x100 != 0) return false;
   }
   data.flush();
   data.close();
   data_temp.close();
-  tt = millis() - tt;
-  Serial.println("Time taken: " + String(float(tt) / 1000.0));
-  return 1;
+  return true;
 }
 
 void talk(){
