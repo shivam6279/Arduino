@@ -3,7 +3,7 @@
 #include <String.h>
 #include <Wire.h>
 #include <SPI.h>
-#include <SD.h>
+#include <SdFat.h>
 #include <avr/wdt.h>
 
 #define rain_led 35
@@ -16,12 +16,15 @@
 #define GSM_module_DTR_pin 2
 #define solar_radiation_pin A0
 
-File data, data_temp;
+
+SdFat sd;
+SdFile data, data_temp;
 
 void setup(){
   pinMode(rain_led, OUTPUT);
   pinMode(wind_led, OUTPUT);
   pinMode(upload_led, OUTPUT);
+  pinMode(53, OUTPUT);
   pinMode(rain_pin1, INPUT);
   pinMode(rain_pin2, INPUT);
   pinMode(wind_pin1, INPUT);
@@ -66,7 +69,7 @@ void setup(){
 }
  
 void loop(){
-  if(SD.begin()){
+  if(sd.begin(53)){
     Serial.println("SD card detected");
   }
   else{
@@ -74,21 +77,20 @@ void loop(){
     return;
   }
   delay(1000);
-  /*if(SD.exists("TEMP_OTA.HEX")){
-    SD.remove("TEMP_OTA.HEX");
+  if(sd.exists("TEMP_OTA.HEX")){
+    sd.remove("TEMP_OTA.HEX");
     Serial.println("OTA_temp.hex removed");
-  }*/
-  if(SD.exists("firmware.BIN")){
-    SD.remove("firmware.BIN");
+  }
+  if(sd.exists("firmware.BIN")){
+    sd.remove("firmware.BIN");
     Serial.println("firmware.bin removed");
   }
   delay(1000);
-  //downloadBin();
+  downloadBin();
   delay(1000);
   Serial.println("Converting .hex file to .bin");
   SD_copy();
   Serial.println("Done, restarting");
-  while(1);
   EEPROM.write(0x1FF,0xF0);
   wdt_enable(WDTO_500MS);
   wdt_reset();
@@ -98,7 +100,7 @@ void loop(){
 bool downloadBin(){  
   int i;
   char ch, temp_version[10];
-  data = SD.open("temp_ota.hex", FILE_WRITE);
+  data.open("temp_ota.hex", FILE_WRITE);
   Serial.println("Uploading data");
   while(Serial1.available()) Serial1.read();
   Serial1.println("AT+QIFGCNT=0\r");
@@ -167,7 +169,7 @@ bool downloadBin(){
     }
     if(i > 3000) break;
   }
-  data.seek(data.position() - 1);
+  data.seekCur(-1);
   data.close();
   while(Serial1.available()) Serial1.read();
   Serial.println("Done");
@@ -178,17 +180,17 @@ bool SD_copy(){
   unsigned char buff[45], ch, n, t_ch[2];
   uint16_t i, j, temp_checksum;
   long int checksum;
-  if(!SD.exists("TEMP_OTA.HEX")){
+  if(!sd.exists("TEMP_OTA.HEX")){
     return 0;
   }
-  data_temp = SD.open("TEMP_OTA.HEX", FILE_READ);
-  data = SD.open("firmware.bin", O_WRITE | O_CREAT);
+  data_temp.open("TEMP_OTA.HEX", FILE_READ);
+  data.open("firmware.bin", O_WRITE | O_CREAT);
 
   ch = data_temp.read();
   while((ch < 97 && ch > 58) || ch < 48 || ch > 102){
     ch = data_temp.read();
   }
-  data_temp.seek(data_temp.position() - 1);
+  data_temp.seekCur(-1);
   j = 0;
   while(data_temp.available()){
     data_temp.read(buff, 9);
