@@ -103,11 +103,17 @@ void setup(){
   Serial2.begin(9600);
   pinMode(17, INPUT);  
   digitalWrite(17, HIGH);
-  Serial3.begin(9600);
+  //Serial3.begin(9600);
   
   uint8_t i = 0;
   SD_flag = sd.begin(53);
   delay(100);
+  if(!sd.exists("id.txt")){
+    #if serial_output
+    Serial.println("No id file found!!!!!!");
+    #endif
+    while(1);
+  }
   datalog.open("id.txt", FILE_READ);
   while(datalog.available()){
     id[i++] = datalog.read();
@@ -189,13 +195,15 @@ void loop(){
   w.pressure = 0;
 
   while(1){
-    if(check_sms()){
-      get_sms(number, body_r);
-      if(toupper(body_r[0]) == 'O' &&  toupper(body_r[1]) == 'T' &&toupper(body_r[2]) == 'A'){
-        send_sms(number, "Downloading new firmware");
+    //if(check_sms()){
+    if(timer1_counter == 3){
+      /*get_sms(number, body_r);
+      if(toupper(body_r[0]) == 'O' &&  toupper(body_r[1]) == 'T' &&toupper(body_r[2]) == 'A' && sd.begin(53)){
+        send_sms(number, "Downloading new firmware");*/
         #if serial_output
         Serial.println("Updating firmware");
         #endif
+        delay(500);
         if(sd.exists("TEMP_OTA.HEX")) sd.remove("TEMP_OTA.HEX");
         if(sd.exists("firmware.BIN")) sd.remove("firmware.BIN");
         if(download_hex()){
@@ -208,7 +216,7 @@ void loop(){
             Serial.println("Done\nRestarting and re-programming");
             #endif
             while(Serial1.available()) Serial1.read();
-            EEPROM.write(0x1FF,0xF0);
+            //EEPROM.write(0x1FF,0xF0);
             wdt_enable(WDTO_500MS);
             wdt_reset();
             delay(600);
@@ -224,7 +232,7 @@ void loop(){
           Serial.println("Download failed");
           #endif
         }
-      }
+      //}
     }
     if(four_sec){
       four_sec = false;
@@ -290,8 +298,6 @@ void loop(){
       if(temp_upload){//Upload data
         digitalWrite(upload_led, HIGH);
         
-        //GSM_module_wake();
-        
         signal_strength = get_signal_strength();
         
         if(!SubmitHttpRequest()){
@@ -320,8 +326,6 @@ void loop(){
         Serial.println("\nWriting to SD card");
         #endif
         write_SD();
-
-        //GSM_module_sleep();
         
         digitalWrite(upload_led, LOW);
         upload_flag = false;
@@ -476,7 +480,9 @@ bool SubmitHttpRequest(){
 bool download_hex(){  
   int i;
   char ch;
-  sd.begin(53);
+  if(!sd.exists("id.txt")){
+    if(!sd.begin(53)) return false;
+  }
   datalog.open("temp_ota.hex", FILE_WRITE);
   while(Serial1.available()) Serial1.read();
   Serial1.println("AT+QIFGCNT=0\r");
@@ -565,13 +571,14 @@ bool download_hex(){
 }
 
 bool SD_copy(){
-  unsigned char buff[45], ch, n, t_ch[2];
+  unsigned char buff[37], ch, n, t_ch[2];
   uint16_t i, j, temp_checksum;
   long int checksum;
-  if(!sd.exists("TEMP_OTA.HEX")){
-    return 0;
+  if(!sd.exists("id.txt")){
+    if(!sd.begin(53)) return false;
   }
-  data_temp.open("TEMP_OTA.HEX", FILE_READ);
+  if(!sd.exists("TEMP_OTA.HEX")) return 0;
+  data_temp.open("TEMP_OTA.HEX", O_READ);
   datalog.open("firmware.bin", O_WRITE | O_CREAT);
 
   ch = data_temp.read();
@@ -619,9 +626,9 @@ bool SD_copy(){
         ch = t_ch[0] * 16 + t_ch[1];
         checksum += ch;
         datalog.write(ch);
-        if(++j == 200){
+        if(++j == 500){
           j = 0;
-          datalog.flush();
+          datalog.sync();
         }
       }
     }
@@ -646,7 +653,7 @@ bool SD_copy(){
     }
     if((checksum + temp_checksum) % 0x100 != 0) return false;
   }
-  datalog.flush();
+  datalog.sync();
   datalog.close();
   data_temp.close();
   return true;
@@ -772,7 +779,9 @@ boolean get_time(){
 }
 
 boolean write_SD(){
-  if(!sd.begin(53)) return false;
+  if(!sd.exists("id.txt")){
+    if(!sd.begin(53)) return false;
+  }
   datalog.open("datalog.txt", FILE_WRITE);
   datalog.seekEnd();
   datalog.print("1=<"); 

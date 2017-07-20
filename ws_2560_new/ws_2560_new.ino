@@ -6,7 +6,7 @@
 #include <DHT.h>
 #include <SHT2x.h>
 #include <SPI.h>
-#include <SD.h>
+#include <SdFat.h>
 #include <avr/wdt.h>
 
 #define rain_led 35
@@ -16,7 +16,7 @@
 #define wind_pin A1
 #define GSM_module_DTR_pin 24
 #define solar_radiation_pin A3
-#define battery_pin A3
+#define battery_pin A15
 
 //------------------------------------Settings-------------------------------------  
 String phone_number = "+919220592205";
@@ -35,18 +35,14 @@ String phone_number = "+919220592205";
 #define serial_response true//True to see SIM900 serial response
 //----------------------------------------------------------------------------------
 
-File datalog, data_temp;
+SdFat sd;
+SdFile datalog, data_temp;
 bool SD_flag = false;
 
 #if HT_mode == 1
 #define DHTPIN 25    
 #define DHTTYPE DHT22 
 DHT dht(DHTPIN, DHTTYPE);
-#endif
-
-//BMP180
-#if enable_BMP180 == true
-BMP180 barometer;
 #endif
 
 struct weather_data{
@@ -85,8 +81,9 @@ void setup(){
   pinMode(rain_led, OUTPUT);
   pinMode(wind_led, OUTPUT);
   pinMode(upload_led, OUTPUT);
+  pinMode(53, OUTPUT);
   pinMode(rain_pin, INPUT);
-  pinMode(wind_pin, INPUT);
+  pinMode(wind_pin , INPUT);
   pinMode(GSM_module_DTR_pin, OUTPUT);
   digitalWrite(GSM_module_DTR_pin, LOW);
 
@@ -97,12 +94,18 @@ void setup(){
   Serial2.begin(9600);
   pinMode(17, INPUT);  
   digitalWrite(17, HIGH);
-  Serial3.begin(9600);
+  //Serial3.begin(9600);
   
   uint8_t i = 0;
-  SD_flag = SD.begin();
+  SD_flag = sd.begin(53);
   delay(100);
-  datalog = SD.open("id.txt", FILE_READ);
+  if(!sd.exists("id.txt")){
+    #if serial_output
+    Serial.println("No id file found!!!!!!");
+    #endif
+    while(1);
+  }
+  datalog.open("id.txt", FILE_READ);
   while(datalog.available()){
     id[i++] = datalog.read();
   }
@@ -133,16 +136,20 @@ void setup(){
   digitalWrite(upload_led, HIGH);
   delay(10000);//Wait for the SIM to log on to the network
   digitalWrite(upload_led, LOW);
-  GSM_module_wake();
-  Serial1.print("AT+CMGF=1\r"); delay(200);
+  //GSM_module_wake();
+  Serial1.print("AT+QSCLK=2\r"); delay(100);
   #if serial_response
   ShowSerialData();
   #endif
-  Serial1.print("AT+CNMI=2,2,0,0,0\r"); delay(200); 
+  Serial1.print("AT+CMGF=1\r"); delay(100);
   #if serial_response
   ShowSerialData();
   #endif
-  Serial1.print("AT+CLIP=1\r"); delay(200);
+  Serial1.print("AT+CNMI=2,2,0,0,0\r"); delay(100); 
+  #if serial_response
+  ShowSerialData();
+  #endif
+  Serial1.print("AT+CLIP=1\r"); delay(100);
   #if serial_response
   ShowSerialData();
   #endif
@@ -179,15 +186,17 @@ void loop(){
   w.pressure = 0;
 
   while(1){
-    if(check_sms()){
-      get_sms(number, body_r);
-      if(toupper(body_r[0]) == 'O' &&  toupper(body_r[1]) == 'T' &&toupper(body_r[2]) == 'A'){
-        send_sms(number, "Downloading new firmware");
+    //if(check_sms()){
+    if(timer1_counter == 3){
+      /*get_sms(number, body_r);
+      if(toupper(body_r[0]) == 'O' &&  toupper(body_r[1]) == 'T' &&toupper(body_r[2]) == 'A' && sd.begin(53)){
+        send_sms(number, "Downloading new firmware");*/
         #if serial_output
         Serial.println("Updating firmware");
         #endif
-        if(SD.exists("TEMP_OTA.HEX")) SD.remove("TEMP_OTA.HEX");
-        if(SD.exists("firmware.BIN")) SD.remove("firmware.BIN");
+        delay(500);
+        if(sd.exists("TEMP_OTA.HEX")) sd.remove("TEMP_OTA.HEX");
+        if(sd.exists("firmware.BIN")) sd.remove("firmware.BIN");
         if(download_hex()){
           #if serial_output
           Serial.println("\nNew firmware downloaded");
@@ -198,7 +207,7 @@ void loop(){
             Serial.println("Done\nRestarting and re-programming");
             #endif
             while(Serial1.available()) Serial1.read();
-            EEPROM.write(0x1FF,0xF0);
+            //EEPROM.write(0x1FF,0xF0);
             wdt_enable(WDTO_500MS);
             wdt_reset();
             delay(600);
@@ -214,7 +223,7 @@ void loop(){
           Serial.println("Download failed");
           #endif
         }
-      }
+      //}
     }
     if(four_sec){
       four_sec = false;
@@ -241,6 +250,7 @@ void loop(){
       w.temp2 = (w.temp2 * avg_counter + barometer.GetTemperature()) / (float(avg_counter) + 1.0);
       #endif
       w.solar_radiation = (w.solar_radiation * float(avg_counter) + float(analogRead(solar_radiation_pin))) / (float(avg_counter) + 1.0);
+      w.battery_voltage = (w.battery_voltage * float(avg_counter) + (float(analogRead(battery_pin)) * 10.0 / 1023.0)) / (float(avg_counter) + 1.0);
       avg_counter++;
   
       if(temp_read){//Read data
@@ -280,8 +290,6 @@ void loop(){
       if(temp_upload){//Upload data
         digitalWrite(upload_led, HIGH);
         
-        GSM_module_wake();
-        
         signal_strength = get_signal_strength();
         
         if(!SubmitHttpRequest()){
@@ -310,8 +318,6 @@ void loop(){
         Serial.println("\nWriting to SD card");
         #endif
         write_SD();
-
-        //GSM_module_sleep();
         
         digitalWrite(upload_led, LOW);
         upload_flag = false;
@@ -466,7 +472,10 @@ bool SubmitHttpRequest(){
 bool download_hex(){  
   int i;
   char ch;
-  datalog = SD.open("temp_ota.hex", FILE_WRITE);
+  if(!sd.exists("id.txt")){
+    if(!sd.begin(53)) return false;
+  }
+  datalog.open("temp_ota.hex", FILE_WRITE);
   while(Serial1.available()) Serial1.read();
   Serial1.println("AT+QIFGCNT=0\r");
   delay(100);
@@ -547,27 +556,28 @@ bool download_hex(){
     }
     if(i > 3000) break;
   }
-  datalog.seek(datalog.position() - 1);
+  datalog.seekCur(-1);
   datalog.close();
   while(Serial1.available()) Serial1.read();
   return true;
 }
 
 bool SD_copy(){
-  unsigned char buff[45], ch, n, t_ch[2];
+  unsigned char buff[37], ch, n, t_ch[2];
   uint16_t i, j, temp_checksum;
   long int checksum;
-  if(!SD.exists("TEMP_OTA.HEX")){
-    return 0;
+  if(!sd.exists("id.txt")){
+    if(!sd.begin(53)) return false;
   }
-  data_temp = SD.open("TEMP_OTA.HEX", FILE_READ);
-  datalog = SD.open("firmware.bin", O_WRITE | O_CREAT);
+  if(!sd.exists("TEMP_OTA.HEX")) return 0;
+  data_temp.open("TEMP_OTA.HEX", O_READ);
+  datalog.open("firmware.bin", O_WRITE | O_CREAT);
 
   ch = data_temp.read();
   while((ch < 97 && ch > 58) || ch < 48 || ch > 102){
     ch = data_temp.read();
   }
-  data_temp.seek(data_temp.position() - 1);
+  data_temp.seekCur(-1);
   j = 0;
   while(data_temp.available()){
     data_temp.read(buff, 9);
@@ -608,9 +618,9 @@ bool SD_copy(){
         ch = t_ch[0] * 16 + t_ch[1];
         checksum += ch;
         datalog.write(ch);
-        if(++j == 200){
+        if(++j == 500){
           j = 0;
-          datalog.flush();
+          datalog.sync();
         }
       }
     }
@@ -635,7 +645,7 @@ bool SD_copy(){
     }
     if((checksum + temp_checksum) % 0x100 != 0) return false;
   }
-  datalog.flush();
+  datalog.sync();
   datalog.close();
   data_temp.close();
   return true;
@@ -761,11 +771,11 @@ boolean get_time(){
 }
 
 boolean write_SD(){
-  if(!SD_flag){
-    if(!SD.begin()) return false;
+  if(!sd.exists("id.txt")){
+    if(!sd.begin(53)) return false;
   }
-  datalog = SD.open("datalog.txt", FILE_WRITE);
-  datalog.seek(datalog.size());
+  datalog.open("datalog.txt", FILE_WRITE);
+  datalog.seekEnd();
   datalog.print("1=<"); 
   datalog.print("'id':" + String(id) + ",");
   datalog.print("'ts':");
@@ -831,7 +841,7 @@ bool check_network(){
 
 void GSM_module_sleep(){
   while(Serial1.available()) Serial1.read();
-  Serial1.print("AT+CSCLK=1\r");
+  Serial1.print("AT+QSCLK=1\r");
   #if serial_response == true
   ShowSerialData();
   #endif
@@ -841,7 +851,7 @@ void GSM_module_wake(){
   while(Serial1.available()) Serial1.read();
   digitalWrite(GSM_module_DTR_pin, HIGH);
   delay(1000);
-  Serial1.print("AT+CSCLK=0\r");
+  Serial1.print("AT+QSCLK=0\r");
   #if serial_response == true
   ShowSerialData();
   #endif

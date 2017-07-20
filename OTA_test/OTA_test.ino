@@ -52,7 +52,7 @@ void setup(){
 
   //GSM_module_reset();
   digitalWrite(upload_led, HIGH);
-  //delay(10000);//Wait for the SIM to log on to the network
+  delay(10000);//Wait for the SIM to log on to the network
   digitalWrite(upload_led, LOW);
   Serial1.print("AT+CMGF=1\r"); delay(200);
   #if serial_response
@@ -77,24 +77,26 @@ void loop(){
     return;
   }
   delay(1000);
-  if(sd.exists("TEMP_OTA.HEX")){
+  /*if(sd.exists("TEMP_OTA.HEX")){
     sd.remove("TEMP_OTA.HEX");
     Serial.println("OTA_temp.hex removed");
-  }
+  }*/
   if(sd.exists("firmware.BIN")){
     sd.remove("firmware.BIN");
     Serial.println("firmware.bin removed");
   }
   delay(1000);
-  downloadBin();
+  //downloadBin();
   delay(1000);
   Serial.println("Converting .hex file to .bin");
-  SD_copy();
+  sd.begin(53);
+  Serial.print(SD_copy());
   Serial.println("Done, restarting");
-  EEPROM.write(0x1FF,0xF0);
+  while(1);
+  /*EEPROM.write(0x1FF,0xF0);
   wdt_enable(WDTO_500MS);
   wdt_reset();
-  delay(600);
+  delay(600);*/
 }
 
 bool downloadBin(){  
@@ -183,7 +185,7 @@ bool SD_copy(){
   if(!sd.exists("TEMP_OTA.HEX")){
     return 0;
   }
-  data_temp.open("TEMP_OTA.HEX", FILE_READ);
+  data_temp.open("TEMP_OTA.HEX", O_READ);
   data.open("firmware.bin", O_WRITE | O_CREAT);
 
   ch = data_temp.read();
@@ -233,7 +235,7 @@ bool SD_copy(){
         data.write(ch);
         if(++j == 200){
           j = 0;
-          data.flush();
+          data.sync();
         }
       }
     }
