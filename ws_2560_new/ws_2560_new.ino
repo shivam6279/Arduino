@@ -45,6 +45,12 @@ bool SD_flag = false;
 DHT dht(DHTPIN, DHTTYPE);
 #endif
 
+//BMP180
+#if enable_BMP180 == true
+BMP180 barometer;
+#endif
+
+
 struct weather_data{
   float temp1, temp2, hum, solar_radiation, latitude, longitude, battery_voltage;
   int rain, wind_speed;
