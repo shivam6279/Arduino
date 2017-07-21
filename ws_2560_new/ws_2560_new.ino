@@ -21,7 +21,7 @@
 //------------------------------------Settings-------------------------------------  
 String phone_number = "+919220592205";
 
-#define HT_mode 0// 0 for SHT21, 1 for DST, 2 for none
+#define HT_mode 1// 0 for SHT21, 1 for DST, 2 for none
        
 #define data_upload_frequency 1//Minutes -- should be a multiple of the read frequency
 #define ota_check_frequency 1//Minutes
@@ -59,11 +59,11 @@ struct weather_data{
 
 //Wind speed
 volatile int wind_speed_counter;
-boolean wind_flag = true, wind_temp;
+boolean wind_flag = false, wind_temp;
 
 //Rain guage
 volatile int rain_counter;
-boolean rain_flag = true, rain_temp;
+boolean rain_flag = false, rain_temp;
 
 //Timer interrupt
 uint8_t timer1_counter = 0;
@@ -118,7 +118,7 @@ void setup(){
   id[i] = '\0';
   datalog.close();
   
-  Wire.begin();
+  //Wire.begin();
   
   #if enable_BMP180
   barometer = BMP180();
@@ -190,13 +190,12 @@ void loop(){
   w.hum = 0.0;
   w.solar_radiation = 0;
   w.pressure = 0;
-
+  
   while(1){
-    //if(check_sms()){
-    if(timer1_counter == 3){
-      /*get_sms(number, body_r);
+    if(check_sms()){
+      get_sms(number, body_r);
       if(toupper(body_r[0]) == 'O' &&  toupper(body_r[1]) == 'T' &&toupper(body_r[2]) == 'A' && sd.begin(53)){
-        send_sms(number, "Downloading new firmware");*/
+        send_sms(number, "Downloading new firmware");
         #if serial_output
         Serial.println("Updating firmware");
         #endif
@@ -213,7 +212,7 @@ void loop(){
             Serial.println("Done\nRestarting and re-programming");
             #endif
             while(Serial1.available()) Serial1.read();
-            //EEPROM.write(0x1FF,0xF0);
+            EEPROM.write(0x1FF,0xF0);
             wdt_enable(WDTO_500MS);
             wdt_reset();
             delay(600);
@@ -229,7 +228,7 @@ void loop(){
           Serial.println("Download failed");
           #endif
         }
-      //}
+      }
     }
     if(four_sec){
       four_sec = false;
@@ -271,6 +270,10 @@ void loop(){
         
         w.rain = rain_counter;
         rain_counter = 0;
+
+        if(isnan(w.hum)) w.hum = 0;
+        if(isnan(w.temp1)) w.temp1 = 0;
+        if(isnan(w.temp2)) w.temp2 = 0;
         
         #if enable_GPS == true
         //GetGPS();
@@ -297,6 +300,9 @@ void loop(){
         digitalWrite(upload_led, HIGH);
         
         signal_strength = get_signal_strength();
+        #if serial_output
+        Serial.println("Signal strength: " + String(signal_strength));
+        #endif
         
         if(!SubmitHttpRequest()){
           number_of_fail_uploads++;
@@ -811,23 +817,27 @@ boolean write_SD(){
 }
 
 int get_signal_strength(){
-  char temp[20];
-  uint8_t i = 0;
+  char ch, temp[3];
+  int i = 0, tens;
   while(Serial1.available()) Serial1.read();
   Serial1.print("AT+CSQ\r");
-  delay(100);
-  while(Serial1.available() && i < 20) temp[i++] = Serial1.read();  
-  if(i == 20){
-    i--;
-    while(Serial1.available()) Serial1.read();
+  delay(200);
+  for(i = 0, ch = Serial1.read(); (ch < '0' || ch > '9') && i < 100; i++){
+    ch = Serial1.read();
+    delay(10);
   }
-  temp[i] = '\0';
-  #if serial_response
-  Serial.println(String(temp));
-  #endif
-  i = 10 * (temp[15] - 48);
-  i += (temp[16] - 48);
-  return i;
+  if(i == 100) return 0;
+  for(i = 0; ch >= '0' && ch <= '9' && i < 4; i++){
+    delay(1);
+    temp[i] = ch;
+    ch = Serial1.read();
+  }
+  if(i == 4) return 0;
+  i--;
+  for(tens = pow(10, i), ch = 0; i >= 0; i++, tens /= 10){
+    ch += temp[i] * tens;
+  }
+  return ch;
 }
 
 bool check_network(){
