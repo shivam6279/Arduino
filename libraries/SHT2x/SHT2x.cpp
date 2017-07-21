@@ -67,7 +67,8 @@ float SHT2xClass::GetTemperature(void)
 
 uint16_t SHT2xClass::readSensor(uint8_t command)
 {
-    uint16_t result, i = 0;
+    uint16_t result;
+    uint8_t i = 0;
 
     Wire.beginTransmission(eSHT2xAddress);	//begin
     Wire.write(command);					//send the pointer location
@@ -76,9 +77,10 @@ uint16_t SHT2xClass::readSensor(uint8_t command)
 
     Wire.requestFrom(eSHT2xAddress, 3);
     while(Wire.available() < 3){
-      if(i++ == 10000) break;
+      if(i++ == 100) break;
+      delay(5);
     }
-    if(i >= 10000) return 0;
+    if(i >= 100) return 0;
 
     //Store the result
     result = ((Wire.read()) << 8);

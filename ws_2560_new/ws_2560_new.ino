@@ -24,7 +24,6 @@ String phone_number = "+919220592205";
 #define HT_mode 1// 0 for SHT21, 1 for DST, 2 for none
        
 #define data_upload_frequency 1//Minutes -- should be a multiple of the read frequency
-#define ota_check_frequency 1//Minutes
 #define data_read_frequency 1//Minutes
 #define number_of_readings (data_upload_frequency / data_read_frequency)
 
@@ -68,12 +67,10 @@ boolean rain_flag = false, rain_temp;
 //Timer interrupt
 uint8_t timer1_counter = 0;
 volatile uint8_t GPS_wait;
-volatile boolean four_sec = false, read_flag = false, upload_flag = false, network_flag = false, ota_flag = false;
+volatile boolean four_sec = false, read_flag = false, upload_flag = false;
 
 //SIM
 float signal_strength;
-
-char admin_number[14];
 
 weather_data w;
 uint8_t reading_number = 0, number_of_fail_uploads = 0;
@@ -176,10 +173,8 @@ void setup(){
  
 void loop(){
   int i = 0, j, avg_counter = 0;
-  boolean temp_read, temp_upload, temp_network, temp_ota;
+  boolean temp_read, temp_upload, temp_network;
   char body_r[40], number[14];
-  strcpy(admin_number, "+919650484721");
-  admin_number[13] = '\0';
   
   rain_counter = 0;
   wind_speed_counter = 0;
@@ -234,8 +229,6 @@ void loop(){
       four_sec = false;
       temp_read = read_flag;
       temp_upload = upload_flag;
-      temp_network = network_flag;
-      temp_ota = ota_flag;
   
       #if serial_output
       if(timer1_counter) Serial.println(((data_upload_frequency * 15) - timer1_counter + 1) * 4);
@@ -257,6 +250,11 @@ void loop(){
       w.solar_radiation = (w.solar_radiation * float(avg_counter) + float(analogRead(solar_radiation_pin))) / (float(avg_counter) + 1.0);
       w.battery_voltage = (w.battery_voltage * float(avg_counter) + (float(analogRead(battery_pin)) * 10.0 / 1023.0)) / (float(avg_counter) + 1.0);
       avg_counter++;
+
+      if(isnan(w.hum)) w.hum = 0;
+      if(isnan(w.temp1)) w.temp1 = 0;
+      if(isnan(w.temp2)) w.temp2 = 0;
+      if(isnan(w.pressure)) w.pressure = 0;
   
       if(temp_read){//Read data
         read_flag = false;
@@ -270,10 +268,6 @@ void loop(){
         
         w.rain = rain_counter;
         rain_counter = 0;
-
-        if(isnan(w.hum)) w.hum = 0;
-        if(isnan(w.temp1)) w.temp1 = 0;
-        if(isnan(w.temp2)) w.temp2 = 0;
         
         #if enable_GPS == true
         //GetGPS();
@@ -322,10 +316,10 @@ void loop(){
           #endif
         }
         delay(2000);
-        #if serial_output
+        /*#if serial_output
         Serial.println("\nGetting Time");
         #endif
-        //get_time();
+        get_time();*/
         #if serial_output
         Serial.println("\nWriting to SD card");
         #endif
@@ -351,8 +345,6 @@ ISR(TIMER1_COMPA_vect){ //Interrupt gets called every 4 seconds
     upload_flag = true;
   }
   if(timer1_counter % (data_read_frequency * 15) == 0) read_flag = true;
-  if(timer1_counter == (data_upload_frequency - 1) * 15) network_flag = true;
-  if(timer1_counter == (ota_check_frequency - 1) * 15) ota_flag = true;
   four_sec = true;
 
   seconds += 4;
@@ -834,7 +826,7 @@ int get_signal_strength(){
   }
   if(i == 4) return 0;
   i--;
-  for(tens = pow(10, i), ch = 0; i >= 0; i++, tens /= 10){
+  for(tens = 1, ch = 0; i >= 0; i--, tens *= 10){
     ch += temp[i] * tens;
   }
   return ch;
