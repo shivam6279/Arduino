@@ -1,3 +1,5 @@
+#define time_period 200 // microseconds
+
 void setup() {
   Serial.begin(9600);
   pinMode(2, OUTPUT);
@@ -8,8 +10,14 @@ void setup() {
 void loop() {
   digitalWrite(2, HIGH);
   digitalWrite(3, LOW);
-  delayMicroseconds(200);
+  delayMicroseconds(time_period);
+  digitalWrite(2, LOW);
+  digitalWrite(3, LOW);
+  delayMicroseconds(time_period);
   digitalWrite(2, LOW);
   digitalWrite(3, HIGH);
-  delayMicroseconds(200);
+  delayMicroseconds(time_period);
+  digitalWrite(2, LOW);
+  digitalWrite(3, LOW);
+  delayMicroseconds(time_period);
 }
