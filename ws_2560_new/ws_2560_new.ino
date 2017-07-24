@@ -70,7 +70,7 @@ volatile uint8_t GPS_wait;
 volatile boolean four_sec = false, read_flag = false, upload_flag = false;
 
 //SIM
-float signal_strength;
+int signal_strength;
 
 weather_data w;
 uint8_t reading_number = 0, number_of_fail_uploads = 0;
@@ -102,18 +102,19 @@ void setup(){
   uint8_t i = 0;
   SD_flag = sd.begin(53);
   delay(100);
-  if(!sd.exists("id.txt")){
+  /*if(!sd.exists("id.txt")){
     #if serial_output
     Serial.println("No id file found!!!!!!");
     #endif
     while(1);
-  }
-  datalog.open("id.txt", FILE_READ);
+  }*/
+  strcpy(id, "209");
+  /*datalog.open("id.txt", FILE_READ);
   while(datalog.available()){
     id[i++] = datalog.read();
   }
   id[i] = '\0';
-  datalog.close();
+  datalog.close();*/
   
   //Wire.begin();
   
@@ -292,12 +293,14 @@ void loop(){
       }
       if(temp_upload){//Upload data
         digitalWrite(upload_led, HIGH);
-        
+
+        GSM_module_wake();
         signal_strength = get_signal_strength();
         #if serial_output
         Serial.println("Signal strength: " + String(signal_strength));
         #endif
         
+        GSM_module_wake();
         if(!SubmitHttpRequest()){
           number_of_fail_uploads++;
           reading_number = 0;
@@ -412,7 +415,7 @@ bool SubmitHttpRequest(){
   ShowSerialData();
   #endif
   while(Serial1.available()) Serial1.read();
-  str_len = 66 + String(id).length()+4 + String(w.temp1).length()+4 + String(w.temp2).length()+4 + String(w.hum).length()+3 + String(w.wind_speed).length()+3 + String(w.rain).length()+3 + String(w.pressure).length()+3 + String(w.solar_radiation).length()+3 + String(w.latitude).length()+4 + String(w.longitude).length()+4 + String(signal_strength).length()+4;
+  str_len = 66 + String(id).length()+4 + String(w.temp1).length()+4 + String(w.temp2).length()+4 + String(w.hum).length()+3 + String(w.wind_speed).length()+3 + String(w.rain).length()+3 + String(w.pressure).length()+3 + String(w.solar_radiation).length()+3 + String(w.latitude).length()+4 + String(w.longitude).length()+4 + String(signal_strength).length()+3;
   t[0] = ((str_len / 100) % 10) + 48;
   t[1] = ((str_len / 10) % 10) + 48;
   t[2] = (str_len % 10) + 48;
@@ -439,7 +442,7 @@ bool SubmitHttpRequest(){
   Serial1.print("s=" + String(w.solar_radiation) + "&");
   Serial1.print("lt=" + String(w.latitude) + "&");
   Serial1.print("ln=" + String(w.longitude) + "&");
-  Serial1.print("sg=" + String(signal_strength) + ">\r");
+  Serial1.print("sg=" + String(signal_strength) + '\r');
   delay(300);
   
   #if serial_response
@@ -810,26 +813,28 @@ boolean write_SD(){
 
 int get_signal_strength(){
   char ch, temp[3];
-  int i = 0, tens;
+  int i = 0, tens, ret;
   while(Serial1.available()) Serial1.read();
   Serial1.print("AT+CSQ\r");
   delay(200);
-  for(i = 0, ch = Serial1.read(); (ch < '0' || ch > '9') && i < 100; i++){
+  do{
     ch = Serial1.read();
-    delay(10);
-  }
-  if(i == 100) return 0;
-  for(i = 0; ch >= '0' && ch <= '9' && i < 4; i++){
+    delay(1);
+    i++;
+  }while((ch < 48 || ch > 57) && i < 1000);
+  if(i == 1000) return 0;
+  for(i = 0; ch >= 48 && ch <= 57 && i < 4; i++){
     delay(1);
     temp[i] = ch;
     ch = Serial1.read();
   }
   if(i == 4) return 0;
   i--;
-  for(tens = 1, ch = 0; i >= 0; i--, tens *= 10){
-    ch += temp[i] * tens;
+  for(tens = 1, ret = 0; i >= 0; i--, tens *= 10){
+    ret += (temp[i] - 48) * tens;
   }
-  return ch;
+  while(Serial1.available()) Serial1.read();
+  return ret;
 }
 
 bool check_network(){
@@ -856,15 +861,11 @@ void GSM_module_sleep(){
   delay(1000);
 }
 void GSM_module_wake(){
+  Serial1.print("AT\r");
+  delay(100);
+  Serial1.print("AT\r");
+  delay(100);
   while(Serial1.available()) Serial1.read();
-  digitalWrite(GSM_module_DTR_pin, HIGH);
-  delay(1000);
-  Serial1.print("AT+QSCLK=0\r");
-  #if serial_response == true
-  ShowSerialData();
-  #endif
-  delay(1000);
-  digitalWrite(GSM_module_DTR_pin, LOW);
 }
 
 long int pow_10(int a){
