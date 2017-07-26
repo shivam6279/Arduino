@@ -102,19 +102,20 @@ void setup(){
   uint8_t i = 0;
   SD_flag = sd.begin(53);
   delay(100);
-  /*if(!sd.exists("id.txt")){
+  if(!sd.exists("id.txt")){
     #if serial_output
     Serial.println("No id file found!!!!!!");
     #endif
     while(1);
-  }*/
-  strcpy(id, "209");
-  /*datalog.open("id.txt", FILE_READ);
+  }
+  datalog.open("id.txt", FILE_READ);
   while(datalog.available()){
     id[i++] = datalog.read();
   }
   id[i] = '\0';
-  datalog.close();*/
+  datalog.close();
+
+  //strcpy(id, "209");
   
   //Wire.begin();
   
