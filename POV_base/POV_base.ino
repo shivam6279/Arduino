@@ -27,13 +27,13 @@ void setup() {
 void loop() {
   int i;
   long int t;
-  /*digitalWrite(9, HIGH);
+  digitalWrite(9, HIGH);
   delayMicroseconds(100);
   digitalWrite(9, LOW);
   digitalWrite(10, HIGH);
   delayMicroseconds(100);
-  digitalWrite(10, LOW);*/
-  analogWrite(10, 0);
+  digitalWrite(10, LOW);
+  /*analogWrite(10, 0);
   for(i = 0; i < 18; i++){
     t = micros();
     analogWrite(9, sin_table[i * 5]);
@@ -56,7 +56,8 @@ void loop() {
     if((i * 5) < 90) analogWrite(10, sin_table[i * 5]);
     else analogWrite(10, sin_table[89]);
     while((micros() - t) < 320);
-  }
+  }*/
+  
   
 }
 

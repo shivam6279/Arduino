@@ -84,7 +84,7 @@ void setup(){
   pinMode(rain_led, OUTPUT);
   pinMode(wind_led, OUTPUT);
   pinMode(upload_led, OUTPUT);
-  pinMode(53, OUTPUT);
+  pinMode(53, OUTPUT);//SD card's CS pin
   pinMode(rain_pin, INPUT);
   pinMode(wind_pin , INPUT);
   pinMode(GSM_module_DTR_pin, OUTPUT);
@@ -189,7 +189,7 @@ void loop(){
   w.pressure = 0;
   
   while(1){
-    if(check_sms()){
+    if(check_sms()){//Check sms for OTA
       get_sms(number, body_r);
       if(toupper(body_r[0]) == 'O' &&  toupper(body_r[1]) == 'T' &&toupper(body_r[2]) == 'A' && sd.begin(53)){
         send_sms(number, "Downloading new firmware");
@@ -362,7 +362,7 @@ ISR(TIMER1_COMPA_vect){ //Interrupt gets called every 4 seconds
   } } } }
 }
 
-ISR(TIMER2_COMPA_vect){ 
+ISR(TIMER2_COMPA_vect){
   rain_temp = digitalRead(rain_pin);
   if(rain_temp == 1 && rain_flag == true){
     digitalWrite(rain_led, HIGH);
@@ -592,7 +592,7 @@ bool SD_copy(){
     for(i = 1, checksum = 0; i < 9; i++){
       t_ch[0] = buff[i++];
       t_ch[1] = buff[i];
-      if((t_ch[0] >= 48 && t_ch[0] <= 57) || (t_ch[0] >= 97 && t_ch[0] <= 102) || (t_ch[0] >= 65 && t_ch[0] <= 70)){
+      if((t_ch[0] >= 48 && t_ch[0] <= 57) || (t_ch[0] >= 97 && t_ch[0] <= 102) || (t_ch[0] >= 65 && t_ch[0] <= 70)){// Checks if the character read is a hexadecmal character
         if((t_ch[0] >= 48 && t_ch[0] <= 57)) t_ch[0] -= 48;
         else{
           if(t_ch[0] >= 97 && t_ch[0] <= 102) t_ch[0] -= 87;
