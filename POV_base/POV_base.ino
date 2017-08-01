@@ -28,10 +28,10 @@ void loop() {
   int i;
   long int t;
   digitalWrite(9, HIGH);
-  delayMicroseconds(100);
+  delayMicroseconds(150);
   digitalWrite(9, LOW);
   digitalWrite(10, HIGH);
-  delayMicroseconds(100);
+  delayMicroseconds(150);
   digitalWrite(10, LOW);
   /*analogWrite(10, 0);
   for(i = 0; i < 18; i++){
