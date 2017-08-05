@@ -8,13 +8,16 @@
 #include <SPI.h>
 #include <SdFat.h>
 #include <avr/wdt.h>
+#include <DallasTemperature.h>
+#include <OneWire.h>
 
 #define rain_led 35
 #define wind_led 41
 #define upload_led 12
 #define rain_pin 4
-#define wind_pin A1
+#define wind_pin A6
 #define GSM_module_DTR_pin 24
+#define metal_sensor_pin 24
 #define solar_radiation_pin A3
 #define battery_pin A15
 
@@ -80,6 +83,9 @@ uint16_t year = 0;
 boolean startup = true;
 char id[4];
 
+OneWire oneWire(metal_sensor_pin);
+DallasTemperature sensors(&oneWire);
+
 void setup(){
   pinMode(rain_led, OUTPUT);
   pinMode(wind_led, OUTPUT);
@@ -118,6 +124,8 @@ void setup(){
   //strcpy(id, "209");
   
   //Wire.begin();
+  dht.begin();
+  sensors.begin();
   
   #if enable_BMP180
   barometer = BMP180();
@@ -251,6 +259,10 @@ void loop(){
       #endif
       w.solar_radiation = (w.solar_radiation * float(avg_counter) + float(analogRead(solar_radiation_pin))) / (float(avg_counter) + 1.0);
       w.battery_voltage = (w.battery_voltage * float(avg_counter) + (float(analogRead(battery_pin)) * 10.0 / 1023.0)) / (float(avg_counter) + 1.0);
+      
+      sensors.requestTemperatures();
+      w.temp2 = (w.temp2 * avg_counter + sensors.getTempCByIndex(0);) / (float(avg_counter) + 1.0);
+      
       avg_counter++;
 
       if(isnan(w.hum)) w.hum = 0;
