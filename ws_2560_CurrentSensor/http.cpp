@@ -4,10 +4,10 @@
 #include "GSM.h"
 #include "settings.h"
 
-bool SubmitHttpRequest(weatherData w[], int n, real_time &wt) {
+bool SubmitHttpRequest(weatherData w[], uint8_t n, real_time &wt) {
   uint8_t read_length;
-  uint16_t i, timeout;
-  int str_len;
+  uint16_t timeout;
+  int str_len, i;
   char t[4];
   
   #if SERIAL_OUTPUT
@@ -73,19 +73,16 @@ bool SubmitHttpRequest(weatherData w[], int n, real_time &wt) {
     delay(100);
     ShowSerialData();  
     for(timeout = 0; Serial1.available() < 3 && timeout < 200; timeout++) delay(100);
+    if(timeout > 200) return 0;
+    
     ShowSerialData();  
     Serial1.println("AT+QHTTPREAD=30\r");
     delay(400);
     read_length = Serial1.available();
-
-    #if SERIAL_RESPONSE
-      ShowSerialData();
-    #else
-      while(Serial1.available()) Serial1.read();
-    #endif
+    if(i != 0) ShowSerialData();
   }
   //Read Time
-  if(read_length > 70 && timeout < 200) {
+  if(read_length > 70) {
     ReadTime(wt);
     return true;
   } else {

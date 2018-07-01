@@ -30,7 +30,7 @@ void InitGSM() {
     #endif
   }
   #if SERIAL_OUTPUT
-  Serial.println("STarting the GSM Module");
+  Serial.println("Starting the GSM Module");
   #endif
   digitalWrite(GSM_PWRKEY_PIN, HIGH);
   delay(2000);
@@ -152,7 +152,7 @@ void GSMModuleRestart() {
   bool flag = 0;
 
   #if SERIAL_OUTPUT
-  Serial.println("Retarting GSM Module");
+  Serial.println("Restarting GSM Module");
   #endif
 
   while(Serial1.available()) Serial1.read();
@@ -211,6 +211,7 @@ void GSMModuleWake() {
 
 
 void Talk() {
+  GSMModuleRestart();
   Serial.println("Talk");
   while(1){
     if(Serial1.available()){ Serial.write(Serial1.read()); }
