@@ -4,12 +4,13 @@
 #include <SdFat.h>
 #include "weatherData.h"
 
-const SdFat sd;
-const SdFile datalog, data_temp;
+extern SdFat sd;
+extern SdFile datalog, data_temp;
 
+extern void CheckOTA();
 extern bool DownloadHex();
 extern bool SDHexToBin();
-extern bool WriteSD(weatherData, wtime);
+extern bool WriteSD(weatherData);
 extern void CharToInt(unsigned char&);
 
 #endif

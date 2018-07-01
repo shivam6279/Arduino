@@ -3,9 +3,9 @@
 
 #include "weatherData.h"
 
-bool SubmitHttpRequest(weatherData, wtime&);
-bool GetTime(wtime&);
-bool ReadTime(wtime&);
-void UploadSMS();
+extern bool SubmitHttpRequest(weatherData[], int, real_time&);
+extern bool GetTime(real_time&);
+extern bool ReadTime(real_time&);
+extern void UploadSMS();
 
 #endif

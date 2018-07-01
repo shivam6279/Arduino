@@ -1,16 +1,16 @@
 #ifndef GSM_h
 #define GSM_h
 
-void InitGSM();
-int GetSignalStrength();
-bool CheckSMS();
-void GetSMS(char*, char*);
-void SendSMS(char*, char*);
-bool CheckNetwork();
-void GSMModuleRestart();
-void GSMModuleSleep();
-void GSMModuleWake();
-void Talk();
-void ShowSerialData();
+extern void InitGSM();
+extern int GetSignalStrength();
+extern bool CheckSMS();
+extern void GetSMS(char*, char*);
+extern void SendSMS(char*, char*);
+extern bool CheckNetwork();
+extern void GSMModuleRestart();
+extern void GSMModuleSleep();
+extern void GSMModuleWake();
+extern void Talk();
+extern void ShowSerialData();
 
 #endif

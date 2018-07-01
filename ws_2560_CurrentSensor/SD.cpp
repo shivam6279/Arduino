@@ -2,11 +2,75 @@
 #include <SdFat.h>
 #include "GSM.h"
 #include "settings.h"
+#include <avr/wdt.h>
+#include <EEPROM.h>
+
+SdFat sd;
+SdFile datalog;
+
+void CheckOTA() {
+  char body_r[40], number[14];
+  if(CheckSMS()) { //Check sms for OTA
+    GetSMS(number, body_r);
+    while(Serial1.available()) Serial1.read();
+    if(toupper(body_r[0]) == 'O' &&  toupper(body_r[1]) == 'T' &&toupper(body_r[2]) == 'A' && sd.begin(53)) {
+      SendSMS(number, "Downloading new firmware");
+      #if SERIAL_OUTPUT
+      Serial.println("Updating firmware");
+      #endif
+      delay(500);
+      sd.chdir();
+      delay(100);
+      if(!sd.exists("OtaTemp")) {
+        if(!sd.mkdir("OtaTemp")) {
+          SendSMS(number, "No SD card detected");
+          return false;
+        }
+      }
+
+      if(sd.exists("OtaTemp/TEMP_OTA.HEX")) sd.remove("OtaTemp/TEMP_OTA.HEX");
+      if(sd.exists("firmware.BIN")) sd.remove("firmware.BIN");
+      delay(500);
+      if(DownloadHex()) {
+        #if SERIAL_OUTPUT
+        Serial.println("\nNew firmware downloaded");
+        Serial.println("Converting .hex file to .bin");
+        #endif
+        if(SDHexToBin()) {
+          while(Serial1.available()) Serial1.read();
+          #if SERIAL_OUTPUT
+          Serial.println("Done\nRestarting and reprogramming");
+          #endif
+          SendSMS(number, "Download succesful, Restarting and reprogramming");
+          EEPROM.write(0x1FF,0xF0);
+          wdt_enable(WDTO_500MS);
+          wdt_reset();
+          delay(600);
+        } else {
+          #if SERIAL_OUTPUT
+          Serial.println("SD card copy error- hex file checksum failed");
+          #endif
+          SendSMS(number, "OTA failed - No SD card detected");
+          return false;
+        }
+      } else {
+        #if SERIAL_OUTPUT
+        Serial.println("Download failed");
+        #endif
+        SendSMS(number, "Firmware download failed");
+        return false;
+      }
+    }
+  }
+}
 
 bool DownloadHex() {
   int i, j;
   unsigned long t;
   char ch;
+
+  SdFile datalog;
+
   sd.chdir();
   if(!sd.exists("id.txt")) {
     if(!sd.begin(53)) return false;
@@ -16,42 +80,26 @@ bool DownloadHex() {
   }
 
   datalog.open("OtaTemp/temp_ota.hex",  FILE_WRITE);
+
   while(Serial1.available()) Serial1.read();
   Serial1.println("AT+QIFGCNT=0\r");
   delay(100);
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #endif
   Serial1.println("AT+QICSGP=1,\"CMNET\"\r");
   delay(100);
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #endif
   Serial1.println("AT+QIREGAPP\r");
   delay(100);
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #endif
   Serial1.println("AT+QIACT\r");
   delay(2000);
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #endif
   Serial1.print("AT+QHTTPURL=26,30\r");
   delay(1000);
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #else
-  while(Serial1.available()) Serial1.read();
-  #endif  
   Serial1.print("http://www.yobi.tech/ota/4\r");
   delay(100);
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #else
-  while(Serial1.available()) Serial1.read();
-  #endif  
-  while(Serial1.available()) Serial1.read();
   Serial1.println("AT+QHTTPGET=30\r");
   delay(700);
   //--------Read httpget response--------
@@ -60,8 +108,8 @@ bool DownloadHex() {
     if(Serial1.available()) {
       ch = Serial1.read();
       #if SERIAL_RESPONSE
-	  Serial.print(ch);
-	  #endif
+  	  Serial.print(ch);
+  	  #endif
     }
     delay(1);
     j++;
@@ -72,19 +120,15 @@ bool DownloadHex() {
     if(Serial1.available()) {
       ch = Serial1.read();
       #if SERIAL_RESPONSE
-	  Serial.print(ch);
-	  #endif
+  	  Serial.print(ch);
+  	  #endif
     }
     delay(1);
     j++;
   }while(!isAlpha(ch) && j < 3000);
   if(j >= 3000) return false;
   delay(100);
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #else
-  while(Serial1.available()) Serial1.read();
-  #endif  
   if(ch != 'O') return false;
   //--If the response is not 'OK' - return--
 
@@ -102,13 +146,12 @@ bool DownloadHex() {
   t = millis();
   while(ch != ':' && (millis() - t) < 3000) ch = Serial1.read();
   if((millis() - t) > 3000) return false;
-  //datalog.write(ch);
   //--------------------------------------
 
   i = 0;
   j = 1;
   t = millis();
-  while(1){
+  while(1) {
     while(Serial1.available()){
       ch = Serial1.read();
       if(ch == 'O') break;
@@ -136,6 +179,9 @@ bool SDHexToBin() {
   uint16_t i, j, temp_checksum;
   long int checksum;
   bool flag = false;
+
+  SdFile datalog, data_temp;
+
   sd.chdir();
   if(!sd.exists("id.txt")) {
     if(!sd.begin(53)) return false;
@@ -212,7 +258,9 @@ bool SDHexToBin() {
   return flag;
 }
 
-bool WriteSD(weatherData w, wtime t) {
+bool WriteSD(weatherData w) {
+  SdFile datalog;
+
   sd.chdir();
   if(!sd.exists("id.txt")) {
     if(!sd.begin(53)) return false;
@@ -224,19 +272,27 @@ bool WriteSD(weatherData w, wtime t) {
   datalog.open("Datalog/datalog.txt", FILE_WRITE);
   datalog.seekEnd();
   datalog.print('<'); 
-  datalog.print("'id':" + String(w.id) + ",");
+  datalog.print("'id':" + String(ws_id) + ",");
   datalog.print("'ts':");
-  datalog.write((t.day / 10) % 10 + '0'); datalog.write((t.day % 10) + '0');
+  datalog.write((w.t.day / 10) % 10 + '0'); 
+  datalog.write((w.t.day % 10) + '0');
   datalog.write('/');
-  datalog.write((t.month / 10) % 10 + '0'); datalog.write((t.month % 10) + '0');
+  datalog.write((w.t.month / 10) % 10 + '0'); 
+  datalog.write((w.t.month % 10) + '0');
   datalog.write('/');
-  datalog.write((t.year / 1000) % 10 + '0'); datalog.write((t.year / 100) % 10 + '0'); datalog.write((t.year / 10) % 10 + '0'); datalog.write((t.year % 10) + '0');
+  datalog.write((w.t.year / 1000) % 10 + '0'); 
+  datalog.write((w.t.year / 100) % 10 + '0'); 
+  datalog.write((w.t.year / 10) % 10 + '0'); 
+  datalog.write((w.t.year % 10) + '0');
   datalog.print(" ");
-  datalog.write((t.hours / 10) % 10 + '0'); datalog.write((t.hours % 10) + '0');
+  datalog.write((w.t.hours / 10) % 10 + '0'); 
+  datalog.write((w.t.hours % 10) + '0');
   datalog.write(':');
-  datalog.write((t.minutes / 10) % 10 + '0'); datalog.write((t.minutes % 10) + '0');
+  datalog.write((w.t.minutes / 10) % 10 + '0'); 
+  datalog.write((w.t.minutes % 10) + '0');
   datalog.write(':');
-  datalog.write((t.seconds / 10) % 10 + '0'); datalog.write((t.seconds % 10) + '0');
+  datalog.write((w.t.seconds / 10) % 10 + '0'); 
+  datalog.write((w.t.seconds % 10) + '0');
   datalog.print(",'t1':" + String(w.temp1) + ",");
   datalog.print("'t2':" + String(w.temp2) + ",");
   datalog.print("'h':" + String(w.hum) + ",");

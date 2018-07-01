@@ -4,9 +4,9 @@
 #include "GSM.h"
 #include "settings.h"
 
-bool SubmitHttpRequest(weatherData w, wtime &wt) {
-  uint8_t j;
-  uint16_t i;
+bool SubmitHttpRequest(weatherData w[], int n, real_time &wt) {
+  uint8_t read_length;
+  uint16_t i, timeout;
   int str_len;
   char t[4];
   
@@ -16,108 +16,84 @@ bool SubmitHttpRequest(weatherData w, wtime &wt) {
   while(Serial1.available()) Serial1.read();
   Serial1.println("AT+QIFGCNT=0\r");
   delay(100);
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #endif
   Serial1.println("AT+QICSGP=1,\"CMNET\"\r");
   delay(100);
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #endif
   Serial1.println("AT+QIREGAPP\r");
   delay(100);
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #endif
   Serial1.println("AT+QIACT\r");
   delay(2000);
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #endif
   while(Serial1.available()) Serial1.read();
 
-  //String length of HTTP request
-  str_len = 66; // URL string length
-  str_len += String(w.id).length() + 4;
-  str_len += String(w.temp1).length() + 4;
-  str_len += String(w.temp2).length() + 4;
-  str_len += String(w.hum).length() + 3;
-  str_len += String(w.wind_speed).length() + 3;
-  str_len += String(w.rain).length() + 3;
-  str_len += String(w.pressure).length() + 3;
-  str_len += String(w.amps).length() + 3;
-  str_len += String(w.voltage).length() + 3;
-  str_len += String(w.battery_voltage).length() + 4;
-  str_len += String(w.signal_strength).length() + 3;
-
-  t[0] = ((str_len / 100) % 10) + 48;
-  t[1] = ((str_len / 10) % 10) + 48;
-  t[2] = (str_len % 10) + 48;
-  t[3] = '\0';
-  Serial1.print("AT+QHTTPURL=");
-  Serial1.print(t);
-  Serial1.print(",30\r");
-  delay(1000);
-  #if SERIAL_RESPONSE
-  ShowSerialData();
-  #else
-  while(Serial1.available()) Serial1.read();
-  #endif    
+  for(i = n - 1; i >= 0; i--) {
+    //String length of HTTP request
+    str_len = URL.length(); // URL string length
+    str_len += String(ws_id).length() + 4;
+    str_len += String(w[i].temp1).length() + 4;
+    str_len += String(w[i].temp2).length() + 4;
+    str_len += String(w[i].hum).length() + 3;
+    str_len += String(w[i].wind_speed).length() + 3;
+    str_len += String(w[i].rain).length() + 3;
+    str_len += String(w[i].pressure).length() + 3;
+    str_len += String(w[i].amps).length() + 3;
+    str_len += String(w[i].panel_voltage).length() + 3;
+    str_len += String(w[i].battery_voltage).length() + 4;
+    str_len += String(w[i].signal_strength).length() + 3;
   
-  Serial1.print("http://enigmatic-caverns-27645.herokuapp.com/maytheforcebewithyou?");   
-  //Serial1.print(String(row_number + 1) + "=<"); 
-  Serial1.print("id=" + String(w.id) + "&");
-  Serial1.print("t1=" + String(w.temp1) + "&");
-  Serial1.print("t2=" + String(w.temp2) + "&");
-  Serial1.print("h=" + String(w.hum) + "&");
-  Serial1.print("w=" + String(w.wind_speed) + "&");
-  Serial1.print("r=" + String(w.rain) + "&");
-  Serial1.print("p=" + String(w.pressure) + "&");
-  Serial1.print("s=" + String(w.amps) + "&");
-  Serial1.print("v=" + String(w.voltage) + "&");
-  Serial1.print("bv=" + String(w.battery_voltage) + "&");
-  Serial1.print("sg=" + String(w.signal_strength) + '\r');
-  delay(300);
-  
-  #if SERIAL_RESPONSE
-  ShowSerialData();
-  #else
-  while(Serial1.available()) Serial1.read();
-  #endif   
-  Serial1.println("AT+QHTTPGET=30\r");
-  delay(100);
-  #if SERIAL_RESPONSE
-  ShowSerialData();
-  #else
-  while(Serial1.available()) Serial1.read();
-  #endif   
-  for(i = 0; Serial1.available() < 3 && i < 200; i++) delay(100);
-  //delay(1000);
-  #if SERIAL_RESPONSE
-  ShowSerialData();
-  #else
-  while(Serial1.available()) Serial1.read();
-  #endif   
-  Serial1.println("AT+QHTTPREAD=30\r");
-  delay(400);
-  j = Serial1.available();
+    t[0] = ((str_len / 100) % 10) + 48;
+    t[1] = ((str_len / 10) % 10) + 48;
+    t[2] = (str_len % 10) + 48;
+    t[3] = '\0';
+    Serial1.print("AT+QHTTPURL=");
+    Serial1.print(t);
+    Serial1.print(",30\r");
+    delay(1000);
+    ShowSerialData();   
+    
+    Serial1.print(URL);   
+    //Serial1.print(String(row_number + 1) + "=<"); 
+    Serial1.print("id=" + String(ws_id) + "&");
+    Serial1.print("t1=" + String(w[i].temp1) + "&");
+    Serial1.print("t2=" + String(w[i].temp2) + "&");
+    Serial1.print("h=" + String(w[i].hum) + "&");
+    Serial1.print("w=" + String(w[i].wind_speed) + "&");
+    Serial1.print("r=" + String(w[i].rain) + "&");
+    Serial1.print("p=" + String(w[i].pressure) + "&");
+    Serial1.print("s=" + String(w[i].amps) + "&");
+    Serial1.print("v=" + String(w[i].panel_voltage) + "&");
+    Serial1.print("bv=" + String(w[i].battery_voltage) + "&");
+    Serial1.print("sg=" + String(w[i].signal_strength) + '\r');
+    delay(300);
+    
+    ShowSerialData();  
+    Serial1.println("AT+QHTTPGET=30\r");
+    delay(100);
+    ShowSerialData();  
+    for(timeout = 0; Serial1.available() < 3 && timeout < 200; timeout++) delay(100);
+    ShowSerialData();  
+    Serial1.println("AT+QHTTPREAD=30\r");
+    delay(400);
+    read_length = Serial1.available();
 
-  //Read Time
-  if(j > 70 && i < 200) {
-  	ReadTime(wt);
-  	return true;
+    #if SERIAL_RESPONSE
+      ShowSerialData();
+    #else
+      while(Serial1.available()) Serial1.read();
+    #endif
   }
-  else {
-  	#if SERIAL_RESPONSE
-  	ShowSerialData();
-  	#else
-  	while(Serial1.available()) Serial1.read();
-  	#endif
-  	return false;
+  //Read Time
+  if(read_length > 70 && timeout < 200) {
+    ReadTime(wt);
+    return true;
+  } else {
+    return false;
   }
 }
 
-bool ReadTime(wtime &wt){
+bool ReadTime(real_time &wt){
   int i, t;
   char ch, temp_time[8];
   do {
@@ -214,7 +190,7 @@ bool ReadTime(wtime &wt){
   return true;
 }
 
-bool GetTime(wtime &w) {
+bool GetTime(real_time &w) {
   uint8_t i;
   while(Serial1.available()) Serial1.read();
   Serial1.print("AT+QHTTPURL=24,30\r");
@@ -265,7 +241,7 @@ void UploadSMS(weatherData w, String phone_number) {
   Serial1.print("AT+CMGS=\"" + phone_number + "\"\n");
   delay(100);
   Serial1.print("HK9D7 ");
-  Serial1.print("'id':" + String(w.id) + ",");
+  Serial1.print("'id':" + String(ws_id) + ",");
   Serial1.print("'t1':" + String(w.temp1) + ",");
   Serial1.print("'t2':" + String(w.temp2) + ",");
   Serial1.print("'h':" + String(w.hum) + ",");
@@ -281,7 +257,5 @@ void UploadSMS(weatherData w, String phone_number) {
   Serial1.write('\n');
   delay(100);
   Serial1.write('\n');
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #endif
 }

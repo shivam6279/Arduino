@@ -6,6 +6,9 @@ void InitGSM() {
   while(Serial1.available()) Serial1.read();
   Serial1.print("AT\r"); 
   delay(100);
+  while(Serial1.available()) Serial1.read();
+  Serial1.print("AT\r"); 
+  delay(100);
   while(Serial1.available()) {
     if(Serial1.read() == 'O') {
       flag = 1;
@@ -25,11 +28,10 @@ void InitGSM() {
     #if SERIAL_OUTPUT
     Serial.println("Turning on");
     #endif
-  } else { 
-    #if SERIAL_OUTPUT
-    Serial.println("GSM Module off, Turning on");
-    #endif
   }
+  #if SERIAL_OUTPUT
+  Serial.println("STarting the GSM Module");
+  #endif
   digitalWrite(GSM_PWRKEY_PIN, HIGH);
   delay(2000);
   digitalWrite(GSM_PWRKEY_PIN, LOW);
@@ -38,24 +40,16 @@ void InitGSM() {
   
   Serial1.print("AT+QSCLK=2\r"); 
   delay(100);
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #endif
   Serial1.print("AT+CMGF=1\r"); 
   delay(100);
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #endif
   Serial1.print("AT+CNMI=2,2,0,0,0\r"); 
   delay(100); 
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #endif
   Serial1.print("AT+CLIP=1\r"); 
   delay(100);
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #endif
   delay(1000); 
   GSMModuleSleep();
 }
@@ -66,7 +60,7 @@ int GetSignalStrength() {
   while(Serial1.available()) Serial1.read();
   Serial1.print("AT+CSQ\r");
   delay(200);
-  do{
+  do {
     ch = Serial1.read();
     delay(1);
     i++;
@@ -149,17 +143,53 @@ bool CheckNetwork() {
   Serial1.print("AT+COPS?\r");
   delay(100);
   i = Serial1.available();
-  #if SERIAL_RESPONSE
   ShowSerialData();
-  #else
-  while(Serial1.available()) Serial1.read();
-  #endif
   if(i < 30) return 0;
   else return 1;
 }
 
-void GSMModuleOn() {
+void GSMModuleRestart() {
+  bool flag = 0;
 
+  #if SERIAL_OUTPUT
+  Serial.println("Retarting GSM Module");
+  #endif
+
+  while(Serial1.available()) Serial1.read();
+  Serial1.print("AT\r"); 
+  delay(100);
+  while(Serial1.available()) Serial1.read();
+  Serial1.print("AT\r"); 
+  delay(100);
+
+  while(Serial1.available()) {
+    if(Serial1.read() == 'O') {
+      flag = 1;
+      break;
+    }
+  }
+  while(Serial1.available()) Serial1.read();
+
+  if(flag == 1) {
+    #if SERIAL_OUTPUT
+    Serial.println("GSM Module on, turning off");
+    #endif
+    Serial1.print("AT+QPOWD=1\r"); 
+    delay(4000);
+    #if SERIAL_RESPONSE
+    ShowSerialData();
+    #endif
+    #if SERIAL_OUTPUT
+    Serial.println("Turning on");
+    #endif
+  } 
+  #if SERIAL_OUTPUT
+  Serial.println("STarting the GSM Module");
+  #endif
+  digitalWrite(GSM_PWRKEY_PIN, HIGH);
+  delay(2000);
+  digitalWrite(GSM_PWRKEY_PIN, LOW);
+  delay(5000);
 }
 
 void GSMModuleSleep() {
@@ -189,5 +219,9 @@ void Talk() {
 }
 
 void ShowSerialData() {
+  #if SERIAL_RESPONSE
   while(Serial1.available() != 0) Serial.write(Serial1.read());
+  #else
+  while(Serial1.available() != 0) Serial1.read();
+  #endif
 }
