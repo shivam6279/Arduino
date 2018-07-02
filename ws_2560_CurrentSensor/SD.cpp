@@ -16,7 +16,7 @@ void CheckOTA() {
     if(toupper(body_r[0]) == 'O' &&  toupper(body_r[1]) == 'T' &&toupper(body_r[2]) == 'A' && sd.begin(53)) {
       SendSMS(number, "Downloading new firmware");
       #if SERIAL_OUTPUT
-      Serial.println("Updating firmware");
+        Serial.println("Updating firmware");
       #endif
       delay(500);
       sd.chdir();
@@ -33,13 +33,13 @@ void CheckOTA() {
       delay(500);
       if(DownloadHex()) {
         #if SERIAL_OUTPUT
-        Serial.println("\nNew firmware downloaded");
-        Serial.println("Converting .hex file to .bin");
+          Serial.println("\nNew firmware downloaded");
+          Serial.println("Converting .hex file to .bin");
         #endif
         if(SDHexToBin()) {
           while(Serial1.available()) Serial1.read();
           #if SERIAL_OUTPUT
-          Serial.println("Done\nRestarting and reprogramming");
+            Serial.println("Done\nRestarting and reprogramming");
           #endif
           SendSMS(number, "Download succesful, Restarting and reprogramming");
           EEPROM.write(0x1FF,0xF0);
@@ -48,16 +48,16 @@ void CheckOTA() {
           delay(600);
         } else {
           #if SERIAL_OUTPUT
-          Serial.println("SD card copy error- hex file checksum failed");
+            Serial.println("SD card copy error- hex file checksum failed");
           #endif
-          SendSMS(number, "OTA failed - No SD card detected");
+            SendSMS(number, "OTA failed - No SD card detected");
           return false;
         }
       } else {
         #if SERIAL_OUTPUT
-        Serial.println("Download failed");
+          Serial.println("Download failed");
         #endif
-        SendSMS(number, "Firmware download failed");
+          SendSMS(number, "Firmware download failed");
         return false;
       }
     }
@@ -78,10 +78,12 @@ bool DownloadHex() {
   if(!sd.exists("OtaTemp")){
     if(!sd.mkdir("OtaTemp")) return false;
   }
-
   datalog.open("OtaTemp/temp_ota.hex",  FILE_WRITE);
-
+  Serial.println('*');
+  delay(4000);
+  Serial.println('*');
   while(Serial1.available()) Serial1.read();
+  GSMModuleWake();
   Serial1.println("AT+QIFGCNT=0\r");
   delay(100);
   ShowSerialData();

@@ -74,7 +74,7 @@ void setup() {
   pinMode(GSM_PWRKEY_PIN, OUTPUT);
   digitalWrite(GSM_PWRKEY_PIN, LOW);
 
-  Serial.begin(9600); 
+  Serial.begin(115200); 
   Serial1.begin(19200);
   pinMode(19, INPUT);  
   digitalWrite(19, HIGH);

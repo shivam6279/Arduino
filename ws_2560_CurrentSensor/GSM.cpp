@@ -18,19 +18,14 @@ void InitGSM() {
   while(Serial1.available()) Serial1.read();
   if(flag == 1) {
     #if SERIAL_OUTPUT
-    Serial.println("GSM Module on, turning off");
+      Serial.println("GSM Module on, turning off");
     #endif
     Serial1.print("AT+QPOWD=1\r"); 
     delay(4000);
-    #if SERIAL_RESPONSE
     ShowSerialData();
-    #endif
-    #if SERIAL_OUTPUT
-    Serial.println("Turning on");
-    #endif
   }
   #if SERIAL_OUTPUT
-  Serial.println("STarting the GSM Module");
+  Serial.println("Starting the GSM Module");
   #endif
   digitalWrite(GSM_PWRKEY_PIN, HIGH);
   delay(2000);
