@@ -97,10 +97,11 @@ bool DownloadHex() {
   Serial1.println("AT+QIACT\r");
   delay(3000);
   ShowSerialData();
-  Serial1.print("AT+QHTTPURL=26,30\r");
+  i = OTA_URL.length();
+  Serial1.print("AT+QHTTPURL=" + String(i) + ",30\r");
   delay(1000);
   ShowSerialData();
-  Serial1.print("http://www.yobi.tech/ota/4\r");
+  Serial1.print(OTA_URL + '\r');
   delay(100);
   ShowSerialData();
   Serial1.println("AT+QHTTPGET=30\r");
@@ -170,9 +171,9 @@ bool DownloadHex() {
     while(Serial1.available() == 0){
       i++;
       delay(1);
-      if(i > 5000) break;
+      if(i > 10000) break;
     }
-    if(i > 5000) break;
+    if(i > 10000) break;
   }
   datalog.write(sd_buffer, sd_index);
   datalog.sync();

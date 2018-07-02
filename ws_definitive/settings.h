@@ -27,6 +27,7 @@
 //---------------------------------------Settings----------------------------------------  
 
 const String URL = "http://enigmatic-caverns-27645.herokuapp.com/maytheforcebewithyou?";
+const String OTA_URL = "http://www.yobi.tech/ota/4";
 
 const String PHONE_NUMBER = "+919220592205";
 const String BACKUP_ID = "201"; //Backup id in case there is no sd card
