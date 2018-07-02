@@ -3,35 +3,10 @@
 
 void InitGSM() {
   bool flag = 0;
-  while(Serial1.available()) Serial1.read();
-  Serial1.print("AT\r"); 
-  delay(100);
-  while(Serial1.available()) Serial1.read();
-  Serial1.print("AT\r"); 
-  delay(100);
-  while(Serial1.available()) {
-    if(Serial1.read() == 'O') {
-      flag = 1;
-      break;
-    }
-  }
-  while(Serial1.available()) Serial1.read();
-  if(flag == 1) {
-    #if SERIAL_OUTPUT
-      Serial.println("GSM Module on, turning off");
-    #endif
-    Serial1.print("AT+QPOWD=1\r"); 
-    delay(4000);
-    ShowSerialData();
-  }
-  #if SERIAL_OUTPUT
-  Serial.println("Starting the GSM Module");
-  #endif
-  digitalWrite(GSM_PWRKEY_PIN, HIGH);
-  delay(2000);
-  digitalWrite(GSM_PWRKEY_PIN, LOW);
 
-  delay(5000);
+  #ifdef GSM_PWRKEY_PIN
+    GSMModuleRestart();
+  #endif
   
   Serial1.print("AT+QSCLK=2\r"); 
   delay(100);
@@ -46,33 +21,6 @@ void InitGSM() {
   delay(100);
   ShowSerialData();
   delay(1000); 
-  GSMModuleSleep();
-}
-
-int GetSignalStrength() {
-  char ch, temp[3];
-  int i = 0, tens, ret;
-  while(Serial1.available()) Serial1.read();
-  Serial1.print("AT+CSQ\r");
-  delay(200);
-  do {
-    ch = Serial1.read();
-    delay(1);
-    i++;
-  }while((ch < 48 || ch > 57) && i < 1000);
-  if(i == 1000) return 0;
-  for(i = 0; ch >= 48 && ch <= 57 && i < 4; i++) {
-    delay(1);
-    temp[i] = ch;
-    ch = Serial1.read();
-  }
-  if(i == 4) return 0;
-  i--;
-  for(tens = 1, ret = 0; i >= 0; i--, tens *= 10) {
-    ret += (temp[i] - 48) * tens;
-  }
-  while(Serial1.available()) Serial1.read();
-  return ret;
 }
 
 bool CheckSMS(){
@@ -143,57 +91,80 @@ bool CheckNetwork() {
   else return 1;
 }
 
+int GetSignalStrength() {
+  char ch, temp[3];
+  int i = 0, tens, ret;
+  while(Serial1.available()) Serial1.read();
+  Serial1.print("AT+CSQ\r");
+  delay(200);
+  do {
+    ch = Serial1.read();
+    delay(1);
+    i++;
+  }while((ch < 48 || ch > 57) && i < 1000);
+  if(i == 1000) return 0;
+  for(i = 0; ch >= 48 && ch <= 57 && i < 4; i++) {
+    delay(1);
+    temp[i] = ch;
+    ch = Serial1.read();
+  }
+  if(i == 4) return 0;
+  i--;
+  for(tens = 1, ret = 0; i >= 0; i--, tens *= 10) {
+    ret += (temp[i] - 48) * tens;
+  }
+  while(Serial1.available()) Serial1.read();
+  return ret;
+}
+
+#ifdef GSM_PWRKEY_PIN
 void GSMModuleRestart() {
   bool flag = 0;
 
   #if SERIAL_OUTPUT
-  Serial.println("Restarting GSM Module");
+    Serial.println("Restarting GSM Module");
   #endif
 
-  while(Serial1.available()) Serial1.read();
-  Serial1.print("AT\r"); 
-  delay(100);
-  while(Serial1.available()) Serial1.read();
-  Serial1.print("AT\r"); 
-  delay(100);
+  GSMModuleWake();
 
-  while(Serial1.available()) {
-    if(Serial1.read() == 'O') {
-      flag = 1;
-      break;
-    }
-  }
-  while(Serial1.available()) Serial1.read();
-
-  if(flag == 1) {
+  if(IsGSMModuleOn()) {
     #if SERIAL_OUTPUT
     Serial.println("GSM Module on, turning off");
     #endif
     Serial1.print("AT+QPOWD=1\r"); 
-    delay(4000);
-    #if SERIAL_RESPONSE
+    delay(8000);
     ShowSerialData();
-    #endif
-    #if SERIAL_OUTPUT
-    Serial.println("Turning on");
-    #endif
   } 
   #if SERIAL_OUTPUT
-  Serial.println("STarting the GSM Module");
+    Serial.println("Starting the GSM Module");
   #endif
   digitalWrite(GSM_PWRKEY_PIN, HIGH);
   delay(2000);
   digitalWrite(GSM_PWRKEY_PIN, LOW);
   delay(5000);
-}
-
-void GSMModuleSleep() {
   while(Serial1.available()) Serial1.read();
-  Serial1.print("AT+QSCLK=1\r");
-  #if SERIAL_RESPONSE == true
-  ShowSerialData();
-  #endif
-  delay(1000);
+  if(!IsGSMModuleOn()) {
+    digitalWrite(GSM_PWRKEY_PIN, HIGH);
+    delay(2000);
+    digitalWrite(GSM_PWRKEY_PIN, LOW);
+    delay(5000);
+    while(Serial1.available()) Serial1.read();
+  }
+}
+#endif
+
+bool IsGSMModuleOn() {
+  GSMModuleWake();
+  Serial1.println("AT\r");
+  delay(100);
+  while(Serial1.available()) {
+    if(Serial1.read() == 'O') {
+      while(Serial1.available()) Serial1.read();
+      return 1;
+    }
+  }
+  while(Serial1.available()) Serial1.read();
+  return 0;
 }
 
 void GSMModuleWake() {

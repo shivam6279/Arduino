@@ -8,7 +8,7 @@ extern void GetSMS(char*, char*);
 extern void SendSMS(char*, char*);
 extern bool CheckNetwork();
 extern void GSMModuleRestart();
-extern void GSMModuleSleep();
+extern bool IsGSMModuleOn();
 extern void GSMModuleWake();
 extern void Talk();
 extern void ShowSerialData();

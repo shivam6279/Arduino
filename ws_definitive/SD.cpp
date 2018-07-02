@@ -67,9 +67,10 @@ void CheckOTA() {
 }
 
 bool DownloadHex() {
-  int i, j;
+  int i, j, sd_index = 0;
   unsigned long t;
   char ch;
+  uint8_t sd_buffer[512];
 
   SdFile datalog;
 
@@ -81,9 +82,7 @@ bool DownloadHex() {
     if(!sd.mkdir("OtaTemp")) return false;
   }
   datalog.open("OtaTemp/temp_ota.hex",  FILE_WRITE);
-  Serial.println('*');
-  delay(4000);
-  Serial.println('*');
+  delay(5000);
   while(Serial1.available()) Serial1.read();
   GSMModuleWake();
   Serial1.println("AT+QIFGCNT=0\r");
@@ -96,7 +95,7 @@ bool DownloadHex() {
   delay(100);
   ShowSerialData();
   Serial1.println("AT+QIACT\r");
-  delay(2000);
+  delay(3000);
   ShowSerialData();
   Serial1.print("AT+QHTTPURL=26,30\r");
   delay(1000);
@@ -112,13 +111,13 @@ bool DownloadHex() {
     if(Serial1.available()) {
       ch = Serial1.read();
       #if SERIAL_RESPONSE
-  	  Serial.print(ch);
+  	    Serial.print(ch);
   	  #endif
     }
     delay(1);
     j++;
-  }while(!isdigit(ch) && j < 3000);
-  if(j >= 3000) return false;
+  }while(!isdigit(ch) && j < 10000);
+  if(j >= 10000) return false;
   j = 0;
   do {
     if(Serial1.available()) {
@@ -129,8 +128,8 @@ bool DownloadHex() {
     }
     delay(1);
     j++;
-  }while(!isAlpha(ch) && j < 3000);
-  if(j >= 3000) return false;
+  }while(!isAlpha(ch) && j < 10000);
+  if(j >= 10000) return false;
   delay(100);
   ShowSerialData();
   if(ch != 'O') return false;
@@ -159,7 +158,11 @@ bool DownloadHex() {
     while(Serial1.available()){
       ch = Serial1.read();
       if(ch == 'O') break;
-      datalog.write(ch);
+      sd_buffer[sd_index++] = ch;
+      if(sd_index >= 512) {
+        sd_index = 0;
+        datalog.write(sd_buffer, 512);
+      }
       i = 0;
       Serial.print(ch);
     }
@@ -167,10 +170,11 @@ bool DownloadHex() {
     while(Serial1.available() == 0){
       i++;
       delay(1);
-      if(i > 3000) break;
+      if(i > 5000) break;
     }
-    if(i > 3000) break;
+    if(i > 5000) break;
   }
+  datalog.write(sd_buffer, sd_index);
   datalog.sync();
   datalog.seekCur(-1);
   datalog.close();

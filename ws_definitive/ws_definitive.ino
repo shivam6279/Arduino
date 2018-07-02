@@ -245,9 +245,11 @@ void loop() {
           #if SERIAL_OUTPUT
             Serial.println("\nUpload failed");
           #endif
-          if(number_of_fail_uploads % 5 == 0 && number_of_fail_uploads > 0) {
-            GSMModuleRestart();
-          }
+    	  #ifdef GSM_PWRKEY_PIN
+            if(number_of_fail_uploads % 5 == 0 && number_of_fail_uploads > 0) {
+              GSMModuleRestart();
+            }
+          #endif
           delay(100);
           //upload_sms(w[reading_number], phone_number);
         }

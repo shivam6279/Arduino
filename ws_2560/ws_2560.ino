@@ -20,14 +20,14 @@
 #define solar_radiation_pin A0
 
 //------------------------------------Settings-------------------------------------
-//String id = "207";     
+//String id = "201";     
 String phone_number = "+919220592205";
 
 #define HT_mode 0// 0 for SHT21, 1 for DST, 2 for none
        
-#define data_upload_frequency 5//Minutes -- should be a multiple of the read frequency
-#define ota_check_frequency 5//Minutes
-#define data_read_frequency 5//Minutes
+#define data_upload_frequency 1//Minutes -- should be a multiple of the read frequency
+#define ota_check_frequency 1//Minutes
+#define data_read_frequency 1//Minutes
 #define number_of_readings (data_upload_frequency / data_read_frequency)
 
 #define enable_GPS false//True to enable GPS    
