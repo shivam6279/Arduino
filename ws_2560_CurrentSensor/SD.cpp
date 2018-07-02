@@ -13,6 +13,14 @@ void CheckOTA() {
   if(CheckSMS()) { //Check sms for OTA
     GetSMS(number, body_r);
     while(Serial1.available()) Serial1.read();
+    
+    if(!sd.exists("OtaTemp")) {
+      if(!sd.mkdir("OtaTemp")) {
+        SendSMS(number, "No SD card detected");
+        return false;
+      }
+    }
+    
     if(toupper(body_r[0]) == 'O' &&  toupper(body_r[1]) == 'T' &&toupper(body_r[2]) == 'A' && sd.begin(53)) {
       SendSMS(number, "Downloading new firmware");
       #if SERIAL_OUTPUT
@@ -21,12 +29,6 @@ void CheckOTA() {
       delay(500);
       sd.chdir();
       delay(100);
-      if(!sd.exists("OtaTemp")) {
-        if(!sd.mkdir("OtaTemp")) {
-          SendSMS(number, "No SD card detected");
-          return false;
-        }
-      }
 
       if(sd.exists("OtaTemp/TEMP_OTA.HEX")) sd.remove("OtaTemp/TEMP_OTA.HEX");
       if(sd.exists("firmware.BIN")) sd.remove("firmware.BIN");

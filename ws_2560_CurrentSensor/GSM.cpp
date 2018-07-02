@@ -147,7 +147,7 @@ void GSMModuleRestart() {
   bool flag = 0;
 
   #if SERIAL_OUTPUT
-  Serial.println("Retarting GSM Module");
+  Serial.println("Restarting GSM Module");
   #endif
 
   while(Serial1.available()) Serial1.read();
@@ -206,6 +206,7 @@ void GSMModuleWake() {
 
 
 void Talk() {
+  GSMModuleRestart();
   Serial.println("Talk");
   while(1){
     if(Serial1.available()){ Serial.write(Serial1.read()); }

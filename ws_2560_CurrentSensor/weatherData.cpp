@@ -31,7 +31,6 @@ void PrintWeatherData(weatherData w) {
   #endif
   Serial.println("Solar radiation(Voltage): " + String(float(w.solar_radiation) * 5.0 / 1023.0)); 
   Serial.println("Signal Strength: " + String(w.signal_strength)); 
-  Serial.println();
 }
 
 void TimeDataReset(real_time &wt){

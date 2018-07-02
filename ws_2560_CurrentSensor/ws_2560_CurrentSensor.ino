@@ -54,7 +54,6 @@ volatile bool four_sec = false, read_flag = false, upload_flag = false;
 weatherData w[BUFFER_SIZE];
 real_time current_time;
 
-uint8_t reading_number = 0, number_of_fail_uploads = 0;
 bool startup = true;
 
 OneWire oneWire(METAL_SENSOR_PIN);
@@ -142,6 +141,8 @@ void loop() {
   int i, j;
   unsigned long int avg_counter = 0;
   boolean temp_read, temp_upload, temp_network;
+
+  uint8_t reading_number = 0, number_of_fail_uploads = 0;
   
   rain_counter = 0;
   wind_speed_counter = 0;
@@ -151,7 +152,7 @@ void loop() {
     WeatherDataReset(w[i]);
   }
   TimeDataReset(current_time);
-  
+  while(Serial1.available()) Serial1.read();
   while(1) {
     CheckOTA();
     
@@ -212,7 +213,7 @@ void loop() {
 
         w[reading_number].signal_strength = GetSignalStrength();
         
-        #if enable_GPS == true
+        #if enable_GPS
           //GetGPS();
         #endif
 
