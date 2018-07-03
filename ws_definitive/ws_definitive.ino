@@ -132,9 +132,6 @@ void setup() {
   //Interrupt initialization
   //Timer1: 0.25hz, Timer2: 8Khz
   InitInterrupt(); 
-  #if SERIAL_OUTPUT == true
-    Serial.println("\nSeconds till next upload:");
-  #endif
 }
  
 void loop() {
@@ -153,6 +150,10 @@ void loop() {
   }
   TimeDataReset(current_time);
   while(Serial1.available()) Serial1.read();
+
+  #if SERIAL_OUTPUT == true
+    Serial.println("\nSeconds till next upload:");
+  #endif
   while(1) {
     CheckOTA();
     
@@ -224,7 +225,6 @@ void loop() {
         #if SERIAL_OUTPUT
           Serial.println("\nWriting to SD card");
         #endif
-        WriteSD(w[reading_number]);
         
         reading_number++;
         
@@ -237,11 +237,17 @@ void loop() {
         if(SubmitHttpRequest(w, reading_number, current_time)) {  //Upload successful          
           startup = false;
           number_of_fail_uploads = 0;
+          for(i = 0; i < reading_number; i++) {
+            w[i].flag = 1;
+          }
           #if SERIAL_OUTPUT
             Serial.println("\nUpload successful");
           #endif
         } else {
           number_of_fail_uploads++;
+          for(i = 0; i < reading_number; i++) {
+            w[i].flag = 0;
+          }
           #if SERIAL_OUTPUT
             Serial.println("\nUpload failed");
           #endif
@@ -253,14 +259,20 @@ void loop() {
           delay(100);
           //upload_sms(w[reading_number], phone_number);
         }
-        reading_number = 0;
         delay(1000);
+        #if SERIAL_OUTPUT
+          Serial.println("Writing to the SD card");
+        #endif
+        for(i = 0; i < reading_number; i++) {
+          WriteSD(w[i]);
+        }
+        reading_number = 0;
         
         digitalWrite(UPLOAD_LED, LOW);
         upload_flag = false;
         #if SERIAL_OUTPUT
-        if(current_time.flag) PrintTime(current_time);
-        Serial.println("Seconds till next upload:");
+          if(current_time.flag) PrintTime(current_time);
+          Serial.println("Seconds till next upload:");
         #endif
       }
     }

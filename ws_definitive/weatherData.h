@@ -17,6 +17,7 @@ struct weatherData {
   int rain, wind_speed;
   int signal_strength;
   long int pressure;
+  bool flag;
 
   real_time t;
 };

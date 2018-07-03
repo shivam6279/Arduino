@@ -4,16 +4,8 @@
 #include "GSM.h"
 #include "settings.h"
 
-bool SubmitHttpRequest(weatherData w[], uint8_t n, real_time &wt) {
-  uint8_t read_length;
-  uint16_t timeout;
-  int str_len, i;
-  char t[4];
-  
-  #if SERIAL_OUTPUT
-  Serial.println("Uploading data");
-  #endif
-  while(Serial1.available()) Serial1.read();
+bool HttpInit() {
+  GSMModuleWake();
   Serial1.println("AT+QIFGCNT=0\r");
   delay(100);
   ShowSerialData();
@@ -26,7 +18,18 @@ bool SubmitHttpRequest(weatherData w[], uint8_t n, real_time &wt) {
   Serial1.println("AT+QIACT\r");
   delay(2000);
   ShowSerialData();
-  while(Serial1.available()) Serial1.read();
+}
+
+bool SubmitHttpRequest(weatherData w[], uint8_t n, real_time &wt) {
+  uint8_t read_length;
+  uint16_t timeout;
+  int str_len, i;
+  char t[4];
+  
+  #if SERIAL_OUTPUT
+  Serial.println("Uploading data");
+  #endif
+  HttpInit();
 
   for(i = n - 1; i >= 0; i--) {
     //String length of HTTP request
@@ -189,17 +192,17 @@ bool ReadTime(real_time &wt){
 
 bool GetTime(real_time &w) {
   uint8_t i;
-  while(Serial1.available()) Serial1.read();
+  HttpInit();
   Serial1.print("AT+QHTTPURL=24,30\r");
   delay(100);
   Serial1.print("http://www.yobi.tech/IST\r");
   delay(500);
-  while(Serial1.available()) Serial1.read();
+  ShowSerialData();
   Serial1.println("AT+QHTTPGET=30\r");
   delay(100);
-  while(Serial1.available()) Serial1.read();
+  ShowSerialData();
   for(i = 0; Serial1.available() < 3 && i < 200; i++) delay(100);
-  while(Serial1.available()) Serial1.read();
+  ShowSerialData();
   Serial1.println("AT+QHTTPREAD=30\r");
   delay(600);
   for(i = 0; Serial1.read() != '\n' && i < 200; i++) delay(100);
@@ -215,22 +218,7 @@ bool GetTime(real_time &w) {
   w.minutes = (Serial1.read() - 48) * 10; w.minutes += (Serial1.read() - 48);
   Serial1.read();
   w.seconds = (Serial1.read() - 48) * 10; w.seconds += (Serial1.read() - 48);
-  while(Serial1.available()) Serial1.read();
-  #if SERIAL_OUTPUT
-  Serial.println("Date");
-  Serial.write((w.day / 10) % 10 + 48); Serial.write((w.day % 10) + 48);
-  Serial.write('/');
-  Serial.write((w.month / 10) % 10 + 48); Serial.write((w.month % 10) + 48);
-  Serial.write('/');
-  Serial.write((w.year / 1000) % 10 + 48); Serial.write((w.year / 100) % 10 + 48); Serial.write((w.year / 10) % 10 + 48); Serial.write((w.year % 10) + 48);
-  Serial.println("\nTime");
-  Serial.write((w.hours / 10) % 10 + 48); Serial.write((w.hours % 10) + 48);
-  Serial.write(':');
-  Serial.write((w.minutes / 10) % 10 + 48); Serial.write((w.minutes % 10) + 48);
-  Serial.write(':');
-  Serial.write((w.seconds / 10) % 10 + 48); Serial.write((w.seconds % 10) + 48);
-  Serial.println();
-  #endif
+  ShowSerialData();
   return true;
 }
 

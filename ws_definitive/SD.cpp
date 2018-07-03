@@ -2,6 +2,7 @@
 #include <SdFat.h>
 #include "GSM.h"
 #include "settings.h"
+#include "http.h"
 #include <avr/wdt.h>
 #include <EEPROM.h>
 
@@ -83,20 +84,7 @@ bool DownloadHex() {
   }
   datalog.open("OtaTemp/temp_ota.hex",  FILE_WRITE);
   delay(5000);
-  while(Serial1.available()) Serial1.read();
-  GSMModuleWake();
-  Serial1.println("AT+QIFGCNT=0\r");
-  delay(100);
-  ShowSerialData();
-  Serial1.println("AT+QICSGP=1,\"CMNET\"\r");
-  delay(100);
-  ShowSerialData();
-  Serial1.println("AT+QIREGAPP\r");
-  delay(100);
-  ShowSerialData();
-  Serial1.println("AT+QIACT\r");
-  delay(3000);
-  ShowSerialData();
+  HttpInit();
   i = OTA_URL.length();
   Serial1.print("AT+QHTTPURL=" + String(i) + ",30\r");
   delay(1000);
@@ -268,18 +256,19 @@ bool SDHexToBin() {
 }
 
 bool WriteSD(weatherData w) {
-  SdFile datalog;
-
   sd.chdir();
+  Serial.println('1');
   if(!sd.exists("id.txt")) {
     if(!sd.begin(53)) return false;
   }
+  Serial.println('2');
   if(!sd.exists("Datalog")) {
     if(!sd.mkdir("Datalog")) return false;
   }
-
+  Serial.println('3');
   datalog.open("Datalog/datalog.txt", FILE_WRITE);
   datalog.seekEnd();
+  datalog.print(w.flag);
   datalog.print('<'); 
   datalog.print("'id':" + String(ws_id) + ",");
   datalog.print("'ts':");

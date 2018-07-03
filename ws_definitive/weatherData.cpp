@@ -16,6 +16,7 @@ void WeatherDataReset(weatherData &w){
   w.wind_speed = 0;
   w.signal_strength = 0;
   w.pressure = 0;
+  w.flag = 0;
 }
 
 void PrintWeatherData(weatherData w) {

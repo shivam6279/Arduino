@@ -3,6 +3,7 @@
 
 #include "weatherData.h"
 
+extern bool HttpInit();
 extern bool SubmitHttpRequest(weatherData[], uint8_t, real_time&);
 extern bool GetTime(real_time&);
 extern bool ReadTime(real_time&);
