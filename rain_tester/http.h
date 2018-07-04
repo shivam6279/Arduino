@@ -1,61 +1,59 @@
-#include "http.h"
+#ifndef http_h
+#define http_h
+
 #include <string.h>
 #include "weatherData.h"
 #include "GSM.h"
 #include "settings.h"
 
-bool HttpInit() {
-  int timeout;
-  GSMModuleWake();
-  Serial1.println("AT+QIFGCNT=0\r");
-  delay(100);
-  ShowSerialData();
-  Serial1.println("AT+QICSGP=1,\"CMNET\"\r");
-  delay(100);
-  ShowSerialData();
-  Serial1.println("AT+QIREGAPP\r");
-  delay(100);
-  ShowSerialData();
-  Serial1.println("AT+QIACT\r");
-  for(timeout = 0; Serial1.available() < 3 && timeout < 200; timeout++) delay(10);
-  ShowSerialData();
-  if(timeout > 200) return false;
-  return true;
-}
+bool SubmitHttpRequest(weatherData w, wtime &wt);
+bool GetTime(wtime &w);
+bool ReadTime(wtime &w);
+void UploadSMS();
 
-bool SubmitHttpRequest(weatherData w[], uint8_t n, real_time &wt) {
-  uint8_t read_length;
-  uint16_t timeout;
-  int i;
+bool SubmitHttpRequest(weatherData w, wtime &wt) {
+  uint8_t j;
+  uint16_t i;
+  int str_len;
+  char t[4];
   
-  #if SERIAL_OUTPUT
+  #if serial_output
   Serial.println("Uploading data");
   #endif
-  HttpInit();
+  Serial.println("Rain 1: " + String(w.temp1));
+  Serial.println("Rain 2: " + String(w.temp2));
+  Serial.println("Rain 3: " + String(w.hum));
+  Serial.println("Rain 4: " + String(w.rain));
+  Serial.println("Rain 5: " + String(w.wind_speed));
+  Serial.println("Rain 6: " + String(w.solar_radiation));
+  Serial.println("Rain 7: " + String(w.voltage));
+  Serial.println("Rain 8: " + String(w.battery_voltage));
+  while(Serial1.available()) Serial1.read();
+  Serial1.println("AT+QIFGCNT=0\r");
+  delay(100);
+  #if serial_response
+  ShowSerialData();
+  #endif
+  Serial1.println("AT+QICSGP=1,\"CMNET\"\r");
+  delay(100);
+  #if serial_response
+  ShowSerialData();
+  #endif
+  Serial1.println("AT+QIREGAPP\r");
+  delay(100);
+  #if serial_response
+  ShowSerialData();
+  #endif
+  Serial1.println("AT+QIACT\r");
+  delay(2000);
+  #if serial_response
+  ShowSerialData();
+  #endif
+  while(Serial1.available()) Serial1.read();
 
-  for(i = n - 1; i >= 0; i--) {
-    if(!SendURL(w[i])) return false;
-    ShowSerialData();  
-    Serial1.println("AT+QHTTPREAD=30\r");
-    delay(400);
-    read_length = Serial1.available();
-    if(i != 0) ShowSerialData();
-  }
-  //Read Time
-  if(read_length > 70) {
-    ReadTime(wt);
-    return true;
-  } else {
-    return false;
-  }
-}
-
-bool SendURL(weatherData w) {
-  uint16_t timeout;
-  char t[4];
-  int str_len;
-  str_len = URL.length(); // URL string length
-  str_len += String(ws_id).length() + 4;
+  //String length of HTTP request
+  str_len = 66; // URL string length
+  str_len += String(w.id).length() + 4;
   str_len += String(w.temp1).length() + 4;
   str_len += String(w.temp2).length() + 4;
   str_len += String(w.hum).length() + 3;
@@ -63,7 +61,7 @@ bool SendURL(weatherData w) {
   str_len += String(w.rain).length() + 3;
   str_len += String(w.pressure).length() + 3;
   str_len += String(w.amps).length() + 3;
-  str_len += String(w.panel_voltage).length() + 3;
+  str_len += String(w.voltage).length() + 3;
   str_len += String(w.battery_voltage).length() + 4;
   str_len += String(w.signal_strength).length() + 3;
 
@@ -75,11 +73,15 @@ bool SendURL(weatherData w) {
   Serial1.print(t);
   Serial1.print(",30\r");
   delay(1000);
-  ShowSerialData();   
+  #if serial_response
+  ShowSerialData();
+  #else
+  while(Serial1.available()) Serial1.read();
+  #endif    
   
-  Serial1.print(URL);   
+  Serial1.print("http://enigmatic-caverns-27645.herokuapp.com/maytheforcebewithyou?");   
   //Serial1.print(String(row_number + 1) + "=<"); 
-  Serial1.print("id=" + String(ws_id) + "&");
+  Serial1.print("id=" + String(w.id) + "&");
   Serial1.print("t1=" + String(w.temp1) + "&");
   Serial1.print("t2=" + String(w.temp2) + "&");
   Serial1.print("h=" + String(w.hum) + "&");
@@ -87,39 +89,68 @@ bool SendURL(weatherData w) {
   Serial1.print("r=" + String(w.rain) + "&");
   Serial1.print("p=" + String(w.pressure) + "&");
   Serial1.print("s=" + String(w.amps) + "&");
-  Serial1.print("v=" + String(w.panel_voltage) + "&");
+  Serial1.print("v=" + String(w.voltage) + "&");
   Serial1.print("bv=" + String(w.battery_voltage) + "&");
   Serial1.print("sg=" + String(w.signal_strength) + '\r');
   delay(300);
   
-  ShowSerialData();  
+  #if serial_response
+  ShowSerialData();
+  #else
+  while(Serial1.available()) Serial1.read();
+  #endif   
   Serial1.println("AT+QHTTPGET=30\r");
   delay(100);
-  ShowSerialData();  
-  for(timeout = 0; Serial1.available() < 3 && timeout < 200; timeout++) delay(100);
-  if(timeout > 200) return false;
-  return true;
+  #if serial_response
+  ShowSerialData();
+  #else
+  while(Serial1.available()) Serial1.read();
+  #endif   
+  for(i = 0; Serial1.available() < 3 && i < 200; i++) delay(100);
+  //delay(1000);
+  #if serial_response
+  ShowSerialData();
+  #else
+  while(Serial1.available()) Serial1.read();
+  #endif   
+  Serial1.println("AT+QHTTPREAD=30\r");
+  delay(400);
+  j = Serial1.available();
+
+  //Read Time
+  if(j > 70 && i < 200) {
+  	ReadTime(wt);
+  	return true;
+  }
+  else {
+  	#if serial_response
+  	ShowSerialData();
+  	#else
+  	while(Serial1.available()) Serial1.read();
+  	#endif
+  	return false;
+  }
 }
 
-bool ReadTime(real_time &wt){
+bool ReadTime(wtime &wt){
   int i, t;
   char ch, temp_time[8];
   do {
     do {
       ch = Serial1.read();
-      #if SERIAL_RESPONSE
+      #if serial_response
   	  Serial.print(ch);
   	  #endif
   	}while(ch != 'e');
   	ch = Serial1.read();
-  	#if SERIAL_RESPONSE
+  	#if serial_response
 	  Serial.print(ch);
   	#endif
   }while(ch != '(');
   //Year
   for(i = 0, ch = 0;; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    #if serial_response
     Serial.print(ch);
     #endif
     if(ch != ',') temp_time[i] = ch;
@@ -131,7 +162,7 @@ bool ReadTime(real_time &wt){
   //Month
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    #if serial_response
     Serial.print(ch);
     #endif
     if(ch != ',') temp_time[i] = ch;
@@ -143,7 +174,7 @@ bool ReadTime(real_time &wt){
   //Day
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    #if serial_response
     Serial.print(ch);
     #endif
     if(ch != ',') temp_time[i] = ch;
@@ -155,7 +186,7 @@ bool ReadTime(real_time &wt){
   //Hour
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    #if serial_response
     Serial.print(ch);
     #endif
     if(ch != ',') temp_time[i] = ch;
@@ -167,7 +198,7 @@ bool ReadTime(real_time &wt){
   //Minutes
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    #if serial_response
     Serial.print(ch);
     #endif
     if(ch != ',') temp_time[i] = ch;
@@ -179,7 +210,7 @@ bool ReadTime(real_time &wt){
   //Seconds
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    #if serial_response
     Serial.print(ch);
     #endif
     if(ch != ',') temp_time[i] = ch;
@@ -188,7 +219,7 @@ bool ReadTime(real_time &wt){
   for(i = i - 1, t = 1, wt.seconds = 0; i >= 0; i--, t *= 10){
   	wt.seconds += (temp_time[i] - '0') * t;
   }
-  #if SERIAL_RESPONSE
+  #if serial_response
   ShowSerialData();
   #else
   while(Serial1.available()) Serial1.read();
@@ -198,19 +229,19 @@ bool ReadTime(real_time &wt){
   return true;
 }
 
-bool GetTime(real_time &w) {
+bool GetTime(wtime &w) {
   uint8_t i;
-  HttpInit();
+  while(Serial1.available()) Serial1.read();
   Serial1.print("AT+QHTTPURL=24,30\r");
   delay(100);
   Serial1.print("http://www.yobi.tech/IST\r");
   delay(500);
-  ShowSerialData();
+  while(Serial1.available()) Serial1.read();
   Serial1.println("AT+QHTTPGET=30\r");
   delay(100);
-  ShowSerialData();
+  while(Serial1.available()) Serial1.read();
   for(i = 0; Serial1.available() < 3 && i < 200; i++) delay(100);
-  ShowSerialData();
+  while(Serial1.available()) Serial1.read();
   Serial1.println("AT+QHTTPREAD=30\r");
   delay(600);
   for(i = 0; Serial1.read() != '\n' && i < 200; i++) delay(100);
@@ -226,7 +257,22 @@ bool GetTime(real_time &w) {
   w.minutes = (Serial1.read() - 48) * 10; w.minutes += (Serial1.read() - 48);
   Serial1.read();
   w.seconds = (Serial1.read() - 48) * 10; w.seconds += (Serial1.read() - 48);
-  ShowSerialData();
+  while(Serial1.available()) Serial1.read();
+  #if serial_output
+  Serial.println("Date");
+  Serial.write((w.day / 10) % 10 + 48); Serial.write((w.day % 10) + 48);
+  Serial.write('/');
+  Serial.write((w.month / 10) % 10 + 48); Serial.write((w.month % 10) + 48);
+  Serial.write('/');
+  Serial.write((w.year / 1000) % 10 + 48); Serial.write((w.year / 100) % 10 + 48); Serial.write((w.year / 10) % 10 + 48); Serial.write((w.year % 10) + 48);
+  Serial.println("\nTime");
+  Serial.write((w.hours / 10) % 10 + 48); Serial.write((w.hours % 10) + 48);
+  Serial.write(':');
+  Serial.write((w.minutes / 10) % 10 + 48); Serial.write((w.minutes % 10) + 48);
+  Serial.write(':');
+  Serial.write((w.seconds / 10) % 10 + 48); Serial.write((w.seconds % 10) + 48);
+  Serial.println();
+  #endif
   return true;
 }
 
@@ -234,7 +280,7 @@ void UploadSMS(weatherData w, String phone_number) {
   Serial1.print("AT+CMGS=\"" + phone_number + "\"\n");
   delay(100);
   Serial1.print("HK9D7 ");
-  Serial1.print("'id':" + String(ws_id) + ",");
+  Serial1.print("'id':" + String(w.id) + ",");
   Serial1.print("'t1':" + String(w.temp1) + ",");
   Serial1.print("'t2':" + String(w.temp2) + ",");
   Serial1.print("'h':" + String(w.hum) + ",");
@@ -250,5 +296,9 @@ void UploadSMS(weatherData w, String phone_number) {
   Serial1.write('\n');
   delay(100);
   Serial1.write('\n');
+  #if serial_response
   ShowSerialData();
+  #endif
 }
+
+#endif

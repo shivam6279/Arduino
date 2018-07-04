@@ -236,6 +236,7 @@ void loop() {
         GSMModuleWake();
         if(SubmitHttpRequest(w, reading_number, current_time)) {  //Upload successful          
           startup = false;
+          w[reading_number - 1].t = current_time;
           number_of_fail_uploads = 0;
           for(i = 0; i < reading_number; i++) {
             w[i].flag = 1;
@@ -251,8 +252,8 @@ void loop() {
           #if SERIAL_OUTPUT
             Serial.println("\nUpload failed");
           #endif
-    	  #ifdef GSM_PWRKEY_PIN
-            if(number_of_fail_uploads % 5 == 0 && number_of_fail_uploads > 0) {
+    	    #ifdef GSM_PWRKEY_PIN
+            if(number_of_fail_uploads % 2 == 0 && number_of_fail_uploads > 0) {
               GSMModuleRestart();
             }
           #endif

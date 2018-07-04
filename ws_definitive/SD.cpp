@@ -257,15 +257,12 @@ bool SDHexToBin() {
 
 bool WriteSD(weatherData w) {
   sd.chdir();
-  Serial.println('1');
   if(!sd.exists("id.txt")) {
     if(!sd.begin(53)) return false;
   }
-  Serial.println('2');
   if(!sd.exists("Datalog")) {
     if(!sd.mkdir("Datalog")) return false;
   }
-  Serial.println('3');
   datalog.open("Datalog/datalog.txt", FILE_WRITE);
   datalog.seekEnd();
   datalog.print(w.flag);
@@ -302,6 +299,37 @@ bool WriteSD(weatherData w) {
   datalog.print("'ln':" + String(w.longitude) + ",");
   datalog.println("'sg':" + String(w.signal_strength) + ">");
   datalog.close();
+  return true;
+}
+
+bool check() {
+  char ch;
+  int lines = 0, p;
+  int i;
+  sd.chdir();
+  if(!sd.exists("id.txt")) {
+    if(!sd.begin(53)) return false;
+  }
+  if(!sd.exists("Datalog")) {
+    if(!sd.mkdir("Datalog")) return false;
+  }
+  datalog.open("Datalog/datalog.txt", FILE_READ);
+  datalog.seekEnd();
+  do {
+    while(datalog.peek()!= '\n' && datalog.curPosition() != 0) {
+      datalog.seekCur(-1);
+    }
+    datalog.read();
+    ch = datalog.read();
+    if(ch == '0') lines++;
+    while(datalog.peek()!= '\n' && datalog.curPosition() != 0) {
+      datalog.seekCur(-1);
+    }
+    if(datalog.curPosition() == 0) break;
+    datalog.seekCur(-1);
+  }while(ch == '0');
+  datalog.close();
+  Serial.println(lines);
   return true;
 }
 
