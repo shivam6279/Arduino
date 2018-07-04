@@ -17,14 +17,14 @@ bool HttpInit() {
   delay(100);
   ShowSerialData();
   Serial1.println("AT+QIACT\r");
-  for(timeout = 0; Serial1.available() < 3 && timeout < 200; timeout++) delay(10);
+  for(timeout = 0; Serial1.available() < 2 && timeout < 100; timeout++) delay(100);
   ShowSerialData();
-  if(timeout > 200) return false;
+  if(timeout > 100) return false;
   return true;
 }
 
 bool SubmitHttpRequest(weatherData w[], uint8_t n, real_time &wt) {
-  uint8_t read_length;
+  uint16_t read_length;
   uint16_t timeout;
   int i;
   

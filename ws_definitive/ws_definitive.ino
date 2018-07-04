@@ -221,10 +221,6 @@ void loop() {
         #if SERIAL_OUTPUT
           PrintWeatherData(w[reading_number]);
         #endif
-
-        #if SERIAL_OUTPUT
-          Serial.println("\nWriting to SD card");
-        #endif
         
         reading_number++;
         
@@ -260,7 +256,7 @@ void loop() {
             Serial.println("\nUpload failed");
           #endif
     	    #ifdef GSM_PWRKEY_PIN
-            if(number_of_fail_uploads % 2 == 0 && number_of_fail_uploads > 0) {
+            if(number_of_fail_uploads % 5 == 0 && number_of_fail_uploads > 0) {
               InitGSM();
             }
           #endif

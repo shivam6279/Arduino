@@ -20,17 +20,18 @@ void WeatherDataReset(weatherData &w){
 }
 
 void PrintWeatherData(weatherData w) {
-  Serial.println("Humidity(%RH): " + String(w.hum));
   Serial.println("Temperature 1(C): " + String(w.temp1));
   Serial.println("Temperature 2(C): " + String(w.temp2));
-  Serial.println("Panel Voltage: " + String(w.panel_voltage));
-  Serial.println("Battery Voltage: " + String(w.battery_voltage));
+  Serial.println("Humidity(%RH): " + String(w.hum));
+  Serial.println("Wind: " + String(w.wind_speed));
+  Serial.println("Rain: " + String(w.rain));
   Serial.println("Current (Amps): " + String(w.amps));
+  Serial.println("Panel Voltage(V): " + String(w.panel_voltage));
+  Serial.println("Battery Voltage(V): " + String(w.battery_voltage));
   #if enable_BMP180
-  Serial.println(", BMP: " + String(w.temp2)); 
-  Serial.println("Pressure: " + String(w.pressure) + "atm"); 
+    Serial.println("Pressure: " + String(w.pressure) + "atm"); 
   #endif
-  Serial.println("Solar radiation(Voltage): " + String(float(w.solar_radiation) * 5.0 / 1023.0)); 
+  Serial.println("Solar radiation(V): " + String(float(w.solar_radiation) * 5.0 / 1023.0)); 
   Serial.println("Signal Strength: " + String(w.signal_strength)); 
 }
 

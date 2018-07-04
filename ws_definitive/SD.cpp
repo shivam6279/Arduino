@@ -263,12 +263,17 @@ bool WriteSD(weatherData w) {
   if(!sd.exists("Datalog")) {
     if(!sd.mkdir("Datalog")) return false;
   }
-  datalog.open("Datalog/datalog.txt", FILE_WRITE);
+  if(!sd.exists("Datalog/datalog.csv")) {
+    datalog.open("Datalog/datalog.csv", FILE_WRITE);
+    datalog.println("success, id, ts, t1, t2, h, w, r, p, a, s, cv, bv, sg");
+  } else {
+    datalog.open("Datalog/datalog.csv", FILE_WRITE);
+  }
   datalog.seekEnd();
   datalog.print(w.flag);
-  datalog.print('<'); 
-  datalog.print("'id':" + String(ws_id) + ",");
-  datalog.print("'ts':");
+  datalog.print(", ");
+  datalog.print(ws_id);
+  datalog.print(", ");
   datalog.write((w.t.day / 10) % 10 + '0'); 
   datalog.write((w.t.day % 10) + '0');
   datalog.write('/');
@@ -288,16 +293,28 @@ bool WriteSD(weatherData w) {
   datalog.write(':');
   datalog.write((w.t.seconds / 10) % 10 + '0'); 
   datalog.write((w.t.seconds % 10) + '0');
-  datalog.print(",'t1':" + String(w.temp1) + ",");
-  datalog.print("'t2':" + String(w.temp2) + ",");
-  datalog.print("'h':" + String(w.hum) + ",");
-  datalog.print("'w':" + String(w.wind_speed) + ",");
-  datalog.print("'r':" + String(w.rain) + ",");
-  datalog.print("'p':" + String(w.pressure) + ",");
-  datalog.print("'s':" + String(w.solar_radiation) + ",");
-  datalog.print("'lt':" + String(w.latitude) + ",");
-  datalog.print("'ln':" + String(w.longitude) + ",");
-  datalog.println("'sg':" + String(w.signal_strength) + ">");
+  datalog.print(", ");
+  datalog.print(w.temp1);
+  datalog.print(", ");
+  datalog.print(w.temp2);
+  datalog.print(", ");
+  datalog.print(w.hum);
+  datalog.print(", ");
+  datalog.print(w.wind_speed);
+  datalog.print(", ");
+  datalog.print(w.rain);
+  datalog.print(", ");
+  datalog.print(w.pressure);
+  datalog.print(", ");
+  datalog.print(w.amps);
+  datalog.print(", ");
+  datalog.print(w.solar_radiation);
+  datalog.print(", ");
+  datalog.print(w.panel_voltage);
+  datalog.print(", ");
+  datalog.print(w.battery_voltage);
+  datalog.print(", ");
+  datalog.println(w.signal_strength);
   datalog.close();
   return true;
 }
@@ -313,7 +330,10 @@ bool check() {
   if(!sd.exists("Datalog")) {
     if(!sd.mkdir("Datalog")) return false;
   }
-  datalog.open("Datalog/datalog.txt", FILE_READ);
+  if(!sd.exists("Datalog/datalog.csv")) {
+    return false;
+  }
+  datalog.open("Datalog/datalog.csv", FILE_READ);
   datalog.seekEnd();
   do {
     while(datalog.peek()!= '\n' && datalog.curPosition() != 0) {
@@ -333,14 +353,176 @@ bool check() {
   return true;
 }
 
-bool UploadOldSD(int n) {
+bool UploadOldSD() {
+  char ch, t[20];
+  int p;
+  int i;
+  uint16_t read_length;
+
+  weatherData w;
+
+  sd.chdir();
+  if(!sd.exists("id.txt")) {
+    if(!sd.begin(53)) return false;
+  }
+  if(!sd.exists("Datalog")) {
+    if(!sd.mkdir("Datalog")) return false;
+  }
+  datalog.open("Datalog/datalog.csv", FILE_WRITE);
+  datalog.seekEnd();
+
+  do {
+    datalog.seekCur(-2);
+    while(datalog.peek()!= '\n' && datalog.curPosition() != 0) {
+      datalog.seekCur(-1);
+    }
+    if(datalog.curPosition() == 0) break;
+    datalog.read();
+    ch = datalog.peek();
+  }while(ch == '0');
+  while(datalog.read()!= '\n');
   
+  HttpInit();
+
+  while(datalog.available()) {
+    while(datalog.read() != ','); //Read past 'success' flag
+    while(datalog.read() != ','); //Read past ws_id
+    while(datalog.read() != ','); //Read past timestamp
+
+    //Read temp1
+    i = 0;
+    do {
+      ch = datalog.read();
+      if(ch != ' ' && ch != ',') t[i++] = ch;
+    }while(ch != ',');
+    t[i] = '\0';
+    w.temp1 = (String(t)).toFloat();
+
+    //Read temp2
+    i = 0;
+    do {
+      ch = datalog.read();
+      if(ch != ' ' && ch != ',') t[i++] = ch;
+    }while(ch != ',');
+    t[i] = '\0';
+    w.temp2 = (String(t)).toFloat();
+
+    //Read humidity
+    i = 0;
+    do {
+      ch = datalog.read();
+      if(ch != ' ' && ch != ',') t[i++] = ch;
+    }while(ch != ',');
+    t[i] = '\0';
+    w.hum = (String(t)).toFloat();
+
+    //Read wind speed
+    i = 0;
+    do {
+      ch = datalog.read();
+      if(ch != ' ' && ch != ',') t[i++] = ch;
+    }while(ch != ',');
+    t[i] = '\0';
+    w.wind_speed = (String(t)).toInt();
+
+    //Read rain
+    i = 0;
+    do {
+      ch = datalog.read();
+      if(ch != ' ' && ch != ',') t[i++] = ch;
+    }while(ch != ',');
+    t[i] = '\0';
+    w.rain = (String(t)).toInt();
+
+    //Read pressure
+    i = 0;
+    do {
+      ch = datalog.read();
+      if(ch != ' ' && ch != ',') t[i++] = ch;
+    }while(ch != ',');
+    t[i] = '\0';
+    w.pressure = (String(t)).toInt();
+
+    //Read solar radiation
+    i = 0;
+    do {
+      ch = datalog.read();
+      if(ch != ' ' && ch != ',') t[i++] = ch;
+    }while(ch != ',');
+    t[i] = '\0';
+    w.solar_radiation = (String(t)).toFloat();
+
+    //Read current
+    i = 0;
+    do {
+      ch = datalog.read();
+      if(ch != ' ' && ch != ',') t[i++] = ch;
+    }while(ch != ',');
+    t[i] = '\0';
+    w.amps = (String(t)).toFloat();
+
+    //Read panel voltage
+    i = 0;
+    do {
+      ch = datalog.read();
+      if(ch != ' ' && ch != ',') t[i++] = ch;
+    }while(ch != ',');
+    t[i] = '\0';
+    w.panel_voltage = (String(t)).toFloat();
+
+    //Read battery voltage
+    i = 0;
+    do {
+      ch = datalog.read();
+      if(ch != ' ' && ch != ',') t[i++] = ch;
+    }while(ch != ',');
+    t[i] = '\0';
+    w.battery_voltage = (String(t)).toFloat();
+
+    //Read signal strength
+    i = 0;
+    do {
+      ch = datalog.read();
+      if(ch != ' ' && ch != ',') t[i++] = ch;
+    }while(ch != '\n');
+    t[i] = '\0';
+    w.signal_strength = String(t).toInt();
+
+    if(!SendURL(w)) {
+      datalog.close();
+      return false;
+    }
+    ShowSerialData();  
+    Serial1.println("AT+QHTTPREAD=30\r");
+    delay(400);
+    read_length = Serial1.available();
+    ShowSerialData();
+    if(read_length > 70) {
+      datalog.close();
+      return false;
+    }
+    
+    datalog.seekCur(-2);
+    while(datalog.peek()!= '\n') {
+      datalog.seekCur(-1);
+    }
+    datalog.read();
+    datalog.write('1');
+    while(datalog.read()!= '\n');
+  }
+
+  datalog.close();
+  return true;
 }
 
 void CharToInt(unsigned char &a){
-  if((a >= '0' && a <= '9')) a -= '0';
-  else{
-    if(a >= 'a' && a <= 'f') a -= 87;
-    else a -= 55;
+  if((a >= '0' && a <= '9')) {
+    a -= '0';
+  } 
+  else if(a >= 'a' && a <= 'f') {
+    a -= 87;
+  }
+  else if(a >= 'A' && a <= 'F') {
+    a -= 55;
   }
 }
