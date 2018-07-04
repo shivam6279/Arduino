@@ -333,6 +333,10 @@ bool check() {
   return true;
 }
 
+bool UploadOldSD(int n) {
+  
+}
+
 void CharToInt(unsigned char &a){
   if((a >= '0' && a <= '9')) a -= '0';
   else{

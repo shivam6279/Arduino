@@ -237,10 +237,17 @@ void loop() {
         if(SubmitHttpRequest(w, reading_number, current_time)) {  //Upload successful          
           startup = false;
           w[reading_number - 1].t = current_time;
-          number_of_fail_uploads = 0;
+
+          if(number_of_fail_uploads > 0) {
+            UploadOldSD();
+          }
+          
           for(i = 0; i < reading_number; i++) {
             w[i].flag = 1;
           }
+          
+          number_of_fail_uploads = 0;
+          
           #if SERIAL_OUTPUT
             Serial.println("\nUpload successful");
           #endif
@@ -254,7 +261,7 @@ void loop() {
           #endif
     	    #ifdef GSM_PWRKEY_PIN
             if(number_of_fail_uploads % 2 == 0 && number_of_fail_uploads > 0) {
-              GSMModuleRestart();
+              InitGSM();
             }
           #endif
           delay(100);
