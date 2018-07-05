@@ -233,7 +233,7 @@ void loop() {
         #if SERIAL_OUTPUT
           Serial.println("\nploading data");
         #endif
-        if(SubmitHttpRequest(w, reading_number, current_time)) {  //Upload successful          
+        if(UploadWeatherData(w, reading_number, current_time)) {  //Upload successful          
           startup = false;
           w[reading_number - 1].t = current_time;
 

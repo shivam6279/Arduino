@@ -488,7 +488,7 @@ bool UploadOldSD() {
     t[i] = '\0';
     w.signal_strength = String(t).toInt();
 
-    if(!SendURL(w)) {
+    if(!SendWeatherURL(w)) {
       datalog.close();
       return false;
     }

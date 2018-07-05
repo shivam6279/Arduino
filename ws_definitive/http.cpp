@@ -4,6 +4,45 @@
 #include "GSM.h"
 #include "settings.h"
 
+bool SendHttpGet() {
+  uint16_t timeout;
+  char ch;
+
+  ShowSerialData();
+  Serial1.println("AT+QHTTPGET=20\r");
+  delay(700);
+  timeout = 0;
+  do {
+    if(Serial1.available()) {
+      ch = Serial1.read();
+      #if SERIAL_RESPONSE
+        Serial.print(ch);
+      #endif
+    }
+    timeout++;
+    delay(1);
+  }while(!isdigit(ch) && timeout < 20000);
+  if(timeout >= 20000) return false;
+
+  do {
+    if(Serial1.available()) {
+      ch = Serial1.read();
+      #if SERIAL_RESPONSE
+        Serial.print(ch);
+      #endif
+    }
+    timeout++;
+    delay(1);
+  }while(!isAlpha(ch) && timeout < 20000);
+  if(timeout >= 20000) return false;
+
+  delay(100);
+  ShowSerialData();
+  delay(100);
+  if(ch != 'O') return false;  
+  return true;
+}
+
 bool HttpInit() {
   int timeout;
   GSMModuleWake();
@@ -24,7 +63,7 @@ bool HttpInit() {
   return true;
 }
 
-bool SubmitHttpRequest(weatherData w[], uint8_t n, real_time &wt) {
+bool UploadWeatherData(weatherData w[], uint8_t n, real_time &wt) {
   uint16_t read_length;
   uint16_t timeout;
   int i;
@@ -32,7 +71,7 @@ bool SubmitHttpRequest(weatherData w[], uint8_t n, real_time &wt) {
 
   if(n < 1) n = 1;
   for(i = n - 1; i >= 0; i--) {
-    if(!SendURL(w[i])) return false;
+    if(!SendWeatherURL(w[i])) return false;
     ShowSerialData();  
     Serial1.println("AT+QHTTPREAD=30\r");
     delay(400);
@@ -48,7 +87,7 @@ bool SubmitHttpRequest(weatherData w[], uint8_t n, real_time &wt) {
   }
 }
 
-bool SendURL(weatherData w) {
+bool SendWeatherURL(weatherData w) {
   uint16_t timeout;
   char t[4], ch;
   int str_len;
@@ -92,36 +131,7 @@ bool SendURL(weatherData w) {
   delay(300);
   
   ShowSerialData();  
-  Serial1.println("AT+QHTTPGET=30\r");
-  delay(700);
-  timeout = 0;
-  do {
-    if(Serial1.available()) {
-      ch = Serial1.read();
-      #if SERIAL_RESPONSE
-        Serial.print(ch);
-      #endif
-    }
-    delay(1);
-    timeout++;
-  }while(!isdigit(ch) && timeout < 20000);
-  if(timeout >= 20000) return false;
-  timeout = 0;
-  do {
-    if(Serial1.available()) {
-      ch = Serial1.read();
-      #if SERIAL_RESPONSE
-        Serial.print(ch);
-      #endif
-    }
-    delay(1);
-    timeout++;
-  }while(!isAlpha(ch) && timeout < 20000);
-  if(timeout >= 20000) return false;
-  delay(100);
-  ShowSerialData();
-  if(ch != 'O') return false;  
-  return true;
+  return SendHttpGet();
 }
 
 bool ReadTime(real_time &wt){
@@ -229,8 +239,7 @@ bool GetTime(real_time &w) {
   Serial1.print("http://www.yobi.tech/IST\r");
   delay(500);
   ShowSerialData();
-  Serial1.println("AT+QHTTPGET=30\r");
-  delay(100);
+  if(!SendHttpGet()) return false;
   ShowSerialData();
   for(i = 0; Serial1.available() < 3 && i < 200; i++) delay(100);
   ShowSerialData();
