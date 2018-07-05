@@ -13,7 +13,7 @@
 #define UPLOAD_LED 12
 #define RAIN_PIN 4
 #define WIND_PIN A1
-//#define DHTPIN 25  
+#define DHTPIN 25  
 #define SOLAR_RADIATION_PIN A3
 #define METAL_SENSOR_PIN 26
 
@@ -32,10 +32,10 @@ const String OTA_URL = "http://www.yobi.tech/ota/4";
 const String PHONE_NUMBER = "+919220592205";
 const String BACKUP_ID = "201"; //Backup id in case there is no sd card
 
-#define HT_MODE 0				        // 0 for SHT21, 1 for DST, 2 for none
+#define HT_MODE 1				        // 0 for SHT21, 1 for DST, 2 for none
        
 #define DATA_UPLOAD_FREQUENCY 1	//Minutes -- should be a multiple of the read frequency
-#define DATA_READ_FREQUENCY 1	  //Minutes
+#define DATA_READ_FREQUENCY 1  //Minutes
 #define BUFFER_SIZE (DATA_UPLOAD_FREQUENCY / DATA_READ_FREQUENCY)
 
 #define ENABLE_GPS false        //True to enable GPS   

@@ -18,6 +18,7 @@ bool HttpInit() {
   ShowSerialData();
   Serial1.println("AT+QIACT\r");
   for(timeout = 0; Serial1.available() < 2 && timeout < 100; timeout++) delay(100);
+  delay(1000);
   ShowSerialData();
   if(timeout > 100) return false;
   return true;
@@ -27,12 +28,9 @@ bool SubmitHttpRequest(weatherData w[], uint8_t n, real_time &wt) {
   uint16_t read_length;
   uint16_t timeout;
   int i;
-  
-  #if SERIAL_OUTPUT
-  Serial.println("Uploading data");
-  #endif
-  HttpInit();
+  if(!HttpInit()) return false;
 
+  if(n < 1) n = 1;
   for(i = n - 1; i >= 0; i--) {
     if(!SendURL(w[i])) return false;
     ShowSerialData();  
@@ -52,7 +50,7 @@ bool SubmitHttpRequest(weatherData w[], uint8_t n, real_time &wt) {
 
 bool SendURL(weatherData w) {
   uint16_t timeout;
-  char t[4];
+  char t[4], ch;
   int str_len;
   str_len = URL.length(); // URL string length
   str_len += String(ws_id).length() + 4;
@@ -71,6 +69,7 @@ bool SendURL(weatherData w) {
   t[1] = ((str_len / 10) % 10) + 48;
   t[2] = (str_len % 10) + 48;
   t[3] = '\0';
+  delay(1000);
   Serial1.print("AT+QHTTPURL=");
   Serial1.print(t);
   Serial1.print(",30\r");
@@ -94,10 +93,34 @@ bool SendURL(weatherData w) {
   
   ShowSerialData();  
   Serial1.println("AT+QHTTPGET=30\r");
+  delay(700);
+  timeout = 0;
+  do {
+    if(Serial1.available()) {
+      ch = Serial1.read();
+      #if SERIAL_RESPONSE
+        Serial.print(ch);
+      #endif
+    }
+    delay(1);
+    timeout++;
+  }while(!isdigit(ch) && timeout < 20000);
+  if(timeout >= 20000) return false;
+  timeout = 0;
+  do {
+    if(Serial1.available()) {
+      ch = Serial1.read();
+      #if SERIAL_RESPONSE
+        Serial.print(ch);
+      #endif
+    }
+    delay(1);
+    timeout++;
+  }while(!isAlpha(ch) && timeout < 20000);
+  if(timeout >= 20000) return false;
   delay(100);
-  ShowSerialData();  
-  for(timeout = 0; Serial1.available() < 3 && timeout < 200; timeout++) delay(100);
-  if(timeout > 200) return false;
+  ShowSerialData();
+  if(ch != 'O') return false;  
   return true;
 }
 

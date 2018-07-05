@@ -230,13 +230,14 @@ void loop() {
         digitalWrite(UPLOAD_LED, HIGH);
         
         GSMModuleWake();
+        #if SERIAL_OUTPUT
+          Serial.println("\nploading data");
+        #endif
         if(SubmitHttpRequest(w, reading_number, current_time)) {  //Upload successful          
           startup = false;
           w[reading_number - 1].t = current_time;
 
-          if(number_of_fail_uploads > 0) {
-            UploadOldSD();
-          }
+          UploadOldSD();
           
           for(i = 0; i < reading_number; i++) {
             w[i].flag = 1;
@@ -253,7 +254,7 @@ void loop() {
             w[i].flag = 0;
           }
           #if SERIAL_OUTPUT
-            Serial.println("\nUpload failed");
+            Serial.println("\nUpload failed\n");
           #endif
     	    #ifdef GSM_PWRKEY_PIN
             if(number_of_fail_uploads % 5 == 0 && number_of_fail_uploads > 0) {

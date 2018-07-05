@@ -112,7 +112,7 @@ bool DownloadHex() {
     if(Serial1.available()) {
       ch = Serial1.read();
       #if SERIAL_RESPONSE
-  	  Serial.print(ch);
+  	    Serial.print(ch);
   	  #endif
     }
     delay(1);
@@ -319,38 +319,35 @@ bool WriteSD(weatherData w) {
   return true;
 }
 
-bool check() {
+unsigned int check() {
   char ch;
   int lines = 0, p;
   int i;
   sd.chdir();
   if(!sd.exists("id.txt")) {
-    if(!sd.begin(53)) return false;
+    if(!sd.begin(53)) return -1;
   }
   if(!sd.exists("Datalog")) {
-    if(!sd.mkdir("Datalog")) return false;
+    if(!sd.mkdir("Datalog")) return -1;
   }
   if(!sd.exists("Datalog/datalog.csv")) {
-    return false;
+    return -1;
   }
   datalog.open("Datalog/datalog.csv", FILE_READ);
   datalog.seekEnd();
   do {
-    while(datalog.peek()!= '\n' && datalog.curPosition() != 0) {
-      datalog.seekCur(-1);
-    }
-    datalog.read();
-    ch = datalog.read();
-    if(ch == '0') lines++;
+    datalog.seekCur(-2);
     while(datalog.peek()!= '\n' && datalog.curPosition() != 0) {
       datalog.seekCur(-1);
     }
     if(datalog.curPosition() == 0) break;
-    datalog.seekCur(-1);
+    datalog.seekCur(1);
+    ch = datalog.peek();
+    Serial.println(ch);
+    if(ch == '0') lines++;
   }while(ch == '0');
   datalog.close();
-  Serial.println(lines);
-  return true;
+  return lines;
 }
 
 bool UploadOldSD() {
@@ -368,6 +365,9 @@ bool UploadOldSD() {
   if(!sd.exists("Datalog")) {
     if(!sd.mkdir("Datalog")) return false;
   }
+  
+  if(check() <= 0) return true;
+  
   datalog.open("Datalog/datalog.csv", FILE_WRITE);
   datalog.seekEnd();
 
@@ -377,7 +377,7 @@ bool UploadOldSD() {
       datalog.seekCur(-1);
     }
     if(datalog.curPosition() == 0) break;
-    datalog.read();
+    datalog.seekCur(1);
     ch = datalog.peek();
   }while(ch == '0');
   while(datalog.read()!= '\n');
@@ -497,7 +497,7 @@ bool UploadOldSD() {
     delay(400);
     read_length = Serial1.available();
     ShowSerialData();
-    if(read_length > 70) {
+    if(read_length < 70) {
       datalog.close();
       return false;
     }

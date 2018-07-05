@@ -23,7 +23,7 @@ void InitGSM() {
   delay(1000); 
 }
 
-bool CheckSMS(){
+bool CheckSMS() {
   if(Serial1.available() > 3) {
     if(Serial1.read() == '+') {
       if(Serial1.read() == 'C') {
@@ -38,33 +38,56 @@ bool CheckSMS(){
   return 0;
 }
 
-void GetSMS(char n[], char b[]) {
+bool GetSMS(char n[], char b[]) {
   char ch, i;
+  uint16_t timeout;
   ch = Serial1.read();
   while(ch != '"') {
   	delay(1); 
   	ch = Serial1.read(); 
   }
   i = 0;
+  timeout = 0;
   while(1) {
     delay(1);
+    if(timeout++ > 1000) break;
     ch = Serial1.read();
     if(ch == '"') break;
     else n[i++] = ch;
   }
+  if(timeout > 1000) {
+    b[0] = '\0';
+    ShowSerialData();
+    return false;
+  }
   n[i] = '\0';
+  timeout = 0;
   while(ch != '\n') {
   	delay(1); 
+    if(timeout++ > 1000) break;
   	ch = Serial1.read(); 
   }
+  if(timeout > 1000) {
+    b[0] = '\0';
+    ShowSerialData();
+    return false;
+  }
   i = 0;
+  timeout = 0;
   while(1) {
     delay(1);
+    if(timeout++ > 1000) break;
     ch = Serial1.read();
     if(ch == '\n' || ch == '\r') break;
     else b[i++] = ch;
   }
+  if(timeout > 1000) {
+    b[0] = '\0';
+    ShowSerialData();
+    return false;
+  }
   b[i] = '\0';
+  return true;
 }
 
 void SendSMS(char *n, char *b) {
@@ -77,7 +100,7 @@ void SendSMS(char *n, char *b) {
   delay(100);
   Serial1.write('\n');
   delay(100);
-  while(Serial1.available()) Serial1.read();
+  ShowSerialData();
 }
 
 bool CheckNetwork() {
@@ -87,8 +110,8 @@ bool CheckNetwork() {
   delay(100);
   i = Serial1.available();
   ShowSerialData();
-  if(i < 30) return 0;
-  else return 1;
+  if(i < 30) return false;
+  else return true;
 }
 
 int GetSignalStrength() {
