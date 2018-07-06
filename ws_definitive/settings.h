@@ -16,6 +16,7 @@
 #define DHTPIN 25  
 #define SOLAR_RADIATION_PIN A3
 #define METAL_SENSOR_PIN 26
+#define SD_CARD_CS_PIN 53
 
 #define BATTERY_PIN A14
 #define CHARGE_PIN A11

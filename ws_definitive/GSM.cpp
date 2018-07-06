@@ -117,7 +117,8 @@ bool CheckNetwork() {
 int GetSignalStrength() {
   char ch, temp[3];
   int i = 0, tens, ret;
-  while(Serial1.available()) Serial1.read();
+  GSMModuleWake();
+  delay(100);
   Serial1.print("AT+CSQ\r");
   delay(200);
   do {

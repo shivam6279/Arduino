@@ -51,7 +51,7 @@ volatile uint8_t GPS_wait;
 volatile bool four_sec = false, read_flag = false, upload_flag = false;
 
 //Weather data
-weatherData w[BUFFER_SIZE];
+
 real_time current_time;
 
 bool startup = true;
@@ -65,7 +65,7 @@ void setup() {
   pinMode(RAIN_LED, OUTPUT);
   pinMode(WIND_LED, OUTPUT);
   pinMode(UPLOAD_LED, OUTPUT);
-  pinMode(53, OUTPUT);  //SD card's CS pin
+  pinMode(SD_CARD_CS_PIN, OUTPUT);  //SD card's CS pin
   pinMode(RAIN_PIN, INPUT);
   pinMode(WIND_PIN , INPUT);
   pinMode(GSM_DTR_PIN, OUTPUT);
@@ -111,7 +111,7 @@ void setup() {
   #endif
   
   #if SERIAL_OUTPUT
-    Serial.println("Sensor id: " + String(ws_id));
+    Serial.println("\nSensor id: " + String(ws_id));
     Serial.println("Data upload frequency: " + (String)DATA_UPLOAD_FREQUENCY + " minutes");
     Serial.println("Data read frequency: " + (String)DATA_READ_FREQUENCY + " minutes");
     if(HT_MODE == 0) Serial.println("Using SHT21"); else if(HT_MODE == 1) Serial.println("Using DHT22"); else Serial.println("No HT sensor");
@@ -140,6 +140,8 @@ void loop() {
   boolean temp_read, temp_upload, temp_network;
 
   uint8_t reading_number = 0, number_of_fail_uploads = 0;
+
+  weatherData w[BUFFER_SIZE];
   
   rain_counter = 0;
   wind_speed_counter = 0;
@@ -167,35 +169,9 @@ void loop() {
         else Serial.println("4");
       #endif
 
-      //SHT
-      #if HT_MODE == 0
-        w[reading_number].hum = (w[reading_number].hum * float(avg_counter) + SHT2x.GetHumidity()) / (float(avg_counter) + 1.0);
-        //w.temp1 = (w.temp1 * float(avg_counter) + SHT2x.GetTemperature()) / (float(avg_counter) + 1.0);
-      #endif
-      //DHT
-      #if HT_MODE == 1
-        w[reading_number].hum = (w[reading_number].hum * float(avg_counter) + dht.readHumidity()) / (float(avg_counter) + 1.0);
-        w[reading_number].temp1 = (w[reading_number].temp1 * float(avg_counter) + dht.readTemperature()) / (float(avg_counter) + 1.0);
-      #endif
-      #if ENABLE_BMP180 == true
-        w[reading_number].pressure = (w[reading_number].pressure * float(avg_counter) + barometer.GetPressure()) / (float(avg_counter) + 1.0);
-        //w.temp2 = (w.temp2 * avg_counter + barometer.GetTemperature()) / (float(avg_counter) + 1.0);
-      #endif
-      //w.solar_radiation = (w.solar_radiation * float(avg_counter) + (float(analogRead(BATTERY_PIN)) * 5.0 / 1024.0)) / (float(avg_counter) + 1.0);
-      
-      w[reading_number].battery_voltage = (w[reading_number].battery_voltage * float(avg_counter) + (float(analogRead(BATTERY_PIN)) * 5.0 / 1024.0 * (R1 + R2) / R2)) / (float(avg_counter) + 1.0);
-      
-      w[reading_number].amps = (w[reading_number].amps * float(avg_counter) + (((float(analogRead(CURRENT_SENSOR_PIN)) / 1023.0 * 5000.0) - ACSoffset) / mVperAmp)) / (float(avg_counter) + 1.0);
+      ReadData(w[reading_number], avg_counter);
 
-      w[reading_number].panel_voltage = (w[reading_number].panel_voltage * float(avg_counter) + (float(analogRead(CHARGE_PIN)) * 5.0 / 1024.0 * ((R1 + R2) / R2))) / (float(avg_counter) + 1.0);
-      
-      sensors.requestTemperatures();
-      w[reading_number].temp2 = (w[reading_number].temp2 * avg_counter + sensors.getTempCByIndex(0)) / (float(avg_counter) + 1.0);
-      //Serial.println(String(w.voltage) + ", " + String(w.battery_voltage) + ", " + String(w.temp2) + ", " + String(w.amps));
-      
       avg_counter++;
-
-      WeatherCheckIsNan(w[reading_number]);
   
       if(temp_read) { //Read data
         read_flag = false;
@@ -230,47 +206,90 @@ void loop() {
         digitalWrite(UPLOAD_LED, HIGH);
         
         GSMModuleWake();
-        #if SERIAL_OUTPUT
-          Serial.println("\nploading data");
-        #endif
-        if(UploadWeatherData(w, reading_number, current_time)) {  //Upload successful          
-          startup = false;
-          w[reading_number - 1].t = current_time;
-
-          UploadOldSD();
-          
-          for(i = 0; i < reading_number; i++) {
-            w[i].flag = 1;
-          }
-          
-          number_of_fail_uploads = 0;
-          
+        
+        if(!sd.exists("Datalog/datalog.csv")) {
           #if SERIAL_OUTPUT
-            Serial.println("\nUpload successful");
+            Serial.println("\nploading data");
           #endif
+
+          if(UploadWeatherData(w, reading_number, current_time)) {  //Upload successful          
+            startup = false;
+            w[reading_number - 1].t = current_time;
+            
+            for(i = 0; i < reading_number; i++) {
+              w[i].flag = 1;
+            }
+            
+            number_of_fail_uploads = 0;
+            
+            #if SERIAL_OUTPUT
+              Serial.println("\nUpload successful");
+            #endif
+          } else {
+            number_of_fail_uploads++;
+            
+            for(i = 0; i < reading_number; i++) {
+              w[i].flag = 0;
+            }
+
+            #if SERIAL_OUTPUT
+              Serial.println("\nUpload failed\n");
+            #endif
+
+            delay(100);
+            //upload_sms(w[reading_number], phone_number);
+          }
+          #if SERIAL_OUTPUT
+            Serial.println("Writing to the SD card");
+          #endif
+          for(i = 0; i < reading_number; i++) {
+            WriteSD(w[i]);
+          }
         } else {
-          number_of_fail_uploads++;
           for(i = 0; i < reading_number; i++) {
             w[i].flag = 0;
           }
           #if SERIAL_OUTPUT
-            Serial.println("\nUpload failed\n");
+            Serial.println("Writing to the SD card");
           #endif
-    	    #ifdef GSM_PWRKEY_PIN
-            if(number_of_fail_uploads % 5 == 0 && number_of_fail_uploads > 0) {
-              InitGSM();
+          for(i = 0; i < reading_number; i++) {
+            WriteSD(w[i]);
+          }
+
+          #if SERIAL_OUTPUT
+            Serial.println("\nploading data");
+          #endif
+
+          if(UploadOldSD()) {  //Upload successful          
+            startup = false;
+            w[reading_number - 1].t = current_time;
+            
+            for(i = 0; i < reading_number; i++) {
+              w[i].flag = 1;
             }
-          #endif
-          delay(100);
-          //upload_sms(w[reading_number], phone_number);
+            
+            number_of_fail_uploads = 0;
+            
+            #if SERIAL_OUTPUT
+              Serial.println("\nUpload successful");
+            #endif
+          } else {
+            number_of_fail_uploads++;
+
+            #if SERIAL_OUTPUT
+              Serial.println("\nUpload failed\n");
+            #endif
+            
+            //upload_sms(w[reading_number], phone_number);
+          }
         }
-        delay(1000);
-        #if SERIAL_OUTPUT
-          Serial.println("Writing to the SD card");
+
+        #ifdef GSM_PWRKEY_PIN
+          if(number_of_fail_uploads % 5 == 0 && number_of_fail_uploads > 0) {
+            InitGSM();
+          }
         #endif
-        for(i = 0; i < reading_number; i++) {
-          WriteSD(w[i]);
-        }
+        
         reading_number = 0;
         
         digitalWrite(UPLOAD_LED, LOW);
@@ -324,6 +343,36 @@ ISR(TIMER2_COMPA_vect) {
     wind_flag = true;
     digitalWrite(WIND_LED, LOW);
   } 
+}
+
+void ReadData(weatherData w, int c) {
+  //SHT
+  #if HT_MODE == 0
+    w.hum = (w.hum * float(c) + SHT2x.GetHumidity()) / (float(c) + 1.0);
+    w.temp1 = (w.temp1 * float(c) + SHT2x.GetTemperature()) / (float(c) + 1.0);
+  #endif
+  //DHT
+  #if HT_MODE == 1
+    w.hum = (w.hum * float(c) + dht.readHumidity()) / (float(c) + 1.0);
+    w.temp1 = (w.temp1 * float(c) + dht.readTemperature()) / (float(c) + 1.0);
+  #endif
+  #if ENABLE_BMP180 == true
+    w.pressure = (w.pressure * float(c) + barometer.GetPressure()) / (float(c) + 1.0);
+    //w.temp2 = (w.temp2 * avg_counter + barometer.GetTemperature()) / (float(avg_counter) + 1.0);
+  #endif
+  //w.solar_radiation = (w.solar_radiation * float(c) + (float(analogRead(BATTERY_PIN)) * 5.0 / 1024.0)) / (float(c) + 1.0);
+  
+  w.battery_voltage = (w.battery_voltage * float(c) + (float(analogRead(BATTERY_PIN)) * 5.0 / 1024.0 * (R1 + R2) / R2)) / (float(c) + 1.0);
+  
+  w.amps = (w.amps * float(c) + (((float(analogRead(CURRENT_SENSOR_PIN)) / 1023.0 * 5000.0) - ACSoffset) / mVperAmp)) / (float(c) + 1.0);
+
+  w.panel_voltage = (w.panel_voltage * float(c) + (float(analogRead(CHARGE_PIN)) * 5.0 / 1024.0 * ((R1 + R2) / R2))) / (float(c) + 1.0);
+  
+  sensors.requestTemperatures();
+  w.temp2 = (w.temp2 * float(c) + sensors.getTempCByIndex(0)) / (float(c) + 1.0);
+
+  WeatherCheckIsNan(w);
+  
 }
 
 void InitInterrupt() {

@@ -77,7 +77,7 @@ bool DownloadHex() {
 
   sd.chdir();
   if(!sd.exists("id.txt")) {
-    if(!sd.begin(53)) return false;
+    if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
   if(!sd.exists("OtaTemp")){
     if(!sd.mkdir("OtaTemp")) return false;
@@ -181,7 +181,7 @@ bool SDHexToBin() {
 
   sd.chdir();
   if(!sd.exists("id.txt")) {
-    if(!sd.begin(53)) return false;
+    if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
   delay(100);
   if(!sd.exists("OtaTemp/TEMP_OTA.HEX")) return false;
@@ -258,7 +258,7 @@ bool SDHexToBin() {
 bool WriteSD(weatherData w) {
   sd.chdir();
   if(!sd.exists("id.txt")) {
-    if(!sd.begin(53)) return false;
+    if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
   if(!sd.exists("Datalog")) {
     if(!sd.mkdir("Datalog")) return false;
@@ -360,7 +360,7 @@ bool UploadOldSD() {
 
   sd.chdir();
   if(!sd.exists("id.txt")) {
-    if(!sd.begin(53)) return false;
+    if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
   if(!sd.exists("Datalog")) {
     if(!sd.mkdir("Datalog")) return false;
