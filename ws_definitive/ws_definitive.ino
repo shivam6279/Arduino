@@ -345,7 +345,7 @@ ISR(TIMER2_COMPA_vect) {
   } 
 }
 
-void ReadData(weatherData w, int c) {
+void ReadData(weatherData &w, int c) {
   //SHT
   #if HT_MODE == 0
     w.hum = (w.hum * float(c) + SHT2x.GetHumidity()) / (float(c) + 1.0);
