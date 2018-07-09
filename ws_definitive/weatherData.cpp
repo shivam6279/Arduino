@@ -71,32 +71,133 @@ void WeatherCheckIsNan(weatherData &w) {
 }
 
 void HandleTimeOverflow(real_time &t) {
-  while(t.seconds >= 60) { 
-    t.seconds -= 60; 
-    t.minutes++;
-    if(t.minutes >= 60) { 
-      t.minutes = 0; 
-      t.hours++;
-      if(t.hours >= 24) { 
-        t.hours = 0; 
-        t.day++;
-        if((t.month == 1 || t.month == 3 || t.month == 5 || t.month == 7 || t.month == 8 || t.month == 10 || t.month == 12) && t.day > 31) { 
-          t.day = 1; 
-          t.month++; 
-        }
-        else if((t.month == 4 || t.month == 6 || t.month == 9 || t.month == 11) && t.day > 30) { 
-          t.day = 1; 
-          t.month++; 
-        }
-        else if(t.month == 2 && t.day > 28) { 
-          t.day = 1; 
-          t.month++; 
-        }
-        if(t.month > 12) {  
-          t.month = 1; 
-          t.year++; 
-        } 
-      } 
-    } 
+  t.minutes += t.seconds % 60;
+  t.seconds = t.seconds % 60;
+
+  t.hours += t.minutes % 60;
+  t.minutes = t.minutes % 60;
+
+  t.day += t.hours % 24;
+  t.hours = t.hours % 24;
+
+  while((t.month == 1 || t.month == 3 || t.month == 5 || t.month == 7 || t.month == 8 || t.month == 10 || t.month == 12) && t.day > 31 ||
+  (t.month == 4 || t.month == 6 || t.month == 9 || t.month == 11) && t.day > 30 ||
+  (t.month == 2 && t.day > 28)) { 
+    if(t.month == 1 || t.month == 3 || t.month == 5 || t.month == 7 || t.month == 8 || t.month == 10 || t.month == 12) t.day -= 31;
+    else if(t.month == 4 || t.month == 6 || t.month == 9 || t.month == 11) t.day -=30;
+    else if(t.month == 2) t.day -= 28;
+
+    t.month++; 
+    if(t.month > 12) {
+      t.month = 1;
+      t.year++;
+    }
   }
+}
+
+void AddTime(real_time a, real_time b, real_time &c) {
+  HandleTimeOverflow(a);
+  HandleTimeOverflow(b);
+
+  c.seconds = a.seconds + b.seconds;
+  c.minutes = a.minutes + b.minutes;
+  c.hours = a.hours + b.hours;
+  
+  c.day = a.day + b.day;
+  c.month = a.month + b.seconds;
+  c.hours = a.hours + b.hours;
+
+  HandleTimeOverflow(c);
+}
+
+
+void SubtractTime(real_time a, real_time b, real_time &c) {
+  HandleTimeOverflow(a);
+  HandleTimeOverflow(b);
+
+  int temp;
+
+  if(a.seconds < b.seconds) {
+    if(a.minutes == 0) {
+      if(a.hours == 0) {
+        if(a.day == 1) {
+          if(a.month == 1) {
+            a.year--;
+            a.month += 12;
+          }
+          temp = a.month % 12;
+          if(temp == 1 || temp == 3 || temp == 5 || temp == 7 || temp == 8 || temp == 10 || temp == 12) a.day += 31;
+          else if(temp == 4 || temp == 6 || temp == 9 || temp == 11) a.day += 30;
+          else if(temp == 2) a.day += 28;
+          a.month--;
+        } 
+        a.day--;
+        a.hours += 24;
+      } 
+      a.hours--;
+      a.minutes += 60;
+    }
+    a.minutes--;
+    a.seconds += 60;
+  } 
+  c.seconds = a.seconds - b.seconds;
+
+  if(a.minutes < b.minutes) {
+    if(a.hours == 0) {
+      if(a.day == 1) {
+        if(a.month == 1) {
+          a.year--;
+          a.month += 12;
+        }
+        temp = a.month % 12;
+        if(temp == 1 || temp == 3 || temp == 5 || temp == 7 || temp == 8 || temp == 10 || temp == 12) a.day += 31;
+        else if(temp == 4 || temp == 6 || temp == 9 || temp == 11) a.day += 30;
+        else if(temp == 2) a.day += 28;
+        a.month--;
+      } 
+      a.day--;
+      a.hours += 24;
+    } 
+    a.hours--;
+    a.minutes += 60;
+  }
+  c.minutes = a.minutes - b.minutes;
+
+  if(a.hours < b.hours) {
+    if(a.day == 1) {
+      if(a.month == 1) {
+        a.year--;
+        a.month += 12;
+      }
+      temp = a.month % 12;
+      if(temp == 1 || temp == 3 || temp == 5 || temp == 7 || temp == 8 || temp == 10 || temp == 12) a.day += 31;
+      else if(temp == 4 || temp == 6 || temp == 9 || temp == 11) a.day += 30;
+      else if(temp == 2) a.day += 28;
+      a.month--;
+    } 
+    a.day--;
+    a.hours += 24;
+  } 
+  c.hours = a.hours - b.hours;
+
+  if(a.day < b.day) {
+    if(a.month == 1) {
+      a.year--;
+      a.month += 12;
+    }
+    temp = a.month % 12;
+    if(temp == 1 || temp == 3 || temp == 5 || temp == 7 || temp == 8 || temp == 10 || temp == 12) a.day += 31;
+    else if(temp == 4 || temp == 6 || temp == 9 || temp == 11) a.day += 30;
+    else if(temp == 2) a.day += 28;
+    a.month--;
+  } 
+  c.day = a.day - b.day;
+
+  if(a.month < b.month) {
+    a.year--;
+    a.month += 12;
+  } 
+  c.month = a.month - b.month;
+
+  c.year = a.year - b.year;
 }
