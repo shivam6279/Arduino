@@ -22,7 +22,7 @@ void CheckOTA() {
       }
     }
     
-    if(toupper(body_r[0]) == 'O' &&  toupper(body_r[1]) == 'T' && toupper(body_r[2]) == 'A' && sd.begin(53)) {
+    if(toupper(body_r[0]) == 'O' &&  toupper(body_r[1]) == 'T' && toupper(body_r[2]) == 'A' && sd.begin(SD_CARD_CS_PIN)) {
       SendSMS(number, "Downloading new firmware");
       #if SERIAL_OUTPUT
         Serial.println("Updating firmware");
@@ -316,6 +316,7 @@ bool WriteSD(weatherData w) {
   datalog.print(", ");
   datalog.println(w.signal_strength);
   datalog.close();
+
   return true;
 }
 
@@ -325,7 +326,7 @@ unsigned int GetPreviousFailedUploads() {
   int i;
   sd.chdir();
   if(!sd.exists("id.txt")) {
-    if(!sd.begin(53)) return -1;
+    if(!sd.begin(SD_CARD_CS_PIN)) return -1;
   }
   if(!sd.exists("Datalog")) {
     if(!sd.mkdir("Datalog")) return -1;
@@ -366,7 +367,7 @@ bool UploadOldSD() {
     if(!sd.mkdir("Datalog")) return false;
   }
   
-  if(GetPreviousFailedUploads() <= 0) return true;
+  if(GetPreviousFailedUploads() == 0) return true;
   
   datalog.open("Datalog/datalog.csv", FILE_WRITE);
   datalog.seekEnd();

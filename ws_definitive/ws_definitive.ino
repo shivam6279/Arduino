@@ -92,6 +92,9 @@ void setup() {
     #endif
     BACKUP_ID.toCharArray(ws_id, 5);
   } else {
+    #if SERIAL_OUTPUT
+      Serial.println("SD Card detected");
+    #endif
     datalog.open("id.txt", FILE_READ);
     while(datalog.available()) {
       ws_id[i++] = datalog.read();
@@ -215,7 +218,7 @@ void loop() {
         GSMModuleWake();
         
         //-----------------------------------No SD Card---------------------------------
-        if(!sd.exists("Datalog/datalog.csv")) {
+        if(!sd.exists("id.txt")) {
           #if SERIAL_OUTPUT
             Serial.println("\nploading data");
           #endif
@@ -247,8 +250,8 @@ void loop() {
             delay(100);
             //upload_sms(w[reading_number], phone_number);
           }
-        //------------------------------------------------------------------------------
         } else {
+        //------------------------------------------------------------------------------
           for(i = 0; i < reading_number; i++) {
             w[i].flag = 0;
           }
@@ -262,13 +265,19 @@ void loop() {
           }
 
           if(current_time.flag == false && startup == false) {
-            temp_time = current_time;
             #if SERIAL_OUTPUT
               Serial.println("\nReading time from server");
             #endif
+
+            temp_time = current_time;
             if(GetTime(current_time)) {
               SubtractTime(current_time, temp_time, startup_time);
               WriteOldTime(initial_sd_card_uploads, startup_time);
+            } else {
+              #if SERIAL_OUTPUT
+                Serial.println("Server request failed");
+              #endif
+              break;  
             }
           }
 
