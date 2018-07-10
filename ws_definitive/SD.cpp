@@ -22,7 +22,7 @@ void CheckOTA() {
       }
     }
     
-    if(toupper(body_r[0]) == 'O' &&  toupper(body_r[1]) == 'T' &&toupper(body_r[2]) == 'A' && sd.begin(53)) {
+    if(toupper(body_r[0]) == 'O' &&  toupper(body_r[1]) == 'T' && toupper(body_r[2]) == 'A' && sd.begin(53)) {
       SendSMS(number, "Downloading new firmware");
       #if SERIAL_OUTPUT
         Serial.println("Updating firmware");
@@ -319,7 +319,7 @@ bool WriteSD(weatherData w) {
   return true;
 }
 
-unsigned int check() {
+unsigned int GetPreviousFailedUploads() {
   char ch;
   int lines = 0, p;
   int i;
@@ -366,7 +366,7 @@ bool UploadOldSD() {
     if(!sd.mkdir("Datalog")) return false;
   }
   
-  if(check() <= 0) return true;
+  if(GetPreviousFailedUploads() <= 0) return true;
   
   datalog.open("Datalog/datalog.csv", FILE_WRITE);
   datalog.seekEnd();
@@ -506,13 +506,121 @@ bool UploadOldSD() {
     while(datalog.peek()!= '\n') {
       datalog.seekCur(-1);
     }
-    datalog.read();
+    datalog.seekCur(1);
     datalog.write('1');
     while(datalog.read()!= '\n');
   }
 
   datalog.close();
   return true;
+}
+
+bool WriteOldTime(int n, real_time t) {
+  int lines, i;
+  char str[10], ch;
+  real_time temp;
+
+  sd.chdir();
+  if(!sd.exists("id.txt")) {
+    if(!sd.begin(SD_CARD_CS_PIN)) return false;
+  }
+  if(!sd.exists("Datalog")) {
+    if(!sd.mkdir("Datalog")) return false;
+  }
+  
+  if(GetPreviousFailedUploads() < n) return false;
+  
+  datalog.open("Datalog/datalog.csv", FILE_WRITE);
+  datalog.seekEnd();
+
+  lines = 0;
+  do {
+    datalog.seekCur(-2);
+    while(datalog.peek()!= '\n' && datalog.curPosition() != 0) {
+      datalog.seekCur(-1);
+    }
+    if(datalog.curPosition() == 0) break;
+    datalog.seekCur(1);
+    ch = datalog.peek();
+    if(ch == '0') lines++;
+  }while(ch == '0' && lines < n);
+  while(datalog.read()!= '\n');
+
+  if(lines != n) {
+    datalog.close();
+    return false;
+  }
+
+  while(lines) {
+    t.seconds = 0;
+    t.minutes = 0;
+    t.hours = 0;
+    t.day = 0;
+    t.month = 0;
+    t.year = 0;
+
+    while(datalog.read() != ',');
+    while(datalog.read() != ',');
+    datalog.read();
+    for(i = 0; datalog.peek() != '/'; i++) {
+      str[i] = datalog.read();
+    }
+    str[i] = '\0';
+    temp.day = String(str).toInt();
+
+    while(datalog.read() != ' ');
+
+    for(i = 0; datalog.peek() != ':'; i++) {
+      str[i] = datalog.read();
+    }
+    str[i] = '\0';
+    temp.hours = String(str).toInt();
+    datalog.read();
+
+    for(i = 0; datalog.peek() != ':'; i++) {
+      str[i] = datalog.read();
+    }
+    str[i] = '\0';
+    temp.minutes = String(str).toInt();
+    datalog.read();
+
+    for(i = 0; datalog.peek() != ','; i++) {
+      str[i] = datalog.read();
+    }
+    str[i] = '\0';
+    temp.seconds = String(str).toInt();
+    datalog.read();
+
+    AddTime(t, temp, temp);
+
+    datalog.seekCur(-1);
+    while(datalog.peek() != ',') {
+      datalog.seekCur(-1);
+    }
+    datalog.seekCur(2);
+
+    datalog.write((temp.day / 10) % 10 + '0'); 
+    datalog.write((temp.day % 10) + '0');
+    datalog.seekCur(1);
+    datalog.write((temp.month / 10) % 10 + '0'); 
+    datalog.write((temp.month % 10) + '0');
+    datalog.seekCur(1);
+    datalog.write((temp.year / 1000) % 10 + '0'); 
+    datalog.write((temp.year / 100) % 10 + '0'); 
+    datalog.write((temp.year / 10) % 10 + '0'); 
+    datalog.write((temp.year % 10) + '0');
+    datalog.seekCur(1);
+    datalog.write((temp.hours / 10) % 10 + '0'); 
+    datalog.write((temp.hours % 10) + '0');
+    datalog.seekCur(1);
+    datalog.write((temp.minutes / 10) % 10 + '0'); 
+    datalog.write((temp.minutes % 10) + '0');
+    datalog.seekCur(1);
+    datalog.write((temp.seconds / 10) % 10 + '0'); 
+    datalog.write((temp.seconds % 10) + '0');
+
+    while(datalog.read() != '\n');
+  }
 }
 
 void CharToInt(unsigned char &a){

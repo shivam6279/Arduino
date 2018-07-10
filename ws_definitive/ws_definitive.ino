@@ -52,7 +52,9 @@ volatile bool four_sec = false, read_flag = false, upload_flag = false;
 
 //Weather data
 
+//Times
 real_time current_time;
+real_time startup_time;
 
 bool startup = true;
 
@@ -139,9 +141,13 @@ void loop() {
   unsigned long int avg_counter = 0;
   boolean temp_read, temp_upload, temp_network;
 
-  uint8_t reading_number = 0, number_of_fail_uploads = 0;
+  uint16_t reading_number = 0;
+  uint16_t number_of_fail_uploads = 0;
+  uint16_t initial_sd_card_uploads = 0;
 
   weatherData w[BUFFER_SIZE];
+
+  real_time temp_time;
   
   rain_counter = 0;
   wind_speed_counter = 0;
@@ -190,7 +196,7 @@ void loop() {
 
         w[reading_number].signal_strength = GetSignalStrength();
         
-        #if enable_GPS
+        #if ENABLE_GPS
           //GetGPS();
         #endif
 
@@ -202,11 +208,13 @@ void loop() {
         
         digitalWrite(UPLOAD_LED, LOW);
       }
+
       if(temp_upload) { //Upload data
         digitalWrite(UPLOAD_LED, HIGH);
         
         GSMModuleWake();
         
+        //-----------------------------------No SD Card---------------------------------
         if(!sd.exists("Datalog/datalog.csv")) {
           #if SERIAL_OUTPUT
             Serial.println("\nploading data");
@@ -239,12 +247,7 @@ void loop() {
             delay(100);
             //upload_sms(w[reading_number], phone_number);
           }
-          #if SERIAL_OUTPUT
-            Serial.println("Writing to the SD card");
-          #endif
-          for(i = 0; i < reading_number; i++) {
-            WriteSD(w[i]);
-          }
+        //------------------------------------------------------------------------------
         } else {
           for(i = 0; i < reading_number; i++) {
             w[i].flag = 0;
@@ -254,13 +257,26 @@ void loop() {
           #endif
           for(i = 0; i < reading_number; i++) {
             WriteSD(w[i]);
+            if(startup == false) 
+              initial_sd_card_uploads++;
+          }
+
+          if(current_time.flag == false && startup == false) {
+            temp_time = current_time;
+            #if SERIAL_OUTPUT
+              Serial.println("\nReading time from server");
+            #endif
+            if(GetTime(current_time)) {
+              SubtractTime(current_time, temp_time, startup_time);
+              WriteOldTime(initial_sd_card_uploads, startup_time);
+            }
           }
 
           #if SERIAL_OUTPUT
             Serial.println("\nploading data");
           #endif
 
-          if(UploadOldSD()) {  //Upload successful          
+          if(UploadOldSD() && current_time.flag) {  //Upload successful          
             startup = false;
             w[reading_number - 1].t = current_time;
             
@@ -319,6 +335,7 @@ ISR(TIMER1_COMPA_vect) {
   //Increment time by 4 seconds and handle overflow
   current_time.seconds += 4;
   HandleTimeOverflow(current_time);
+
 }
 
 //Interrupt gets called every 125 micro seconds

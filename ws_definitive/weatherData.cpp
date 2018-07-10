@@ -71,26 +71,23 @@ void WeatherCheckIsNan(weatherData &w) {
 }
 
 void HandleTimeOverflow(real_time &t) {
-  t.minutes += t.seconds % 60;
+  t.minutes += t.seconds / 60;
   t.seconds = t.seconds % 60;
 
-  t.hours += t.minutes % 60;
+  t.hours += t.minutes / 60;
   t.minutes = t.minutes % 60;
 
-  t.day += t.hours % 24;
+  t.day += t.hours / 24;
   t.hours = t.hours % 24;
 
-  while((t.month == 1 || t.month == 3 || t.month == 5 || t.month == 7 || t.month == 8 || t.month == 10 || t.month == 12) && t.day > 31 ||
-  (t.month == 4 || t.month == 6 || t.month == 9 || t.month == 11) && t.day > 30 ||
-  (t.month == 2 && t.day > 28)) { 
-    if(t.month == 1 || t.month == 3 || t.month == 5 || t.month == 7 || t.month == 8 || t.month == 10 || t.month == 12) t.day -= 31;
-    else if(t.month == 4 || t.month == 6 || t.month == 9 || t.month == 11) t.day -=30;
-    else if(t.month == 2) t.day -= 28;
-
-    t.month++; 
-    if(t.month > 12) {
-      t.month = 1;
-      t.year++;
+  if(t.month && t.flag) {
+    while(t.day > DaysInMonth(t.month, t.year)) { 
+      t.day -= DaysInMonth(t.month, t.year);
+      t.month++; 
+      if(t.month > 12) {
+        t.month = 1;
+        t.year++;
+      }
     }
   }
 }
@@ -110,10 +107,19 @@ void AddTime(real_time a, real_time b, real_time &c) {
   HandleTimeOverflow(c);
 }
 
-
+//a is a calendar date, b is the duration between c and a
 void SubtractTime(real_time a, real_time b, real_time &c) {
   HandleTimeOverflow(a);
-  HandleTimeOverflow(b);
+
+  c.seconds = 0;
+  c.minutes = 0;
+  c.hours = 0;
+  
+  c.day = 0;
+  c.month = 0;
+  c.hours = 0;
+
+  c.flag = a.flag;
 
   int temp;
 
@@ -122,14 +128,13 @@ void SubtractTime(real_time a, real_time b, real_time &c) {
       if(a.hours == 0) {
         if(a.day == 1) {
           if(a.month == 1) {
+            a.day += DaysInMonth(a.month - 1, a.year);
             a.year--;
-            a.month += 12;
+            a.month = 12;
+          } else {
+            a.day += DaysInMonth(a.month - 1, a.year);
+            a.month--;
           }
-          temp = a.month % 12;
-          if(temp == 1 || temp == 3 || temp == 5 || temp == 7 || temp == 8 || temp == 10 || temp == 12) a.day += 31;
-          else if(temp == 4 || temp == 6 || temp == 9 || temp == 11) a.day += 30;
-          else if(temp == 2) a.day += 28;
-          a.month--;
         } 
         a.day--;
         a.hours += 24;
@@ -146,14 +151,13 @@ void SubtractTime(real_time a, real_time b, real_time &c) {
     if(a.hours == 0) {
       if(a.day == 1) {
         if(a.month == 1) {
+          a.day += DaysInMonth(a.month - 1, a.year);
           a.year--;
-          a.month += 12;
+          a.month = 12;
+        } else {
+          a.day += DaysInMonth(a.month - 1, a.year);
+          a.month--;
         }
-        temp = a.month % 12;
-        if(temp == 1 || temp == 3 || temp == 5 || temp == 7 || temp == 8 || temp == 10 || temp == 12) a.day += 31;
-        else if(temp == 4 || temp == 6 || temp == 9 || temp == 11) a.day += 30;
-        else if(temp == 2) a.day += 28;
-        a.month--;
       } 
       a.day--;
       a.hours += 24;
@@ -166,38 +170,57 @@ void SubtractTime(real_time a, real_time b, real_time &c) {
   if(a.hours < b.hours) {
     if(a.day == 1) {
       if(a.month == 1) {
+        a.day += DaysInMonth(a.month - 1, a.year);
         a.year--;
-        a.month += 12;
+        a.month = 12;
+      } else {
+        a.day += DaysInMonth(a.month - 1, a.year);
+        a.month--;
       }
-      temp = a.month % 12;
-      if(temp == 1 || temp == 3 || temp == 5 || temp == 7 || temp == 8 || temp == 10 || temp == 12) a.day += 31;
-      else if(temp == 4 || temp == 6 || temp == 9 || temp == 11) a.day += 30;
-      else if(temp == 2) a.day += 28;
-      a.month--;
     } 
     a.day--;
     a.hours += 24;
   } 
   c.hours = a.hours - b.hours;
 
-  if(a.day < b.day) {
+  while(a.day <= b.day) {
     if(a.month == 1) {
+      a.day += DaysInMonth(a.month - 1, a.year);
       a.year--;
-      a.month += 12;
+      a.month = 12;
+    } else {
+      a.day += DaysInMonth(a.month - 1, a.year);
+      a.month--;
     }
-    temp = a.month % 12;
-    if(temp == 1 || temp == 3 || temp == 5 || temp == 7 || temp == 8 || temp == 10 || temp == 12) a.day += 31;
-    else if(temp == 4 || temp == 6 || temp == 9 || temp == 11) a.day += 30;
-    else if(temp == 2) a.day += 28;
-    a.month--;
   } 
   c.day = a.day - b.day;
 
-  if(a.month < b.month) {
-    a.year--;
-    a.month += 12;
-  } 
-  c.month = a.month - b.month;
+  c.month = a.month;
+  c.year = a.year;
+}
 
-  c.year = a.year - b.year;
+int DaysInMonth(int month, int year) {
+  if(month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12) 
+    return 31;
+  else if(month == 4 || month == 6 || month == 9 || month == 11) 
+    return 30;
+  else if(month == 2) {
+    if(CheckLeapYear(year)) 
+      return 29;
+    else
+      return 28;
+  }
+}
+
+bool CheckLeapYear(int year) {
+    if (year % 400 == 0)
+        return true;
+
+    if (year % 100 == 0)
+        return false;
+
+    if (year % 4 == 0)
+        return true;
+
+    return false;
 }

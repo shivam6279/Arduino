@@ -6,7 +6,7 @@
 extern char ws_id[4];
 
 struct real_time {
-  bool flag;
+  bool flag = 0;
   uint16_t seconds = 0, minutes = 0, hours = 0, day = 0, month = 0;
   uint16_t year = 0;
 };
@@ -28,7 +28,9 @@ extern void PrintWeatherData(weatherData);
 extern void TimeDataReset(real_time&);
 extern void PrintTime(real_time);
 extern void HandleTimeOverflow(real_time&);
+extern void AddTime(real_time, real_time, real_time&);
 extern void SubtractTime(real_time, real_time, real_time&);
-
+extern int DaysInMonth(int, int);
+extern bool CheckLeapYear(int);
 
 #endif

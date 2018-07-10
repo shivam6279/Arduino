@@ -89,7 +89,7 @@ bool UploadWeatherData(weatherData w[], uint8_t n, real_time &wt) {
 
 bool SendWeatherURL(weatherData w) {
   uint16_t timeout;
-  char t[4], ch;
+  char ch;
   int str_len;
   str_len = URL.length(); // URL string length
   str_len += String(ws_id).length() + 4;
@@ -104,13 +104,9 @@ bool SendWeatherURL(weatherData w) {
   str_len += String(w.battery_voltage).length() + 4;
   str_len += String(w.signal_strength).length() + 3;
 
-  t[0] = ((str_len / 100) % 10) + 48;
-  t[1] = ((str_len / 10) % 10) + 48;
-  t[2] = (str_len % 10) + 48;
-  t[3] = '\0';
   delay(1000);
   Serial1.print("AT+QHTTPURL=");
-  Serial1.print(t);
+  Serial1.print(str_len);
   Serial1.print(",30\r");
   delay(1000);
   ShowSerialData();   
@@ -259,6 +255,7 @@ bool GetTime(real_time &w) {
   Serial1.read();
   w.seconds = (Serial1.read() - 48) * 10; w.seconds += (Serial1.read() - 48);
   ShowSerialData();
+  w.flag = 1;
   return true;
 }
 
