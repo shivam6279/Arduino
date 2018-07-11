@@ -214,13 +214,15 @@ void loop() {
 
       if(temp_upload) { //Upload data
         digitalWrite(UPLOAD_LED, HIGH);
+
+        upload_flag = false;
         
         GSMModuleWake();
         
         //-----------------------------------No SD Card---------------------------------
         if(!sd.exists("id.txt")) {
           #if SERIAL_OUTPUT
-            Serial.println("\nploading data");
+            Serial.println("\nUploading data");
           #endif
 
           if(UploadWeatherData(w, reading_number, current_time)) {  //Upload successful          
@@ -260,52 +262,61 @@ void loop() {
           #endif
           for(i = 0; i < reading_number; i++) {
             WriteSD(w[i]);
-            if(startup == false) 
+            if(startup == true) 
               initial_sd_card_uploads++;
           }
 
-          if(current_time.flag == false && startup == false) {
+          if(current_time.flag == false && startup == true) {
             #if SERIAL_OUTPUT
               Serial.println("\nReading time from server");
             #endif
 
             temp_time = current_time;
             if(GetTime(current_time)) {
+              #if SERIAL_OUTPUT
+                Serial.print("\nCurrent Time:");
+              #endif
+              PrintTime(current_time);
               SubtractTime(current_time, temp_time, startup_time);
+              #if SERIAL_OUTPUT
+                Serial.print("\nStartup Time:");
+              #endif
+              PrintTime(startup_time);
               WriteOldTime(initial_sd_card_uploads, startup_time);
             } else {
               #if SERIAL_OUTPUT
                 Serial.println("Server request failed");
               #endif
-              break;  
+              number_of_fail_uploads++; 
             }
           }
-
-          #if SERIAL_OUTPUT
-            Serial.println("\nploading data");
-          #endif
-
-          if(UploadOldSD() && current_time.flag) {  //Upload successful          
-            startup = false;
-            w[reading_number - 1].t = current_time;
-            
-            for(i = 0; i < reading_number; i++) {
-              w[i].flag = 1;
+          
+          if(current_time.flag) {
+            #if SERIAL_OUTPUT
+              Serial.println("\nUploading data");
+            #endif
+            if(UploadOldSD()) {  //Upload successful          
+              startup = false;
+              w[reading_number - 1].t = current_time;
+              
+              for(i = 0; i < reading_number; i++) {
+                w[i].flag = 1;
+              }
+              
+              number_of_fail_uploads = 0;
+              
+              #if SERIAL_OUTPUT
+                Serial.println("\nUpload successful");
+              #endif
+            } else {
+              number_of_fail_uploads++;
+  
+              #if SERIAL_OUTPUT
+                Serial.println("\nUpload failed\n");
+              #endif
+              
+              //upload_sms(w[reading_number], phone_number);
             }
-            
-            number_of_fail_uploads = 0;
-            
-            #if SERIAL_OUTPUT
-              Serial.println("\nUpload successful");
-            #endif
-          } else {
-            number_of_fail_uploads++;
-
-            #if SERIAL_OUTPUT
-              Serial.println("\nUpload failed\n");
-            #endif
-            
-            //upload_sms(w[reading_number], phone_number);
           }
         }
 
@@ -318,7 +329,6 @@ void loop() {
         reading_number = 0;
         
         digitalWrite(UPLOAD_LED, LOW);
-        upload_flag = false;
         #if SERIAL_OUTPUT
           if(current_time.flag) PrintTime(current_time);
           Serial.println("Seconds till next upload:");

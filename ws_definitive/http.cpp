@@ -228,34 +228,50 @@ bool ReadTime(real_time &wt){
 }
 
 bool GetTime(real_time &w) {
-  uint8_t i;
-  HttpInit();
+  uint8_t i, c;
+  real_time t;
+  if(!HttpInit()) return false;
   Serial1.print("AT+QHTTPURL=24,30\r");
   delay(100);
   Serial1.print("http://www.yobi.tech/IST\r");
   delay(500);
   ShowSerialData();
   if(!SendHttpGet()) return false;
-  ShowSerialData();
-  for(i = 0; Serial1.available() < 3 && i < 200; i++) delay(100);
+  delay(200);
   ShowSerialData();
   Serial1.println("AT+QHTTPREAD=30\r");
-  delay(600);
-  for(i = 0; Serial1.read() != '\n' && i < 200; i++) delay(100);
-  for(i = 0; Serial1.read() != '\n' && i < 200; i++) delay(100);
-  w.year = (Serial1.read() - 48) * 1000; w.year += (Serial1.read() - 48) * 100; w.year += (Serial1.read() - 48) * 10; w.year += (Serial1.read() - 48);
+  delay(800);
+  for(i = 0, c = 0; c < 2 && i < 200; i++) {
+    if(Serial1.read() == '\n')
+      c++;
+    delay(10);
+  }
+  if(i > 200 || Serial1.available() < 19) {
+    ShowSerialData();
+    return false;
+  }
+  t.year = (Serial1.read() - 48) * 1000; 
+  t.year += (Serial1.read() - 48) * 100; 
+  t.year += (Serial1.read() - 48) * 10; 
+  t.year += (Serial1.read() - 48);
   Serial1.read();
-  w.month = (Serial1.read() - 48) * 10; w.month += (Serial1.read() - 48);
+  t.month = (Serial1.read() - 48) * 10; 
+  t.month += (Serial1.read() - 48);
   Serial1.read();
-  w.day = (Serial1.read() - 48) * 10; w.day += (Serial1.read() - 48);
+  t.day = (Serial1.read() - 48) * 10; 
+  t.day += (Serial1.read() - 48);
   Serial1.read();
-  w.hours = (Serial1.read() - 48) * 10; w.hours += (Serial1.read() - 48);
+  t.hours = (Serial1.read() - 48) * 10; 
+  t.hours += (Serial1.read() - 48);
   Serial1.read();
-  w.minutes = (Serial1.read() - 48) * 10; w.minutes += (Serial1.read() - 48);
+  t.minutes = (Serial1.read() - 48) * 10; 
+  t.minutes += (Serial1.read() - 48);
   Serial1.read();
-  w.seconds = (Serial1.read() - 48) * 10; w.seconds += (Serial1.read() - 48);
+  t.seconds = (Serial1.read() - 48) * 10; 
+  t.seconds += (Serial1.read() - 48);
   ShowSerialData();
-  w.flag = 1;
+  t.flag = 1;
+  w = t;
   return true;
 }
 

@@ -265,12 +265,14 @@ bool WriteSD(weatherData w) {
   }
   if(!sd.exists("Datalog/datalog.csv")) {
     datalog.open("Datalog/datalog.csv", FILE_WRITE);
-    datalog.println("success, id, ts, t1, t2, h, w, r, p, a, s, cv, bv, sg");
+    datalog.println("Success, Time Flag, id, ts, t1, t2, h, w, r, p, a, s, cv, bv, sg");
   } else {
     datalog.open("Datalog/datalog.csv", FILE_WRITE);
   }
   datalog.seekEnd();
   datalog.print(w.flag);
+  datalog.print(", ");
+  datalog.print(w.t.flag);
   datalog.print(", ");
   datalog.print(ws_id);
   datalog.print(", ");
@@ -344,7 +346,6 @@ unsigned int GetPreviousFailedUploads() {
     if(datalog.curPosition() == 0) break;
     datalog.seekCur(1);
     ch = datalog.peek();
-    Serial.println(ch);
     if(ch == '0') lines++;
   }while(ch == '0');
   datalog.close();
@@ -366,8 +367,11 @@ bool UploadOldSD() {
   if(!sd.exists("Datalog")) {
     if(!sd.mkdir("Datalog")) return false;
   }
-  
-  if(GetPreviousFailedUploads() == 0) return true;
+  i = GetPreviousFailedUploads();
+  #if SERIAL_OUTPUT
+    Serial.println("Number of missed uploads: " + String(i));
+  #endif
+  if(i == 0) return true;
   
   datalog.open("Datalog/datalog.csv", FILE_WRITE);
   datalog.seekEnd();
@@ -386,7 +390,8 @@ bool UploadOldSD() {
   HttpInit();
 
   while(datalog.available()) {
-    while(datalog.read() != ','); //Read past 'success' flag
+    while(datalog.read() != ','); //Read past success flag
+    while(datalog.read() != ','); //Read past time flag
     while(datalog.read() != ','); //Read past ws_id
     while(datalog.read() != ','); //Read past timestamp
 
@@ -530,7 +535,7 @@ bool WriteOldTime(int n, real_time t) {
   }
   
   if(GetPreviousFailedUploads() < n) return false;
-  
+  Serial.println(n);
   datalog.open("Datalog/datalog.csv", FILE_WRITE);
   datalog.seekEnd();
 
@@ -545,23 +550,25 @@ bool WriteOldTime(int n, real_time t) {
     ch = datalog.peek();
     if(ch == '0') lines++;
   }while(ch == '0' && lines < n);
-  while(datalog.read()!= '\n');
+  //while(datalog.read()!= '\n');
 
   if(lines != n) {
     datalog.close();
     return false;
   }
 
-  while(lines) {
-    t.seconds = 0;
-    t.minutes = 0;
-    t.hours = 0;
-    t.day = 0;
-    t.month = 0;
-    t.year = 0;
+  for(; lines > 0; lines--) {
+    temp.seconds = 0;
+    temp.minutes = 0;
+    temp.hours = 0;
+    temp.day = 0;
+    temp.month = 0;
+    temp.year = 0;
+    temp.flag = 1;
 
-    while(datalog.read() != ',');
-    while(datalog.read() != ',');
+    while(datalog.read() != ','); //Read past success flag
+    while(datalog.read() != ','); //Read past time flag
+    while(datalog.read() != ','); //Read past ws_id
     datalog.read();
     for(i = 0; datalog.peek() != '/'; i++) {
       str[i] = datalog.read();
@@ -590,11 +597,10 @@ bool WriteOldTime(int n, real_time t) {
     }
     str[i] = '\0';
     temp.seconds = String(str).toInt();
-    datalog.read();
-
+    
     AddTime(t, temp, temp);
 
-    datalog.seekCur(-1);
+    datalog.seekCur(-2);
     while(datalog.peek() != ',') {
       datalog.seekCur(-1);
     }

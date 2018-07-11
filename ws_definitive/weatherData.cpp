@@ -93,16 +93,13 @@ void HandleTimeOverflow(real_time &t) {
 }
 
 void AddTime(real_time a, real_time b, real_time &c) {
-  HandleTimeOverflow(a);
-  HandleTimeOverflow(b);
-
   c.seconds = a.seconds + b.seconds;
   c.minutes = a.minutes + b.minutes;
   c.hours = a.hours + b.hours;
   
   c.day = a.day + b.day;
-  c.month = a.month + b.seconds;
-  c.hours = a.hours + b.hours;
+  c.month = a.month + b.month;
+  c.year = a.year + b.year;
 
   HandleTimeOverflow(c);
 }
