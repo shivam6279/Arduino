@@ -2,7 +2,10 @@
 
 #define wind_pin 7
 
-const float radius = 62.5 / 1000.0;
+//-------------------------------------------------
+const float radius = 63.7 / 1000.0;
+const float scaler = 2.5;
+//-------------------------------------------------
 
 //Wind speed
 boolean wind_flag = true, wind_temp;
@@ -10,8 +13,13 @@ boolean wind_flag = true, wind_temp;
 //Rain guage
 volatile int rain_counter;
 boolean rain_flag = true, rain_temp;
-volatile uint32_t wind_speed_counter = 0, timer_counter = 0;
-double wind_speed;
+
+volatile uint32_t timer_counter = 0;
+volatile uint32_t wind_speed_counter1 = 0, wind_speed_counter2 = 0;
+
+double wind_speed1 = 0.0, wind_speed2 = 0.0;
+
+volatile int timer = 0;
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
@@ -41,24 +49,29 @@ void setup() {
 }
  
 void loop() {
+  if(timer) {
+    timer = 0;
+    wind_speed2 = wind_speed_counter2 * radius * 6.2831 / 4.0 * scaler;
+    wind_speed_counter2 = 0;
+  }
   lcd.setCursor(7, 0);
-  lcd.print(wind_speed_counter);
+  lcd.print(wind_speed1, 4);
   lcd.setCursor(7, 1);
-  lcd.print(wind_speed, 4);
-  delay(50);
+  lcd.print(wind_speed2, 4);
 }
 
 ISR(TIMER1_COMPA_vect){ //Interrupt gets called every 4 seconds 
-
+  timer++;
 }
 
 ISR(TIMER2_COMPA_vect) { 
   timer_counter++;
   wind_temp = digitalRead(wind_pin);
   if(wind_temp == 0 && wind_flag == true) {
-    if(timer_counter) wind_speed = 8000.0 / float(timer_counter) * radius / 6.2831;
+    if(timer_counter) wind_speed1 = 8000.0 / float(timer_counter) * radius * 6.2831 * scaler;
     timer_counter = 0;
-    wind_speed_counter++;
+    wind_speed_counter1++;
+    wind_speed_counter2++;
     wind_flag = false;
   } 
   else if(wind_temp == 1) {

@@ -5,10 +5,10 @@
 
 extern bool SendHttpGet();
 extern bool HttpInit();
-extern bool UploadWeatherData(weatherData[], uint8_t, real_time&);
+extern bool UploadWeatherData(weatherData[], uint8_t, realTime&);
 extern bool SendWeatherURL(weatherData);
-extern bool GetTime(real_time&);
-extern bool ReadTime(real_time&);
+extern bool GetTime(realTime&);
+extern bool ReadTime(realTime&);
 extern void UploadSMS();
 
 #endif

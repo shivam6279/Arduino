@@ -5,32 +5,46 @@
 
 extern char ws_id[4];
 
-struct real_time {
-  bool flag = 0;
-  uint16_t seconds = 0, minutes = 0, hours = 0, day = 0, month = 0;
-  uint16_t year = 0;
+class realTime {
+public:
+  bool flag;
+  uint16_t seconds, minutes, hours, day, month;
+  uint16_t year;
+
+  realTime() {
+    seconds = 0;
+    minutes = 0;
+    hours = 0;
+    day = 0;
+    month = 0;
+    year = 0;
+    flag = 0;
+  }
+  void PrintTime();
+  void HandleTimeOverflow();
+  int DaysInMonth();
+  bool CheckLeapYear();
 };
 
 struct weatherData {
-  float temp1, temp2, hum, solar_radiation;
-  float latitude, longitude, panel_voltage, battery_voltage, amps;
+public:
+  float temp1, temp2, hum;
+  float solar_radiation;
+  float panel_voltage, battery_voltage, amps;
   int rain, wind_speed;
   int signal_strength;
   long int pressure;
   bool flag;
+  realTime t;
 
-  real_time t;
+//public:
+  void Reset();
+  void CheckIsNan();
+  void PrintData();
 };
 
-extern void WeatherDataReset(weatherData&);
-extern void WeatherCheckIsNan(weatherData&);
-extern void PrintWeatherData(weatherData);
-extern void TimeDataReset(real_time&);
-extern void PrintTime(real_time);
-extern void HandleTimeOverflow(real_time&);
-extern void AddTime(real_time, real_time, real_time&);
-extern void SubtractTime(real_time, real_time, real_time&);
-extern int DaysInMonth(int, int);
-extern bool CheckLeapYear(int);
+extern void AddTime(realTime, realTime, realTime&);
+extern void SubtractTime(realTime, realTime, realTime&);
+
 
 #endif

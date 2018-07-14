@@ -2,97 +2,126 @@
 
 char ws_id[4];
 
-void WeatherDataReset(weatherData &w){
-  w.temp1 = 0.0;
-  w.temp2 = 0.0;
-  w.hum = 0.0;
-  w.solar_radiation = 0.0;
-  w.latitude = 0.0;
-  w.longitude = 0.0;
-  w.panel_voltage = 0.0;
-  w.battery_voltage = 0.0;
-  w.amps = 0.0;
-  w.rain = 0;
-  w.wind_speed = 0;
-  w.signal_strength = 0;
-  w.pressure = 0;
-  w.flag = 0;
+void weatherData::Reset(){
+  temp1 = 0.0;
+  temp2 = 0.0;
+  hum = 0.0;
+  solar_radiation = 0.0;
+  panel_voltage = 0.0;
+  battery_voltage = 0.0;
+  amps = 0.0;
+  rain = 0;
+  wind_speed = 0;
+  signal_strength = 0;
+  pressure = 0;
+  flag = 0;
 }
 
-void PrintWeatherData(weatherData w) {
-  Serial.println("Temperature 1(C): " + String(w.temp1));
-  Serial.println("Temperature 2(C): " + String(w.temp2));
-  Serial.println("Humidity(%RH): " + String(w.hum));
-  Serial.println("Wind: " + String(w.wind_speed));
-  Serial.println("Rain: " + String(w.rain));
-  Serial.println("Current (Amps): " + String(w.amps));
-  Serial.println("Panel Voltage(V): " + String(w.panel_voltage));
-  Serial.println("Battery Voltage(V): " + String(w.battery_voltage));
+void weatherData::CheckIsNan() {
+  if(isnan(hum)) 
+    hum = 0;
+  if(isnan(temp1)) 
+    temp1 = 0;
+  if(isnan(temp2)) 
+    temp2 = 0;
+  if(isnan(solar_radiation)) 
+    solar_radiation = 0;
+  if(isnan(panel_voltage)) 
+    panel_voltage = 0;
+  if(isnan(battery_voltage)) 
+    battery_voltage = 0;
+  if(isnan(amps)) 
+    amps = 0;
+  if(isnan(pressure)) 
+    pressure = 0;
+  if(isnan(signal_strength)) 
+    signal_strength = 0;
+}
+
+void weatherData::PrintData() {
+  Serial.println("Temperature 1(C): " + String(temp1));
+  Serial.println("Temperature 2(C): " + String(temp2));
+  Serial.println("Humidity(%RH): " + String(hum));
+  Serial.println("Wind: " + String(wind_speed));
+  Serial.println("Rain: " + String(rain));
+  Serial.println("Current (Amps): " + String(amps));
+  Serial.println("Panel Voltage(V): " + String(panel_voltage));
+  Serial.println("Battery Voltage(V): " + String(battery_voltage));
   #if enable_BMP180
-    Serial.println("Pressure: " + String(w.pressure) + "atm"); 
+    Serial.println("Pressure: " + String(pressure) + "atm"); 
   #endif
-  Serial.println("Solar radiation(V): " + String(float(w.solar_radiation) * 5.0 / 1023.0)); 
-  Serial.println("Signal Strength: " + String(w.signal_strength)); 
+  Serial.println("Solar radiation(V): " + String(float(solar_radiation) * 5.0 / 1023.0)); 
+  Serial.println("Signal Strength: " + String(signal_strength)); 
 }
 
-void TimeDataReset(real_time &wt){
-  wt.flag = 0;
-  wt.year  = 0;
-  wt.month = 0;
-  wt.day = 0;
-  wt.hours = 0;
-  wt.minutes = 0;
-  wt.seconds = 0;
-}
-
-void PrintTime(real_time wt) {
-	Serial.println("\nDate and time:");
-	Serial.print(wt.day / 10); Serial.print(wt.day % 10);
+void realTime::PrintTime() {
+	Serial.print(day / 10); 
+  Serial.print(day % 10);
 	Serial.print('/');
-	Serial.print(wt.month / 10); Serial.print(wt.month % 10); 
+	Serial.print(month / 10); 
+  Serial.print(month % 10); 
 	Serial.print('/');
-	Serial.println(wt.year);
-	Serial.print(wt.hours / 10); Serial.print(wt.hours % 10);
+	Serial.println(year);
+	Serial.print(hours / 10); 
+  Serial.print(hours % 10);
 	Serial.print(':');
-	Serial.print(wt.minutes / 10); Serial.print(wt.minutes % 10);
+	Serial.print(minutes / 10); 
+  Serial.print(minutes % 10);
 	Serial.print(':');
-	Serial.print(wt.seconds / 10); Serial.println(wt.seconds % 10);
+	Serial.print(seconds / 10); 
+  Serial.println(seconds % 10);
 }
 
-void WeatherCheckIsNan(weatherData &w) {
-  if(isnan(w.hum)) w.hum = 0;
-  if(isnan(w.temp1)) w.temp1 = 0;
-  if(isnan(w.temp2)) w.temp2 = 0;
-  if(isnan(w.solar_radiation)) w.solar_radiation = 0;
-  if(isnan(w.panel_voltage)) w.panel_voltage = 0;
-  if(isnan(w.battery_voltage)) w.battery_voltage = 0;
-  if(isnan(w.amps)) w.amps = 0;
-  if(isnan(w.pressure)) w.pressure = 0;
-}
+void realTime::HandleTimeOverflow() {
+  minutes += seconds / 60;
+  seconds = seconds % 60;
 
-void HandleTimeOverflow(real_time &t) {
-  t.minutes += t.seconds / 60;
-  t.seconds = t.seconds % 60;
+  hours += minutes / 60;
+  minutes = minutes % 60;
 
-  t.hours += t.minutes / 60;
-  t.minutes = t.minutes % 60;
+  day += hours / 24;
+  hours = hours % 24;
 
-  t.day += t.hours / 24;
-  t.hours = t.hours % 24;
-
-  if(t.month && t.flag) {
-    while(t.day > DaysInMonth(t.month, t.year)) { 
-      t.day -= DaysInMonth(t.month, t.year);
-      t.month++; 
-      if(t.month > 12) {
-        t.month = 1;
-        t.year++;
+  if(month && flag) {
+    while(day > DaysInMonth()) { 
+      day -= DaysInMonth();
+      month++; 
+      if(month > 12) {
+        month = 1;
+        year++;
       }
     }
   }
 }
 
-void AddTime(real_time a, real_time b, real_time &c) {
+int realTime::DaysInMonth() {
+  if(month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12) 
+    return 31;
+  else if(month == 4 || month == 6 || month == 9 || month == 11) 
+    return 30;
+  else if(month == 2) {
+    if(CheckLeapYear()) 
+      return 29;
+    else
+      return 28;
+  }
+  return 0;
+}
+
+bool realTime::CheckLeapYear() {
+    if (year % 400 == 0)
+        return true;
+
+    if (year % 100 == 0)
+        return false;
+
+    if (year % 4 == 0)
+        return true;
+
+    return false;
+}
+
+void AddTime(realTime a, realTime b, realTime &c) {
   c.seconds = a.seconds + b.seconds;
   c.minutes = a.minutes + b.minutes;
   c.hours = a.hours + b.hours;
@@ -101,12 +130,14 @@ void AddTime(real_time a, real_time b, real_time &c) {
   c.month = a.month + b.month;
   c.year = a.year + b.year;
 
-  HandleTimeOverflow(c);
+  c.flag = a.flag | b.flag;
+
+  c.HandleTimeOverflow();
 }
 
 //a is a calendar date, b is the duration between c and a
-void SubtractTime(real_time a, real_time b, real_time &c) {
-  HandleTimeOverflow(a);
+void SubtractTime(realTime a, realTime b, realTime &c) {
+  a.HandleTimeOverflow();
 
   c.seconds = 0;
   c.minutes = 0;
@@ -125,12 +156,13 @@ void SubtractTime(real_time a, real_time b, real_time &c) {
       if(a.hours == 0) {
         if(a.day == 1) {
           if(a.month == 1) {
-            a.day += DaysInMonth(a.month - 1, a.year);
+            a.month = 12;
+            a.day += a.DaysInMonth();
             a.year--;
             a.month = 12;
           } else {
-            a.day += DaysInMonth(a.month - 1, a.year);
             a.month--;
+            a.day += a.DaysInMonth();
           }
         } 
         a.day--;
@@ -148,12 +180,13 @@ void SubtractTime(real_time a, real_time b, real_time &c) {
     if(a.hours == 0) {
       if(a.day == 1) {
         if(a.month == 1) {
-          a.day += DaysInMonth(a.month - 1, a.year);
+          a.month = 12;
+          a.day += a.DaysInMonth();
           a.year--;
           a.month = 12;
         } else {
-          a.day += DaysInMonth(a.month - 1, a.year);
           a.month--;
+          a.day += a.DaysInMonth();
         }
       } 
       a.day--;
@@ -167,12 +200,13 @@ void SubtractTime(real_time a, real_time b, real_time &c) {
   if(a.hours < b.hours) {
     if(a.day == 1) {
       if(a.month == 1) {
-        a.day += DaysInMonth(a.month - 1, a.year);
+        a.month = 12;
+        a.day += a.DaysInMonth();
         a.year--;
         a.month = 12;
       } else {
-        a.day += DaysInMonth(a.month - 1, a.year);
         a.month--;
+        a.day += a.DaysInMonth();
       }
     } 
     a.day--;
@@ -182,42 +216,17 @@ void SubtractTime(real_time a, real_time b, real_time &c) {
 
   while(a.day <= b.day) {
     if(a.month == 1) {
-      a.day += DaysInMonth(a.month - 1, a.year);
+      a.month = 12;
+      a.day += a.DaysInMonth();
       a.year--;
       a.month = 12;
     } else {
-      a.day += DaysInMonth(a.month - 1, a.year);
       a.month--;
+      a.day += a.DaysInMonth();
     }
   } 
   c.day = a.day - b.day;
 
   c.month = a.month;
   c.year = a.year;
-}
-
-int DaysInMonth(int month, int year) {
-  if(month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12) 
-    return 31;
-  else if(month == 4 || month == 6 || month == 9 || month == 11) 
-    return 30;
-  else if(month == 2) {
-    if(CheckLeapYear(year)) 
-      return 29;
-    else
-      return 28;
-  }
-}
-
-bool CheckLeapYear(int year) {
-    if (year % 400 == 0)
-        return true;
-
-    if (year % 100 == 0)
-        return false;
-
-    if (year % 4 == 0)
-        return true;
-
-    return false;
 }

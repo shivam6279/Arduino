@@ -34,6 +34,7 @@ bool SD_flag = false;
 //Wind speed
 volatile int wind_speed_counter;
 bool wind_flag = false, wind_temp;
+double wind_speed_buffer[DATA_READ_FREQUENCY / 4];
 
 //Rain guage
 volatile int rain_counter;
@@ -53,8 +54,8 @@ volatile bool four_sec = false, read_flag = false, upload_flag = false;
 //Weather data
 
 //Times
-real_time current_time;
-real_time startup_time;
+realTime current_time;
+realTime startup_time;
 
 bool startup = true;
 
@@ -88,12 +89,12 @@ void setup() {
   delay(100);
   if(!sd.exists("id.txt")){
     #if SERIAL_OUTPUT
-      Serial.println("No id file found on sd card, using bakup id");
+      Serial.println("\nNo id file found on sd card, using bakup id");
     #endif
     BACKUP_ID.toCharArray(ws_id, 5);
   } else {
     #if SERIAL_OUTPUT
-      Serial.println("SD Card detected");
+      Serial.println("\nSD Card detected");
     #endif
     datalog.open("id.txt", FILE_READ);
     while(datalog.available()) {
@@ -103,7 +104,7 @@ void setup() {
     datalog.close();
   }
   
-  Wire.begin();
+  //Wire.begin();
   #if HT_MODE == 1
     dht.begin();
   #endif
@@ -116,7 +117,7 @@ void setup() {
   #endif
   
   #if SERIAL_OUTPUT
-    Serial.println("\nSensor id: " + String(ws_id));
+    Serial.println("Sensor id: " + String(ws_id));
     Serial.println("Data upload frequency: " + (String)DATA_UPLOAD_FREQUENCY + " minutes");
     Serial.println("Data read frequency: " + (String)DATA_READ_FREQUENCY + " minutes");
     if(HT_MODE == 0) Serial.println("Using SHT21"); else if(HT_MODE == 1) Serial.println("Using DHT22"); else Serial.println("No HT sensor");
@@ -150,16 +151,15 @@ void loop() {
 
   weatherData w[BUFFER_SIZE];
 
-  real_time temp_time;
+  realTime temp_time;
   
   rain_counter = 0;
   wind_speed_counter = 0;
   reading_number = 0;
 
   for(i = 0; i < BUFFER_SIZE; i++) {
-    WeatherDataReset(w[i]);
+    w[i].Reset();
   }
-  TimeDataReset(current_time);
   while(Serial1.available()) Serial1.read();
 
   #if SERIAL_OUTPUT == true
@@ -179,6 +179,9 @@ void loop() {
       #endif
 
       ReadData(w[reading_number], avg_counter);
+
+      wind_speed_buffer[avg_counter] = double(wind_speed_counter) / 4.0;
+      wind_speed_counter = 0;
 
       avg_counter++;
   
@@ -204,7 +207,7 @@ void loop() {
         #endif
 
         #if SERIAL_OUTPUT
-          PrintWeatherData(w[reading_number]);
+          w[reading_number].PrintData();
         #endif
         
         reading_number++;
@@ -261,7 +264,11 @@ void loop() {
             Serial.println("Writing to the SD card");
           #endif
           for(i = 0; i < reading_number; i++) {
-            WriteSD(w[i]);
+            if(!WriteSD(w[i])) {
+              #if SERIAL_OUTPUT
+                Serial.println("Write failed");
+              #endif
+            }
             if(startup == true) 
               initial_sd_card_uploads++;
           }
@@ -274,15 +281,19 @@ void loop() {
             temp_time = current_time;
             if(GetTime(current_time)) {
               #if SERIAL_OUTPUT
-                Serial.print("\nCurrent Time:");
+                Serial.println("\nCurrent Time:");
               #endif
-              PrintTime(current_time);
+              current_time.PrintTime();
               SubtractTime(current_time, temp_time, startup_time);
               #if SERIAL_OUTPUT
-                Serial.print("\nStartup Time:");
+                Serial.println("\nStartup Time:");
               #endif
-              PrintTime(startup_time);
-              WriteOldTime(initial_sd_card_uploads, startup_time);
+              startup_time.PrintTime();
+              if(!WriteOldTime(initial_sd_card_uploads, startup_time)) {
+                #if SERIAL_OUTPUT
+                  Serial.println("SD Card failure");
+                #endif
+              }
             } else {
               #if SERIAL_OUTPUT
                 Serial.println("Server request failed");
@@ -330,7 +341,7 @@ void loop() {
         
         digitalWrite(UPLOAD_LED, LOW);
         #if SERIAL_OUTPUT
-          if(current_time.flag) PrintTime(current_time);
+          if(current_time.flag) current_time.PrintTime();
           Serial.println("Seconds till next upload:");
         #endif
       }
@@ -353,7 +364,7 @@ ISR(TIMER1_COMPA_vect) {
 
   //Increment time by 4 seconds and handle overflow
   current_time.seconds += 4;
-  HandleTimeOverflow(current_time);
+  current_time.HandleTimeOverflow();
 
 }
 
@@ -407,7 +418,7 @@ void ReadData(weatherData &w, int c) {
   sensors.requestTemperatures();
   w.temp2 = (w.temp2 * float(c) + sensors.getTempCByIndex(0)) / (float(c) + 1.0);
 
-  WeatherCheckIsNan(w);
+  w.CheckIsNan();
   
 }
 
