@@ -92,7 +92,7 @@ bool SendWeatherURL(weatherData w) {
   char ch;
   int str_len;
   str_len = URL.length(); // URL string length
-  str_len += String(ws_id).length() + 4;
+  str_len += String(w.id).length() + 4;
   str_len += String(w.temp1).length() + 4;
   str_len += String(w.temp2).length() + 4;
   str_len += String(w.hum).length() + 3;
@@ -113,7 +113,7 @@ bool SendWeatherURL(weatherData w) {
   
   Serial1.print(URL);   
   //Serial1.print(String(row_number + 1) + "=<"); 
-  Serial1.print("id=" + String(ws_id) + "&");
+  Serial1.print("id=" + String(w.id) + "&");
   if(w.t.flag == 1) {
     Serial1.print("ts=");
     Serial1.write((w.t.year / 1000) % 10 + '0');
@@ -298,7 +298,7 @@ void UploadSMS(weatherData w, String phone_number) {
   Serial1.print("AT+CMGS=\"" + phone_number + "\"\n");
   delay(100);
   Serial1.print("HK9D7 ");
-  Serial1.print("'id':" + String(ws_id) + ",");
+  Serial1.print("'id':" + String(w.id) + ",");
   Serial1.print("'t1':" + String(w.temp1) + ",");
   Serial1.print("'t2':" + String(w.temp2) + ",");
   Serial1.print("'h':" + String(w.hum) + ",");

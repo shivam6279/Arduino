@@ -3,8 +3,6 @@
 
 #include "Arduino.h"
 
-extern char ws_id[4];
-
 class realTime {
 public:
   bool flag;
@@ -28,6 +26,7 @@ public:
 
 struct weatherData {
 public:
+  int id;
   float temp1, temp2, hum;
   float solar_radiation;
   float panel_voltage, battery_voltage, amps;
@@ -38,7 +37,7 @@ public:
   realTime t;
 
 //public:
-  void Reset();
+  void Reset(int);
   void CheckIsNan();
   void PrintData();
 };
