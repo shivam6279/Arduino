@@ -28,14 +28,31 @@ public:
 
 struct weatherData {
 public:
+  //Temperature and humidity
   float temp1, temp2, hum;
-  float solar_radiation;
-  float panel_voltage, battery_voltage, amps;
-  int rain, wind_speed;
-  int signal_strength;
   long int pressure;
-  bool flag;
+
+  //Solar Radiation
+  float solar_radiation;
+
+  //Power
+  float panel_voltage, battery_voltage, amps;
+
+  //Tipping Bucket
+  int rain;
+
+  //Anemometer
+  double wind_speed;
+  double wind_stdDiv;
+
+  //Signal Srength
+  int signal_strength;
+
+  //Time of data read
   realTime t;
+
+  //Upload success flag
+  bool flag;  
 
 //public:
   void Reset();
@@ -45,6 +62,7 @@ public:
 
 extern void AddTime(realTime, realTime, realTime&);
 extern void SubtractTime(realTime, realTime, realTime&);
-
+extern double ArrayAvg(double[], int);
+extern double StdDiv(double[], int);
 
 #endif

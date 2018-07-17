@@ -136,8 +136,10 @@ bool DownloadHex() {
   if((millis() - t) > 3000) return false;
   ch = Serial1.read();
   t = millis();
-  while(ch != ':' && (millis() - t) < 3000) ch = Serial1.read();
-  if((millis() - t) > 3000) return false;
+  while(ch != ':' && (millis() - t) < 3000) 
+    ch = Serial1.read();
+  if((millis() - t) > 3000) 
+    return false;
   //--------------------------------------
 
   i = 0;
@@ -317,57 +319,11 @@ bool WriteSD(weatherData w) {
   datalog.print(w.battery_voltage);
   datalog.print(", ");
   datalog.println(w.signal_strength);
-  datalog.close();
-
-  return true;
-}
-
-unsigned int GetPreviousFailedUploads() {
-  long int timeout;
-  char ch;
-  int lines = 0, p;
-  int i;
-  sd.chdir();
-  if(!sd.exists("id.txt")) {
-    if(!sd.begin(SD_CARD_CS_PIN)) return -1;
-  }
-  if(!sd.exists("Datalog")) {
-    if(!sd.mkdir("Datalog")) return -1;
-  }
-  if(!sd.exists("Datalog/datalog.csv")) {
-    return -1;
-  }
-  datalog.open("Datalog/datalog.csv", FILE_READ);
-  datalog.seekEnd();
-  Serial.println('A');
-  timeout = 0;
-  do {
-    Serial.println('B');
-    datalog.seekCur(-2);
-    Serial.println('C');
-    for(; datalog.peek()!= '\n' && datalog.curPosition() != 0 && timeout < 2000; timeout++) {
-      datalog.seekCur(-1);
-      delay(1);
-    }
-    Serial.println('D');
-    if(datalog.curPosition() == 0) 
-      break;
-    Serial.println('E');
-    datalog.seekCur(1);
-    Serial.println('F');
-    ch = datalog.peek();
-    Serial.println('G');
-    if(ch == '0') 
-      lines++;
-    Serial.println('H');
-    if(timeout++ > 2000) {
-      datalog.close();
-      return -1;
-    }
-    delay(1);
-  }while(ch == '0');
-  datalog.close();
-  return lines;
+  
+  if(datalog.close())
+    return true;
+  else 
+    return false;
 }
 
 bool UploadOldSD() {
@@ -587,6 +543,46 @@ bool UploadOldSD() {
   return true;
 }
 
+unsigned int GetPreviousFailedUploads() {
+  long int timeout;
+  char ch;
+  int lines = 0, p;
+  int i;
+  sd.chdir();
+  if(!sd.exists("id.txt")) {
+    if(!sd.begin(SD_CARD_CS_PIN)) return -1;
+  }
+  if(!sd.exists("Datalog")) {
+    if(!sd.mkdir("Datalog")) return -1;
+  }
+  if(!sd.exists("Datalog/datalog.csv")) {
+    return -1;
+  }
+  datalog.open("Datalog/datalog.csv", FILE_READ);
+  datalog.seekEnd();
+  timeout = 0;
+  do {
+    datalog.seekCur(-2);
+    for(; datalog.peek()!= '\n' && datalog.curPosition() != 0 && timeout < 2000; timeout++) {
+      datalog.seekCur(-1);
+      delay(1);
+    }
+    if(datalog.curPosition() == 0) 
+      break;
+    datalog.seekCur(1);
+    ch = datalog.peek();
+    if(ch == '0') 
+      lines++;
+    if(timeout++ > 2000) {
+      datalog.close();
+      return -1;
+    }
+    delay(1);
+  }while(ch == '0');
+  datalog.close();
+  return lines;
+}
+
 bool WriteOldTime(int n, realTime t) {
   long int timeout;
   int lines, i;
@@ -616,14 +612,12 @@ bool WriteOldTime(int n, realTime t) {
     #endif
     return false;
   }
-  Serial.println('0');
   if(GetPreviousFailedUploads() < n) 
     return false;
 
   delay(500);
   datalog.open("Datalog/datalog.csv", FILE_WRITE);
   datalog.seekEnd();
-  Serial.println('1');
   lines = 0;
   timeout = 0;
   do {
@@ -644,12 +638,11 @@ bool WriteOldTime(int n, realTime t) {
     }
     delay(1);
   }while(ch == '0' && lines < n);
-  Serial.println('2');
   if(lines != n) {
     datalog.close();
     return false;
   }
-  Serial.println(lines);
+
   for(; lines > 0; lines--) {
     temp.seconds = 0;
     temp.minutes = 0;
@@ -666,28 +659,21 @@ bool WriteOldTime(int n, realTime t) {
       datalog.close();
       return false;
     }
-    Serial.println('A');
-    datalog.read();
+    datalog.seekCur(1);
     datalog.write('1');
-    Serial.println('B');
+
     //Read past Id flag
-    for(timeout = 0; datalog.read() != ',' && timeout < 2000; timeout++)
+    for(timeout = 0; datalog.read() != '/' && timeout < 2000; timeout++)
       delay(1);
     if(timeout > 2000) {
       datalog.close();
       return false;
     }
-    Serial.println('C');  
-    datalog.read();
-    for(i = 0, timeout = 0; datalog.peek() != '/' && timeout < 2000; i++, timeout++) {
-      str[i] = datalog.read();
-      delay(1);
-    }
-    if(timeout > 2000) {
-      datalog.close();
-      return false;
-    }
-    str[i] = '\0';
+    datalog.seekCur(-3);
+
+    str[0] = datalog.read();
+    str[1] = datalog.read();
+    str[2] = '\0';
     temp.day = String(str).toInt();
 
     for(timeout = 0; datalog.read() != ' ' && timeout < 2000; timeout++) 
@@ -697,44 +683,24 @@ bool WriteOldTime(int n, realTime t) {
       return false;
     }
 
-    for(i = 0, timeout = 0; datalog.peek() != ':' && timeout < 2000; i++, timeout++) {
-      str[i] = datalog.read();
-      delay(1);
-    }
-    if(timeout > 2000) {
-      datalog.close();
-      return false;
-    }
-    str[i] = '\0';
+    str[0] = datalog.read();
+    str[1] = datalog.read();
+    str[2] = '\0';
     temp.hours = String(str).toInt();
-    datalog.read();
+    datalog.seekCur(1);
 
-    for(i = 0, timeout = 0; datalog.peek() != ':' && timeout < 2000; i++, timeout++) {
-      str[i] = datalog.read();
-      delay(1);
-    }
-    if(timeout > 2000) {
-      datalog.close();
-      return false;
-    }
-    str[i] = '\0';
+    str[0] = datalog.read();  
+    str[1] = datalog.read();
+    str[2] = '\0';
     temp.minutes = String(str).toInt();
-    datalog.read();
+    datalog.seekCur(1);
 
-    for(i = 0, timeout = 0; datalog.peek() != ':' && timeout < 2000; i++, timeout++) {
-      str[i] = datalog.read();
-      delay(1);
-    }
-    if(timeout > 2000) {
-      datalog.close();
-      return false;
-    }
-    str[i] = '\0';
+    str[0] = datalog.read();
+    str[1] = datalog.read();
+    str[2] = '\0';
     temp.seconds = String(str).toInt();
 
-    temp.PrintTime();
     AddTime(t, temp, temp);
-    temp.PrintTime();
 
     datalog.seekCur(-2);
     for(timeout = 0; datalog.peek() != ',' && timeout < 2000; timeout++) {
@@ -774,6 +740,7 @@ bool WriteOldTime(int n, realTime t) {
       return false;
     }
   }
+  return true;
 }
 
 void CharToInt(unsigned char &a){

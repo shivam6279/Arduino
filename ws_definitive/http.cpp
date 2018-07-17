@@ -250,9 +250,9 @@ bool GetTime(realTime &w) {
   uint8_t i, c;
   realTime t;
   if(!HttpInit()) return false;
-  Serial1.print("AT+QHTTPURL=24,30\r");
+  Serial1.print("AT+QHTTPURL=" + String(TIME_URL.length()) + ",30\r");
   delay(100);
-  Serial1.print("http://www.yobi.tech/IST\r");
+  Serial1.print(TIME_URL + '\r');
   delay(500);
   ShowSerialData();
   if(!SendHttpGet()) return false;

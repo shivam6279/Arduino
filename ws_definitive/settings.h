@@ -29,9 +29,13 @@
 
 const String URL = "http://enigmatic-caverns-27645.herokuapp.com/maytheforcebewithyou?";
 const String OTA_URL = "http://www.yobi.tech/ota/4";
+const String TIME_URL = "http://www.yobi.tech/IST";
 
 const String PHONE_NUMBER = "+919220592205";
 const String BACKUP_ID = "201"; //Backup id in case there is no sd card
+
+#define WIND_RADIUS 63.7 / 1000.0	//63.7mm
+#define WIND_SCALER 2.5
 
 #define HT_MODE 1				        // 0 for SHT21, 1 for DST, 2 for none
        

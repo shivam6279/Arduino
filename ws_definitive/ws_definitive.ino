@@ -34,7 +34,7 @@ bool SD_flag = false;
 //Wind speed
 volatile int wind_speed_counter;
 bool wind_flag = false, wind_temp;
-double wind_speed_buffer[DATA_READ_FREQUENCY / 4];
+double wind_speed_buffer[DATA_READ_FREQUENCY * 15 + 1];
 
 //Rain guage
 volatile int rain_counter;
@@ -68,7 +68,7 @@ void setup() {
   pinMode(RAIN_LED, OUTPUT);
   pinMode(WIND_LED, OUTPUT);
   pinMode(UPLOAD_LED, OUTPUT);
-  pinMode(SD_CARD_CS_PIN, OUTPUT);  //SD card's CS pin
+  pinMode(SD_CARD_CS_PIN, OUTPUT);
   pinMode(RAIN_PIN, INPUT);
   pinMode(WIND_PIN , INPUT);
   pinMode(GSM_DTR_PIN, OUTPUT);
@@ -104,18 +104,20 @@ void setup() {
     datalog.close();
   }
   
-  //Wire.begin();
+  #if HT_MODE == 0 || ENABLE_BMP180 == true
+    Wire.begin();
+  #endif
   #if HT_MODE == 1
     dht.begin();
   #endif
   sensors.begin();
   
-  #if enable_BMP180
+  #if ENABLE_BMP180
     barometer = BMP180();
     barometer.SoftReset();
     barometer.Initialize(); 
   #endif
-  
+
   #if SERIAL_OUTPUT
     Serial.println("Sensor id: " + String(ws_id));
     Serial.println("Data upload frequency: " + (String)DATA_UPLOAD_FREQUENCY + " minutes");
@@ -135,9 +137,8 @@ void setup() {
   //Initialize GSM module
   InitGSM();  
   
-  //Interrupt initialization
-  //Timer1: 0.25hz, Timer2: 8Khz
-  InitInterrupt(); 
+  //Interrupt initialization  
+  InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz
 }
  
 void loop() {
@@ -180,20 +181,20 @@ void loop() {
 
       ReadData(w[reading_number], avg_counter);
 
-      wind_speed_buffer[avg_counter] = double(wind_speed_counter) / 4.0;
+      wind_speed_buffer[avg_counter] = double(wind_speed_counter) * WIND_RADIUS * 6.2831 / 4.0 * WIND_SCALER;
       wind_speed_counter = 0;
 
       avg_counter++;
   
       if(temp_read) { //Read data
         read_flag = false;
+
         digitalWrite(UPLOAD_LED, HIGH);
         
         //Read data
-        avg_counter = 0;
         
-        w[reading_number].wind_speed = ((wind_speed_counter) / DATA_UPLOAD_FREQUENCY);
-        wind_speed_counter = 0;
+        w[reading_number].wind_speed = ArrayAvg(wind_speed_buffer, avg_counter);
+        w[reading_number].wind_stdDiv = StdDiv(wind_speed_buffer, avg_counter);
         
         w[reading_number].rain = rain_counter;
         rain_counter = 0;
@@ -206,11 +207,14 @@ void loop() {
           //GetGPS();
         #endif
 
+        //w[reading_number].CheckIsNan();
+
         #if SERIAL_OUTPUT
           w[reading_number].PrintData();
         #endif
         
         reading_number++;
+        avg_counter = 0;
         
         digitalWrite(UPLOAD_LED, LOW);
       }
@@ -405,7 +409,7 @@ void ReadData(weatherData &w, int c) {
   #endif
   #if ENABLE_BMP180 == true
     w.pressure = (w.pressure * float(c) + barometer.GetPressure()) / (float(c) + 1.0);
-    //w.temp2 = (w.temp2 * avg_counter + barometer.GetTemperature()) / (float(avg_counter) + 1.0);
+    //w.temp2 = (w.temp2 * c + barometer.GetTemperature()) / (float(c) + 1.0);
   #endif
   //w.solar_radiation = (w.solar_radiation * float(c) + (float(analogRead(BATTERY_PIN)) * 5.0 / 1024.0)) / (float(c) + 1.0);
   

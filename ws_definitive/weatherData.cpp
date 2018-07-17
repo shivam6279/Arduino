@@ -19,23 +19,27 @@ void weatherData::Reset(){
 
 void weatherData::CheckIsNan() {
   if(isnan(hum)) 
-    hum = 0;
+    hum = 0.0;
   if(isnan(temp1)) 
-    temp1 = 0;
+    temp1 = 0.0;
   if(isnan(temp2)) 
-    temp2 = 0;
+    temp2 = 0.0;
   if(isnan(solar_radiation)) 
-    solar_radiation = 0;
+    solar_radiation = 0.0;
   if(isnan(panel_voltage)) 
-    panel_voltage = 0;
+    panel_voltage = 0.0;
   if(isnan(battery_voltage)) 
-    battery_voltage = 0;
+    battery_voltage = 0.0;
   if(isnan(amps)) 
-    amps = 0;
+    amps = 0.0;
+  if(isnan(wind_speed)) 
+    wind_speed = 0.0;
+  if(isnan(wind_stdDiv)) 
+    wind_stdDiv = 0.0;
   if(isnan(pressure)) 
     pressure = 0;
   if(isnan(signal_strength)) 
-    signal_strength = 0;
+    signal_strength = 0.0;
 }
 
 void weatherData::PrintData() {
@@ -43,6 +47,7 @@ void weatherData::PrintData() {
   Serial.println("Temperature 2(C): " + String(temp2));
   Serial.println("Humidity(%RH): " + String(hum));
   Serial.println("Wind: " + String(wind_speed));
+  Serial.println("Standard deviation: " + String(wind_stdDiv));
   Serial.println("Rain: " + String(rain));
   Serial.println("Current (Amps): " + String(amps));
   Serial.println("Panel Voltage(V): " + String(panel_voltage));
@@ -229,4 +234,35 @@ void SubtractTime(realTime a, realTime b, realTime &c) {
 
   c.month = a.month;
   c.year = a.year;
+}
+
+double ArrayAvg(double a[], int n) {
+  double avg;
+  int i;
+
+  if(n < 0) 
+    return 0.0;
+
+  for(i = 0, avg = 0.0; i < n; i++) {
+    avg += a[i];
+  }
+  avg /= double(n);
+
+  return avg;
+}
+
+double StdDiv(double a[], int n) {
+  double avg, r;
+  int i;
+
+  if(n < 0) 
+    return 0.0;
+
+  avg = ArrayAvg(a, n);
+
+  for(i = 0, r = 0.0; i < n; i++) {
+    r += (a[i] - avg) * (a[i] - avg);
+  }
+  r = sqrt(r / double(n));
+  return r;
 }
