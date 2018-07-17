@@ -3,6 +3,7 @@
 #include "GSM.h"
 #include "settings.h"
 #include "http.h"
+#include "weatherData.h"
 #include <avr/wdt.h>
 #include <EEPROM.h>
 
@@ -79,10 +80,7 @@ bool DownloadHex() {
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
-  if(!sd.exists("OtaTemp")){
-    if(!sd.mkdir("OtaTemp")) return false;
-  }
-  datalog.open("OtaTemp/temp_ota.hex",  FILE_WRITE);
+  datalog.open("temp_ota.hex",  FILE_WRITE);
   delay(5000);
   HttpInit();
   i = OTA_URL.length();
@@ -186,9 +184,9 @@ bool SDHexToBin() {
     if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
   delay(100);
-  if(!sd.exists("OtaTemp/TEMP_OTA.HEX")) return false;
+  if(!sd.exists("TEMP_OTA.HEX")) return false;
 
-  data_temp.open("OtaTemp/TEMP_OTA.HEX", O_READ);
+  data_temp.open("TEMP_OTA.HEX", O_READ);
   datalog.open("firmware.bin", O_WRITE | O_CREAT);
 
   ch = data_temp.read();
@@ -262,21 +260,35 @@ bool WriteSD(weatherData w) {
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
-  if(!sd.exists("Datalog")) {
-    if(!sd.mkdir("Datalog")) return false;
-  }
-  if(!sd.exists("Datalog/datalog.csv")) {
-    datalog.open("Datalog/datalog.csv", FILE_WRITE);
+  delay(50);
+  if(!sd.exists("datalog.csv")) {
+  
+    delay(50);
+    if(!datalog.open("datalog.csv", FILE_WRITE)) {
+      datalog.close();
+      #if SERIAL_OUTPUT
+        Serial.println("Could not create CSV file");
+      #endif
+      return false;
+    }
+    delay(50);
     datalog.println("Success, Time Flag, id, ts, t1, t2, h, w, r, p, a, s, cv, bv, sg");
   } else {
-    datalog.open("Datalog/datalog.csv", FILE_WRITE);
+    if(!datalog.open("datalog.csv", FILE_WRITE)) {
+      datalog.close();
+      #if SERIAL_OUTPUT
+        Serial.println("Could not open CSV file");
+      #endif
+      return false;
+    }
   }
   datalog.seekEnd();
   datalog.print(w.flag);
   datalog.print(", ");
   datalog.print(w.t.flag);
   datalog.print(", ");
-  datalog.print(ws_id);
+  //Serial.println('\n' + String(w.id));
+  datalog.print(w.id);
   datalog.print(", ");
   datalog.write((w.t.day / 10) % 10 + '0'); 
   datalog.write((w.t.day % 10) + '0');
@@ -319,11 +331,17 @@ bool WriteSD(weatherData w) {
   datalog.print(w.battery_voltage);
   datalog.print(", ");
   datalog.println(w.signal_strength);
+<<<<<<< HEAD
   
   if(datalog.close())
     return true;
   else 
     return false;
+=======
+  datalog.close();
+
+  return true;
+>>>>>>> d8f7dea37ffce1c95630b381b27db5296d9acc97
 }
 
 bool UploadOldSD() {
@@ -338,16 +356,13 @@ bool UploadOldSD() {
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
-  if(!sd.exists("Datalog")) {
-    if(!sd.mkdir("Datalog")) return false;
-  }
   i = GetPreviousFailedUploads();
   #if SERIAL_OUTPUT
     Serial.println("Number of missed uploads: " + String(i));
   #endif
   if(i == 0) return true;
   
-  datalog.open("Datalog/datalog.csv", FILE_WRITE);
+  datalog.open("datalog.csv", FILE_WRITE);
   datalog.seekEnd();
 
   do {
@@ -367,9 +382,16 @@ bool UploadOldSD() {
     while(datalog.read() != ','); //Read past success flag
     datalog.read();
     w.t.flag = datalog.read() - '0';
-    Serial.println(w.t.flag);
-    while(datalog.read() != ','); //Read past ws_id
-    //while(datalog.read() != ','); //Read past timestamp
+
+    datalog.read();
+    i = 0;
+    do {
+      ch = datalog.read();
+      if(ch != ' ' && ch != ',') t[i++] = ch;
+    }while(ch != ',');
+    t[i] = '\0';
+    w.id = (String(t)).toInt();
+    
     datalog.read();
     //Read Day
     t[0] = datalog.read();
@@ -548,6 +570,7 @@ unsigned int GetPreviousFailedUploads() {
   char ch;
   int lines = 0, p;
   int i;
+<<<<<<< HEAD
   sd.chdir();
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) return -1;
@@ -559,6 +582,16 @@ unsigned int GetPreviousFailedUploads() {
     return -1;
   }
   datalog.open("Datalog/datalog.csv", FILE_READ);
+=======
+
+  if(!sd.exists("id.txt")) {
+    if(!sd.begin(SD_CARD_CS_PIN)) return -1;
+  }
+  if(!sd.exists("datalog.csv")) {
+    return -1;
+  }
+  datalog.open("datalog.csv", FILE_READ);
+>>>>>>> d8f7dea37ffce1c95630b381b27db5296d9acc97
   datalog.seekEnd();
   timeout = 0;
   do {
@@ -586,10 +619,9 @@ unsigned int GetPreviousFailedUploads() {
 bool WriteOldTime(int n, realTime t) {
   long int timeout;
   int lines, i;
-  char str[10], ch;
+  char str[20], ch;
   realTime temp;
 
-  sd.chdir();
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) {
       #if SERIAL_OUTPUT
@@ -598,15 +630,7 @@ bool WriteOldTime(int n, realTime t) {
       return false;
     }
   }
-  if(!sd.exists("Datalog")) {
-    if(!sd.mkdir("Datalog")) {
-      #if SERIAL_OUTPUT
-        Serial.println("No SD Card detected");
-      #endif
-      return false;
-    }
-  }
-  if(!sd.exists("Datalog/datalog.csv")) {
+  if(!sd.exists("datalog.csv")) {
     #if SERIAL_OUTPUT
       Serial.println("No CSV file detected");
     #endif
@@ -616,7 +640,7 @@ bool WriteOldTime(int n, realTime t) {
     return false;
 
   delay(500);
-  datalog.open("Datalog/datalog.csv", FILE_WRITE);
+  datalog.open("datalog.csv", FILE_WRITE);
   datalog.seekEnd();
   lines = 0;
   timeout = 0;
@@ -653,24 +677,38 @@ bool WriteOldTime(int n, realTime t) {
     temp.flag = 1;
 
     //Read past success flag
-    for(timeout = 0; datalog.read() != ',' && timeout < 2000; timeout++)
+    for(timeout = 0; datalog.read() != ',' && timeout < 1000; timeout++)
       delay(1);
-    if(timeout > 2000) {
+    if(timeout > 1000) {
       datalog.close();
       return false;
     }
+<<<<<<< HEAD
     datalog.seekCur(1);
     datalog.write('1');
 
     //Read past Id flag
     for(timeout = 0; datalog.read() != '/' && timeout < 2000; timeout++)
+=======
+
+    datalog.read();
+    datalog.write('1');
+
+    //Read past Id flag
+    for(timeout = 0; datalog.read() != ',' && timeout < 1000; timeout++)
+>>>>>>> d8f7dea37ffce1c95630b381b27db5296d9acc97
       delay(1);
-    if(timeout > 2000) {
+    if(timeout > 1000) {
       datalog.close();
       return false;
     }
+<<<<<<< HEAD
     datalog.seekCur(-3);
 
+=======
+
+    datalog.read();
+>>>>>>> d8f7dea37ffce1c95630b381b27db5296d9acc97
     str[0] = datalog.read();
     str[1] = datalog.read();
     str[2] = '\0';
@@ -689,7 +727,11 @@ bool WriteOldTime(int n, realTime t) {
     temp.hours = String(str).toInt();
     datalog.seekCur(1);
 
+<<<<<<< HEAD
     str[0] = datalog.read();  
+=======
+    str[0] = datalog.read();
+>>>>>>> d8f7dea37ffce1c95630b381b27db5296d9acc97
     str[1] = datalog.read();
     str[2] = '\0';
     temp.minutes = String(str).toInt();

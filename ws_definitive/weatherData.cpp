@@ -1,8 +1,7 @@
 #include "weatherData.h"
 
-char ws_id[4];
-
-void weatherData::Reset(){
+void weatherData::Reset(int ws_id){
+  id = ws_id;
   temp1 = 0.0;
   temp2 = 0.0;
   hum = 0.0;

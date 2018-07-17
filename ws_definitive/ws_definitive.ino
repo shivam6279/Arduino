@@ -52,6 +52,7 @@ volatile uint8_t GPS_wait;
 volatile bool four_sec = false, read_flag = false, upload_flag = false;
 
 //Weather data
+int ws_id;
 
 //Times
 realTime current_time;
@@ -64,6 +65,7 @@ DallasTemperature sensors(&oneWire);
 
 void setup() {  
   unsigned int i;
+  char str[10];
 
   pinMode(RAIN_LED, OUTPUT);
   pinMode(WIND_LED, OUTPUT);
@@ -85,22 +87,23 @@ void setup() {
   digitalWrite(17, HIGH);
   //Serial3.begin(9600);
 
-  SD_flag = sd.begin(53);
+  SD_flag = sd.begin(SD_CARD_CS_PIN);
   delay(100);
   if(!sd.exists("id.txt")){
     #if SERIAL_OUTPUT
       Serial.println("\nNo id file found on sd card, using bakup id");
     #endif
-    BACKUP_ID.toCharArray(ws_id, 5);
+    ws_id = BACKUP_ID.toInt();
   } else {
     #if SERIAL_OUTPUT
       Serial.println("\nSD Card detected");
     #endif
     datalog.open("id.txt", FILE_READ);
     while(datalog.available()) {
-      ws_id[i++] = datalog.read();
+      str[i++] = datalog.read();
     }
-    ws_id[i] = '\0';
+    str[i] = '\0';
+    ws_id = String(str).toInt();
     datalog.close();
   }
   
@@ -144,7 +147,7 @@ void setup() {
 void loop() {
   int i, j;
   unsigned long int avg_counter = 0;
-  boolean temp_read, temp_upload, temp_network;
+  bool temp_read, temp_upload, temp_network, temp_sd;
 
   uint16_t reading_number = 0;
   uint16_t number_of_fail_uploads = 0;
@@ -159,7 +162,7 @@ void loop() {
   reading_number = 0;
 
   for(i = 0; i < BUFFER_SIZE; i++) {
-    w[i].Reset();
+    w[i].Reset(ws_id);
   }
   while(Serial1.available()) Serial1.read();
 
@@ -223,11 +226,33 @@ void loop() {
         digitalWrite(UPLOAD_LED, HIGH);
 
         upload_flag = false;
-        
-        GSMModuleWake();
+
+        //-------------------------------SD Card Datalog--------------------------------
+
+        temp_sd = true;
+        if(sd.exists("id.txt")) {
+          for(i = 0; i < reading_number; i++) {
+            w[i].flag = 0;
+          }
+          #if SERIAL_OUTPUT
+            Serial.println("\nWriting to the SD card");
+          #endif
+          for(i = 0; i < reading_number; i++) {
+            if(!WriteSD(w[i])) {
+              #if SERIAL_OUTPUT
+                Serial.println("Write failed");
+              #endif
+              temp_sd = false;
+              break;
+            }
+            if(startup == true) 
+              initial_sd_card_uploads++;
+          }
+        }
         
         //-----------------------------------No SD Card---------------------------------
-        if(!sd.exists("id.txt")) {
+
+        if(!sd.exists("id.txt") || temp_sd == false) {
           #if SERIAL_OUTPUT
             Serial.println("\nUploading data");
           #endif
@@ -260,22 +285,8 @@ void loop() {
             //upload_sms(w[reading_number], phone_number);
           }
         } else {
-        //------------------------------------------------------------------------------
-          for(i = 0; i < reading_number; i++) {
-            w[i].flag = 0;
-          }
-          #if SERIAL_OUTPUT
-            Serial.println("Writing to the SD card");
-          #endif
-          for(i = 0; i < reading_number; i++) {
-            if(!WriteSD(w[i])) {
-              #if SERIAL_OUTPUT
-                Serial.println("Write failed");
-              #endif
-            }
-            if(startup == true) 
-              initial_sd_card_uploads++;
-          }
+
+          //----------------------------------------------------------------------------
 
           if(current_time.flag == false && startup == true) {
             #if SERIAL_OUTPUT
@@ -294,6 +305,7 @@ void loop() {
               #endif
               startup_time.PrintTime();
               if(!WriteOldTime(initial_sd_card_uploads, startup_time)) {
+                sd_flag = false;
                 #if SERIAL_OUTPUT
                   Serial.println("SD Card failure");
                 #endif
