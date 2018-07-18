@@ -45,10 +45,10 @@ void weatherData::PrintData() {
   Serial.println("Temperature 1(C): " + String(temp1));
   Serial.println("Temperature 2(C): " + String(temp2));
   Serial.println("Humidity(%RH): " + String(hum));
-  Serial.println("Wind: " + String(wind_speed));
+  Serial.println("Wind speed (m/s): " + String(wind_speed));
   Serial.println("Standard deviation: " + String(wind_stdDiv));
   Serial.println("Rain: " + String(rain));
-  Serial.println("Current (Amps): " + String(amps));
+  Serial.println("Current(Amps): " + String(amps));
   Serial.println("Panel Voltage(V): " + String(panel_voltage));
   Serial.println("Battery Voltage(V): " + String(battery_voltage));
   #if enable_BMP180
@@ -163,7 +163,6 @@ void SubtractTime(realTime a, realTime b, realTime &c) {
             a.month = 12;
             a.day += a.DaysInMonth();
             a.year--;
-            a.month = 12;
           } else {
             a.month--;
             a.day += a.DaysInMonth();
@@ -187,7 +186,6 @@ void SubtractTime(realTime a, realTime b, realTime &c) {
           a.month = 12;
           a.day += a.DaysInMonth();
           a.year--;
-          a.month = 12;
         } else {
           a.month--;
           a.day += a.DaysInMonth();
@@ -207,7 +205,6 @@ void SubtractTime(realTime a, realTime b, realTime &c) {
         a.month = 12;
         a.day += a.DaysInMonth();
         a.year--;
-        a.month = 12;
       } else {
         a.month--;
         a.day += a.DaysInMonth();
@@ -223,7 +220,6 @@ void SubtractTime(realTime a, realTime b, realTime &c) {
       a.month = 12;
       a.day += a.DaysInMonth();
       a.year--;
-      a.month = 12;
     } else {
       a.month--;
       a.day += a.DaysInMonth();
