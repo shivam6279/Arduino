@@ -9,7 +9,7 @@ bool SendHttpGet() {
   char ch;
 
   ShowSerialData();
-  Serial1.println("AT+QHTTPGET=20\r");
+  Serial1.println("AT+QHTTPGET=30\r");
   delay(700);
   timeout = 0;
   do {
@@ -21,8 +21,8 @@ bool SendHttpGet() {
     }
     timeout++;
     delay(1);
-  }while(!isdigit(ch) && timeout < 20000);
-  if(timeout >= 20000) return false;
+  }while(!isdigit(ch) && timeout < 30000);
+  if(timeout >= 30000) return false;
 
   do {
     if(Serial1.available()) {
@@ -56,10 +56,10 @@ bool HttpInit() {
   delay(100);
   ShowSerialData();
   Serial1.println("AT+QIACT\r");
-  for(timeout = 0; Serial1.available() < 2 && timeout < 100; timeout++) delay(100);
-  delay(1000);
+  for(timeout = 0; Serial1.available() < 2 && timeout < 150; timeout++) delay(100);
   ShowSerialData();
-  if(timeout > 100) return false;
+  if(timeout > 150) 
+	  return false;
   return true;
 }
 
