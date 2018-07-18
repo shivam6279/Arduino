@@ -1,9 +1,6 @@
 #ifndef settings_h
 #define settings_h
 
-//June 26, 2018
-//Quectel on/off
-
 #include "Arduino.h"
 
 //--------------------------------------Pin Config--------------------------------------  
@@ -30,6 +27,8 @@
 const String URL = "http://enigmatic-caverns-27645.herokuapp.com/maytheforcebewithyou?";
 const String OTA_URL = "http://www.yobi.tech/ota/4";
 const String TIME_URL = "http://www.yobi.tech/IST";
+
+const char SD_csv_header[] = String("Success, Time Flag, id, ts, t1, t2, h, w, r, p, a, s, cv, bv, sg").toCharArray();
 
 const String PHONE_NUMBER = "+919220592205";
 const String BACKUP_ID = "201"; //Backup id in case there is no sd card
