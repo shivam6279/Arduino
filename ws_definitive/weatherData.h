@@ -26,11 +26,8 @@ public:
 
 struct weatherData {
 public:
-<<<<<<< HEAD
   //Temperature and humidity
-=======
   int id;
->>>>>>> d8f7dea37ffce1c95630b381b27db5296d9acc97
   float temp1, temp2, hum;
   long int pressure;
 
