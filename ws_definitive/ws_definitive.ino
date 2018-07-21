@@ -305,7 +305,7 @@ void loop() {
               #endif
               startup_time.PrintTime();
               if(!WriteOldTime(initial_sd_card_uploads, startup_time)) {
-                sd_flag = false;
+                temp_sd = false;
                 #if SERIAL_OUTPUT
                   Serial.println("SD Card failure");
                 #endif
