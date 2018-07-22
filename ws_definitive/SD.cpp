@@ -157,9 +157,9 @@ bool DownloadHex() {
     while(Serial1.available() == 0){
       i++;
       delay(1);
-      if(i > 10000) break;
+      if(i > 15000) break;
     }
-    if(i > 10000) break;
+    if(i > 15000) break;
   }
   datalog.write(sd_buffer, sd_index);
   datalog.sync();
