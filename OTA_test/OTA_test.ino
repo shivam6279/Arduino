@@ -152,6 +152,7 @@ void setup() {
   Serial1.println("AT+QHTTPREAD=30\r");
   delay(400);
   ShowSerialData();  
+  delay(5000);
 }
  
 void loop() {

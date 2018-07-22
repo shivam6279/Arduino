@@ -76,37 +76,9 @@ bool DownloadHex() {
   Serial1.print(OTA_URL + '\r');
   delay(100);
   ShowSerialData();
-  Serial1.println("AT+QHTTPGET=30\r");
-  delay(700);
-  //--------Read httpget response--------
-  j = 0;
-  do {
-    if(Serial1.available()) {
-      ch = Serial1.read();
-      #if SERIAL_RESPONSE
-  	    Serial.print(ch);
-  	  #endif
-    }
-    delay(1);
-    j++;
-  }while(!isdigit(ch) && j < 10000);
-  if(j >= 10000) return false;
-  j = 0;
-  do {
-    if(Serial1.available()) {
-      ch = Serial1.read();
-      #if SERIAL_RESPONSE
-  	    Serial.print(ch);
-  	  #endif
-    }
-    delay(1);
-    j++;
-  }while(!isAlpha(ch) && j < 10000);
-  if(j >= 10000) return false;
-  delay(100);
-  ShowSerialData();
-  if(ch != 'O') return false;
-  //--If the response is not 'OK' - return--
+  
+  if(!SendHttpGet())
+    return false;
 
   datalog.write(':');
   
@@ -145,15 +117,18 @@ bool DownloadHex() {
     while(Serial1.available() == 0){
       i++;
       delay(1);
-      if(i > 20000) break;
+      if(i > 30000) break;
     }
-    if(i > 20000) break;
+    if(i > 30000) break;
   }
   datalog.write(sd_buffer, sd_index);
   datalog.sync();
   datalog.seekCur(-1);
   datalog.close();
   while(Serial1.available()) Serial1.read();
+
+  if((millis() - t) < 15000)
+    return false;
   return true;
 }
 
@@ -173,6 +148,12 @@ bool SDHexToBin() {
   if(!sd.exists("TEMP_OTA.HEX")) return false;
 
   data_temp.open("TEMP_OTA.HEX", O_READ);
+
+  if(data_temp.fileSize() < 50000) {
+    data_temp.close();
+    return false;
+  }
+  
   datalog.open("firmware.bin", O_WRITE | O_CREAT);
 
   ch = data_temp.read();
