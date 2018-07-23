@@ -143,16 +143,7 @@ void setup() {
   //Interrupt initialization  
   InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz
 
-  weatherData w;
-  w.Reset(ws_id);
-  w.temp1 = 100.0;
-  HttpInit();
-  SendWeatherURL(w);
-  ShowSerialData();  
-  Serial1.println("AT+QHTTPREAD=30\r");
-  delay(400);
-  ShowSerialData();  
-  delay(5000);
+  test();
 }
  
 void loop() {
@@ -276,5 +267,55 @@ void InitInterrupt() {
   TCCR2B |= (1 << CS21); 
   TIMSK2 |= (1 << OCIE2A);
   interrupts();
+}
+
+void test() {
+  String str;
+  
+  Serial.println(F("\nStarting connection to server..."));
+
+  HttpInit();
+  delay(1000);
+  Serial1.print("AT+QHTTPURL=32,30\r");
+  delay(1000);
+  ShowSerialData();
+  Serial1.print("http://www.yobi.tech/bulk-upload\r");
+  delay(500);
+  ShowSerialData();
+  
+  //str = "POST /bulk-upload HTTP/1.1\n";
+  //str += "Host: www.yobi.tech\n";
+  //str += "Origin: http://www.yobi.tech\n";
+  //str += "User-Agent: Frank/1.0\n";
+  //str += "Accept-Encoding: gzip, deflate\n";
+  //str += "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\n";
+  //str += "Referer: http://www.yobi.tech/bulk-upload\n";
+  //str += "Connection: keep-alive\n";
+  //str += "Content-Length: ";
+  //str += "9";
+  //str += "\n";
+  //str += "Content-Type: multipart/form-data;     boundary=710ff0c6cf2d4c73b12db64cab12e58c\n";
+  //str += "\n";
+  //str += "--710ff0c6cf2d4c73b12db64cab12e58c\n";
+  str = "Content-Disposition:  form-data; name=\"file\"; filename=\"test.csv\"\n";
+  str += "Content-Type: text/plain\n\n";
+
+  str += "1,2,3,4,5";
+
+  //str += "\n--710ff0c6cf2d4c73b12db64cab12e58c--\n\r";
+  
+  Serial.println();
+  Serial.println(str);
+  Serial.println();
+
+  Serial1.print("AT+QHTTPPOST=" + String(str.length()) + ",30,30\r");
+  delay(5000);
+  ShowSerialData();
+  Serial1.print(str);
+  delay(15000);
+  ShowSerialData();
+
+  Talk();
+  
 }
 

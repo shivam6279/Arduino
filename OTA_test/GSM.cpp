@@ -200,7 +200,7 @@ void GSMModuleWake() {
 
 
 void Talk() {
-  GSMModuleRestart();
+  if(!IsGSMModuleOn())GSMModuleRestart();
   Serial.println("Talk");
   while(1){
     if(Serial1.available()){ Serial.write(Serial1.read()); }

@@ -131,7 +131,7 @@ void setup() {
     Serial.println();
   #endif
   
-  //Talk();
+  Talk();
 
   digitalWrite(UPLOAD_LED, HIGH);
   delay(2000);  //Wait for the GSM module to boot up

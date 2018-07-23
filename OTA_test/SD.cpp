@@ -80,11 +80,13 @@ bool DownloadHex() {
   if(!SendHttpGet())
     return false;
 
+  delay(500);
+
   datalog.write(':');
   
   Serial1.println("AT+QHTTPREAD=30\r");
 
-  //-----Read until the actual data------
+  //--------Read until the actual data---------
   t = millis();
   for(i = 0; i < 3 && (millis() - t) < 3000;){
     if(Serial1.read() ==  '>') i++;
@@ -96,7 +98,7 @@ bool DownloadHex() {
     ch = Serial1.read();
   if((millis() - t) > 3000) 
     return false;
-  //--------------------------------------
+  //-------------------------------------------
 
   i = 0;
   j = 1;
