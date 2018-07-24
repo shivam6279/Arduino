@@ -131,7 +131,7 @@ void setup() {
     Serial.println();
   #endif
   
-  Talk();
+  //Talk();
 
   digitalWrite(UPLOAD_LED, HIGH);
   delay(2000);  //Wait for the GSM module to boot up
@@ -139,6 +139,10 @@ void setup() {
 
   //Initialize GSM module
   InitGSM();  
+
+  delay(6000);
+
+  UploadCSV();
   
   //Interrupt initialization  
   InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz

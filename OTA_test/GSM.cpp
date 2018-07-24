@@ -8,7 +8,7 @@ void InitGSM() {
     if(!IsGSMModuleOn()) GSMModuleRestart();
   #endif
   
-  Serial1.print("AT+QSCLK=2\r"); 
+  //Serial1.print("AT+QSCLK=2\r"); 
   delay(100);
   ShowSerialData();
   Serial1.print("AT+CMGF=1\r"); 

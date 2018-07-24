@@ -131,7 +131,7 @@ void setup() {
     Serial.println();
   #endif
   
-  Talk();
+  //Talk();
 
   digitalWrite(UPLOAD_LED, HIGH);
   delay(2000);  //Wait for the GSM module to boot up
@@ -144,6 +144,17 @@ void setup() {
   InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz
 
   test();
+
+  weatherData w;
+  w.Reset(ws_id);
+  w.temp1 = 100.0;
+  HttpInit();
+  SendWeatherURL(w);
+  ShowSerialData();  
+  Serial1.println("AT+QHTTPREAD=30\r");
+  delay(400);
+  ShowSerialData();  
+  delay(5000);
 }
  
 void loop() {
@@ -270,52 +281,56 @@ void InitInterrupt() {
 }
 
 void test() {
-  String str;
+  String str, data;
+
+  datalog.open("datalog.csv", FILE_WRITE);
   
   Serial.println(F("\nStarting connection to server..."));
-
+  
   HttpInit();
   delay(1000);
-  Serial1.print("AT+QHTTPURL=32,30\r");
-  delay(1000);
-  ShowSerialData();
-  Serial1.print("http://www.yobi.tech/bulk-upload\r");
+  Serial1.print("AT+QIOPEN=\"TCP\",\"www.yobi.tech\",\"80\"\r");
+  
+  while(Serial.read() != '\n') {
+    ShowSerialData();
+  }
+
+  Serial1.print("AT+QISEND\r");
   delay(500);
   ShowSerialData();
   
-  //str = "POST /bulk-upload HTTP/1.1\n";
-  //str += "Host: www.yobi.tech\n";
-  //str += "Origin: http://www.yobi.tech\n";
-  //str += "User-Agent: Frank/1.0\n";
-  //str += "Accept-Encoding: gzip, deflate\n";
-  //str += "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\n";
-  //str += "Referer: http://www.yobi.tech/bulk-upload\n";
-  //str += "Connection: keep-alive\n";
-  //str += "Content-Length: ";
-  //str += "9";
-  //str += "\n";
-  //str += "Content-Type: multipart/form-data;     boundary=710ff0c6cf2d4c73b12db64cab12e58c\n";
-  //str += "\n";
-  //str += "--710ff0c6cf2d4c73b12db64cab12e58c\n";
-  str = "Content-Disposition:  form-data; name=\"file\"; filename=\"test.csv\"\n";
-  str += "Content-Type: text/plain\n\n";
+  str = "POST /bulk-upload HTTP/1.1\r\n";
+  str += "Host: www.yobi.tech\r\n";
+  str += "Accept: */*\r\n";
+  str += "User-Agent: Rigor API Tester\r\n";
+  str += "Content-Type: multipart/form-data; boundary=---------------------------196272297923078\r\n";
+  str += "Content-Length: " + String(204 + datalog.size()) + "\r\n";
+  str += "\r\n";
+  str += "-----------------------------196272297923078\r\n";
+  str += "Content-Disposition:  form-data; name=\"file\"; filename=\"abcd.csv\"\r\n";
+  str += "Content-Type: application/octet-stream\r\n\r\n";
 
-  str += "1,2,3,4,5";
+  Serial1.print(str);
+  delay(500);
+  ShowSerialData();
 
-  //str += "\n--710ff0c6cf2d4c73b12db64cab12e58c--\n\r";
-  
-  Serial.println();
-  Serial.println(str);
-  Serial.println();
+  str = data + "\r\n";
 
-  Serial1.print("AT+QHTTPPOST=" + String(str.length()) + ",30,30\r");
+  str += "-----------------------------196272297923078--\r";
+
+  Serial1.print(str);
+  Serial1.write(0x1A);
   delay(5000);
   ShowSerialData();
-  Serial1.print(str);
-  delay(15000);
-  ShowSerialData();
 
-  Talk();
-  
+  char ch;
+  while(1){
+    if(Serial1.available()){ Serial.write(Serial1.read()); }
+    if(Serial.available()) { 
+      ch = Serial.read();
+      if(ch == '|') Serial1.write(0x1A); 
+      else Serial1.write(ch); 
+    }
+  }
 }
 

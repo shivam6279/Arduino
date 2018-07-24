@@ -375,6 +375,149 @@ bool WriteSD(weatherData w) {
   return true;
 }
 
+bool UploadCSV() {
+  char ch;
+  int n, stage;
+  int timeout;
+  bool flag;
+
+  if(!sd.exists("id.txt")) {
+    if(!sd.begin(SD_CARD_CS_PIN)) return false;
+  }
+  n = GetPreviousFailedUploads();
+  
+  if(n < 0) 
+    return false;
+  #if SERIAL_OUTPUT
+    Serial.println("Number of missed uploads: " + String(n));
+  #endif
+  if(n == 0)
+    return true;
+  
+  if(!HttpInit())
+    return false;
+
+  delay(1000);
+  ShowSerialData();
+  Serial1.print("AT+QIOPEN=\"TCP\",\"www.yobi.tech\",\"80\"\r");
+  
+  for(timeout = 0; Serial1.available() < 10 && timeout < 20000; timeout++)
+    delay(1);
+  if(timeout >= 20000)
+    return false;
+
+  delay(100);
+
+  //------------------Read TCP open response------------------
+  for(stage = 0, flag = false; Serial1.available() != 0;) {
+    ch = Serial1.read();
+    #if SERIAL_RESPONSE
+      Serial.print(ch);
+    #endif
+    if(ch == 'C' && stage == 0) 
+      stage++;
+    else if(ch == 'O' && stage == 1)
+      stage++;
+    else if(ch == 'N' && stage == 2)
+      stage++;
+    else if(ch == 'N' && stage == 3)
+      stage++;
+    else if(ch == 'E' && stage == 4)
+      stage++;
+    else if(ch == 'C' && stage == 5)
+      stage++;
+    else if(ch == 'T' && stage == 6) {
+      flag = true;
+      ShowSerialData();
+      break;
+    }
+    else
+      stage = 0;
+  }
+  if(flag == false)
+    return false;
+  //--Connection success if Quectel sends "CONNECT RESPONSE"--
+
+  if(!datalog.open("datalog.csv", FILE_WRITE)) {
+    datalog.close();
+    return false;
+  }
+  datalog.seekSet(0);
+
+  Serial1.print("AT+QISEND\r");
+  delay(500);
+  ShowSerialData();
+  
+  //--------------------------------------------POST Message---------------------------------------------------
+  Serial1.print("POST /bulk-upload HTTP/1.1\r\n");
+  Serial1.print("Host: www.yobi.tech\r\n");
+  Serial1.print("Accept: */*\r\n");
+  Serial1.print("User-Agent: Rigor API Tester\r\n");
+  Serial1.print("Content-Type: multipart/form-data; boundary=---------------------------196272297923078\r\n");
+  Serial1.print("Content-Length: " + String(204 + datalog.fileSize()) + "\r\n");
+  Serial1.print("\r\n");
+  Serial1.print("-----------------------------196272297923078\r\n");
+  Serial1.print("Content-Disposition:  form-data; name=\"file\"; filename=\"abcd.csv\"\r\n");
+  Serial1.print("Content-Type: application/octet-stream\r\n\r\n");
+  ShowSerialData();
+
+  //Send CSV file data
+  while(datalog.available()) {
+    ch = datalog.read();
+    Serial1.write(ch);
+    ShowSerialData();
+  }
+
+  Serial.print("\r\n");
+  Serial1.print("-----------------------------196272297923078--\r");
+  ShowSerialData();
+  Serial1.write(0x1A);
+  //-------------------------------------------------------------------------------------------------------------
+  
+  datalog.close();
+
+  for(timeout = 0; Serial1.available() < 10 && timeout < 30000; timeout++)
+    delay(1);
+  if(timeout >= 30000) {
+    datalog.close();
+    return false;
+  }
+
+  while(1) {
+    ShowSerialData();
+  }
+
+  //-----------------------Read POST response---------------------
+  for(stage = 0, flag = false; Serial1.available() != 0;) {
+    ch = Serial1.read();
+    #if SERIAL_RESPONSE
+      Serial.print(ch);
+    #endif
+    if(ch == 'S' && stage == 0) 
+      stage++;
+    else if(ch == 'U' && stage == 1)
+      stage++;
+    else if(ch == 'C' && stage == 2)
+      stage++;
+    else if(ch == 'C' && stage == 3)
+      stage++;
+    else if(ch == 'E' && stage == 4)
+      stage++;
+    else if(ch == 'S' && stage == 5)
+      stage++;
+    else if(ch == 'S' && stage == 6) {
+      flag = true;
+      ShowSerialData();
+      break;
+    }
+    else
+      stage = 0;
+  }
+  if(flag == false)
+    return false;
+  //--Upload successfull if "SUCCESS" is returned by the server--
+}
+
 bool UploadOldSD() {
   char ch, t[20];
   int p;
@@ -383,7 +526,6 @@ bool UploadOldSD() {
 
   weatherData w;
 
-  sd.chdir();
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }

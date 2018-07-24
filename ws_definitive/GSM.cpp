@@ -5,7 +5,7 @@ void InitGSM() {
   bool flag = 0;
 
   #ifdef GSM_PWRKEY_PIN
-    if(!IsGSMModuleOn()) GSMModuleRestart();
+    GSMModuleRestart();
   #endif
   
   Serial1.print("AT+QSCLK=2\r"); 
