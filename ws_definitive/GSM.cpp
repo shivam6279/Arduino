@@ -1,26 +1,85 @@
 #include "GSM.h"
 #include "settings.h"
 
-void InitGSM() {
-  bool flag = 0;
+bool InitGSM() {
+  bool flag = true;
 
   #ifdef GSM_PWRKEY_PIN
-    GSMModuleRestart();
+  if(!IsGSMModuleOn()) GSMModuleRestart();
   #endif
   
-  Serial1.print("AT+QSCLK=2\r"); 
-  delay(100);
-  ShowSerialData();
-  Serial1.print("AT+CMGF=1\r"); 
-  delay(100);
-  ShowSerialData();
-  Serial1.print("AT+CNMI=2,2,0,0,0\r"); 
-  delay(100); 
-  ShowSerialData();
-  Serial1.print("AT+CLIP=1\r"); 
-  delay(100);
+  GSMModuleWake();
+
+  if(SendATCommand("AT+QSCLK=2", "OK", 1000) < 0) 
+    flag = false;
+  if(SendATCommand("AT+CMGF=1", "OK", 1000) < 0) 
+    flag = false;
+  if(SendATCommand("AT+CNMI=2,2,0,0,0", "OK", 1000) < 0) 
+    flag = false;
+  if(SendATCommand("AT+CLIP=1", "OK", 3000) < 0) 
+    flag = false;
+
   ShowSerialData();
   delay(1000); 
+  return flag;
+}
+
+int SendATCommand(char* cmd, char* resp, long int timeout) {
+  int stage;
+  char ch;
+
+  int error_stage;
+  char error[] = {'E', 'R', 'R', 'O', 'R', '\0'};
+  ShowSerialData();
+  Serial1.print(cmd);
+  Serial1.print('\r');
+  for(stage = 0, error_stage = 0; timeout > 0; timeout--) {
+    delay(1);
+    if(Serial1.available()) {
+      ch = Serial1.read();
+      #if SERIAL_RESPONSE
+        Serial.print(ch);
+      #endif
+      if(ch == *(resp + stage)) {
+        stage++;
+        if(*(resp + stage) == '\0')
+          return 1;
+      }
+      else
+        stage = 0;
+      if(ch == error[error_stage]) {
+        stage++;
+        if(resp[stage] == '\0')
+          return 0;
+      }
+      else
+        stage = 0;
+    }
+  }
+  return -1;
+}
+
+bool ReadUntil(char* resp, long int timeout) {
+  int stage;
+  char ch;
+  
+  for(stage = 0; timeout > 0; timeout--) {
+    delay(1);
+    if(Serial1.available()) {
+      ch = Serial1.read();
+      #if SERIAL_RESPONSE
+        Serial.print(ch);
+      #endif
+      if(ch == *(resp + stage)) {
+        stage++;
+        if(*(resp + stage) == '\0')
+          return 1;
+      }
+      else
+        stage = 0;
+    }
+  }
+  return false;
 }
 
 bool CheckSMS() {
@@ -30,8 +89,8 @@ bool CheckSMS() {
         if(Serial1.read() == 'M') {
           if(Serial1.read() == 'T') {
             return 1;
-       	  }
-       	}
+          }
+        }
       }
     }
   }
@@ -118,7 +177,6 @@ int GetSignalStrength() {
   char ch, temp[3];
   int i = 0, tens, ret;
   GSMModuleWake();
-  delay(100);
   Serial1.print("AT+CSQ\r");
   delay(200);
   do {
@@ -155,8 +213,7 @@ void GSMModuleRestart() {
     #if SERIAL_OUTPUT
     Serial.println("GSM Module on, turning off");
     #endif
-    Serial1.print("AT+QPOWD=1\r"); 
-    delay(8000);
+    SendATCommand("AT+QPOWD=1", "POWER DOWN", 10000);
     ShowSerialData();
   } 
   #if SERIAL_OUTPUT
@@ -179,15 +236,11 @@ void GSMModuleRestart() {
 
 bool IsGSMModuleOn() {
   GSMModuleWake();
-  Serial1.println("AT\r");
-  delay(100);
-  while(Serial1.available()) {
-    if(Serial1.read() == 'O') {
-      while(Serial1.available()) Serial1.read();
-      return true;
-    }
+
+  if(SendATCommand("AT", "OK", 500) < 1) {
+    return false;
   }
-  return false;
+  return true;
 }
 
 void GSMModuleWake() {
@@ -210,8 +263,8 @@ void Talk() {
 
 void ShowSerialData() {
   #if SERIAL_RESPONSE
-  while(Serial1.available() != 0) Serial.write(Serial1.read());
+    while(Serial1.available() != 0) Serial.write(Serial1.read());
   #else
-  while(Serial1.available() != 0) Serial1.read();
+    while(Serial1.available() != 0) Serial1.read();
   #endif
 }

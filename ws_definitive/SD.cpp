@@ -376,16 +376,18 @@ bool WriteSD(weatherData w) {
 }
 
 bool UploadCSV() {
-  char ch;
-  int n, stage;
-  int timeout;
+  char ch, sd_ch;
+  long int n, lines;
+  int stage, count;
+  int line_count;
+  long int timeout;
+  long int p1, p2, bytes;
   bool flag;
 
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
   n = GetPreviousFailedUploads();
-  
   if(n < 0) 
     return false;
   #if SERIAL_OUTPUT
@@ -397,125 +399,107 @@ bool UploadCSV() {
   if(!HttpInit())
     return false;
 
-  delay(1000);
-  ShowSerialData();
-  Serial1.print("AT+QIOPEN=\"TCP\",\"www.yobi.tech\",\"80\"\r");
-  
-  for(timeout = 0; Serial1.available() < 10 && timeout < 20000; timeout++)
-    delay(1);
-  if(timeout >= 20000)
-    return false;
-
-  delay(100);
-
-  //------------------Read TCP open response------------------
-  for(stage = 0, flag = false; Serial1.available() != 0;) {
-    ch = Serial1.read();
-    #if SERIAL_RESPONSE
-      Serial.print(ch);
-    #endif
-    if(ch == 'C' && stage == 0) 
-      stage++;
-    else if(ch == 'O' && stage == 1)
-      stage++;
-    else if(ch == 'N' && stage == 2)
-      stage++;
-    else if(ch == 'N' && stage == 3)
-      stage++;
-    else if(ch == 'E' && stage == 4)
-      stage++;
-    else if(ch == 'C' && stage == 5)
-      stage++;
-    else if(ch == 'T' && stage == 6) {
-      flag = true;
-      ShowSerialData();
-      break;
-    }
-    else
-      stage = 0;
-  }
-  if(flag == false)
-    return false;
-  //--Connection success if Quectel sends "CONNECT RESPONSE"--
-
   if(!datalog.open("datalog.csv", FILE_WRITE)) {
     datalog.close();
     return false;
   }
-  datalog.seekSet(0);
-
-  Serial1.print("AT+QISEND\r");
-  delay(500);
-  ShowSerialData();
-  
-  //--------------------------------------------POST Message---------------------------------------------------
-  Serial1.print("POST /bulk-upload HTTP/1.1\r\n");
-  Serial1.print("Host: www.yobi.tech\r\n");
-  Serial1.print("Accept: */*\r\n");
-  Serial1.print("User-Agent: Rigor API Tester\r\n");
-  Serial1.print("Content-Type: multipart/form-data; boundary=---------------------------196272297923078\r\n");
-  Serial1.print("Content-Length: " + String(204 + datalog.fileSize()) + "\r\n");
-  Serial1.print("\r\n");
-  Serial1.print("-----------------------------196272297923078\r\n");
-  Serial1.print("Content-Disposition:  form-data; name=\"file\"; filename=\"abcd.csv\"\r\n");
-  Serial1.print("Content-Type: application/octet-stream\r\n\r\n");
-  ShowSerialData();
-
-  //Send CSV file data
-  while(datalog.available()) {
-    ch = datalog.read();
-    Serial1.write(ch);
-    ShowSerialData();
-  }
-
-  Serial.print("\r\n");
-  Serial1.print("-----------------------------196272297923078--\r");
-  ShowSerialData();
-  Serial1.write(0x1A);
-  //-------------------------------------------------------------------------------------------------------------
-  
-  datalog.close();
-
-  for(timeout = 0; Serial1.available() < 10 && timeout < 30000; timeout++)
-    delay(1);
-  if(timeout >= 30000) {
-    datalog.close();
-    return false;
-  }
-
-  while(1) {
-    ShowSerialData();
-  }
-
-  //-----------------------Read POST response---------------------
-  for(stage = 0, flag = false; Serial1.available() != 0;) {
-    ch = Serial1.read();
-    #if SERIAL_RESPONSE
-      Serial.print(ch);
-    #endif
-    if(ch == 'S' && stage == 0) 
-      stage++;
-    else if(ch == 'U' && stage == 1)
-      stage++;
-    else if(ch == 'C' && stage == 2)
-      stage++;
-    else if(ch == 'C' && stage == 3)
-      stage++;
-    else if(ch == 'E' && stage == 4)
-      stage++;
-    else if(ch == 'S' && stage == 5)
-      stage++;
-    else if(ch == 'S' && stage == 6) {
-      flag = true;
-      ShowSerialData();
-      break;
+  do {
+    datalog.seekCur(-2);
+    while(datalog.peek()!= '\n' && datalog.curPosition() != 0) {
+      datalog.seekCur(-1);
     }
-    else
-      stage = 0;
+    if(datalog.curPosition() == 0) break;
+    datalog.seekCur(1);
+    ch = datalog.peek();
+  }while(ch == '0');
+  while(datalog.read()!= '\n');
+
+  for(lines = 0; lines < n;) {
+
+    p1 = datalog.curPosition();
+    for(line_count = 0;line_count < 200; line_count++) {
+      while(datalog.read() != '\n');
+    }
+    p2 = datalog.curPosition();
+    bytes = p2 - p1;
+    datalog.seekCur(-bytes);
+
+    GSMModuleWake();
+    delay(200);
+    ShowSerialData();
+    SendATCommand("AT+QIDNSIP=1", "OK", 1000);
+    ShowSerialData();
+    SendATCommand("AT+QICLOSE", "OK", 1000);
+    ShowSerialData();
+    if(SendATCommand("AT+QIOPEN=\"TCP\",\"enigmatic-caverns-27645.herokuapp.com\",\"80\"", "CONNECT", 20000) < 1) {
+      ShowSerialData();
+      return false;
+    }
+    ShowSerialData();
+    SendATCommand("AT+QISEND", ">", 500);
+    ShowSerialData();
+    
+    //--------------------------------------------POST Message---------------------------------------------------
+    Serial1.print("POST /bulk-upload HTTP/1.1\r\n");
+    Serial1.print("Host: enigmatic-caverns-27645.herokuapp.com\r\n");
+    Serial1.print("Accept: */*\r\n");
+    Serial1.print("Connection: keep-alive\r\n");
+    Serial1.print("User-Agent: Rigor API Tester\r\n");
+    Serial1.print("Content-Type: multipart/form-data; boundary=---------------------------196272297923078\r\n");
+    Serial1.print("Content-Length: " + String(204 + bytes) + "\r\n");
+    Serial1.print("\r\n");
+    Serial1.print("-----------------------------196272297923078\r\n");
+    Serial1.print("Content-Disposition:  form-data; name=\"file\"; filename=\"abcd.csv\"\r\n");
+    Serial1.print("Content-Type: application/octet-stream\r\n\r\n");
+    Serial1.write(0x1A);
+    delay(200);
+    ShowSerialData();
+
+    SendATCommand("AT+QISEND", ">", 500);
+    ShowSerialData();
+
+    //Send CSV file data
+    for(count = 0, line_count = 0; line_count < 200 && datalog.available(); lines++, line_count++) {
+      do{
+        sd_ch = datalog.read();
+        count++;
+        Serial1.write(sd_ch);
+      }while(sd_ch != '\n' && datalog.available());
+      ShowSerialData();
+
+      if(count >= 1200) {
+        count = 0;
+        ShowSerialData();
+        Serial1.write(0x1A);
+        ReadUntil("OK", 10000);
+        ShowSerialData();
+        SendATCommand("AT+QISEND", ">", 500);
+        ShowSerialData();
+      }
+      if(lines == n) 
+        break;
+    }
+    
+    delay(500);
+    ShowSerialData();
+    Serial1.print("\r\n");
+    Serial1.print("-----------------------------196272297923078--\r");
+    ShowSerialData();
+    Serial1.write(0x1A);
+
+    ReadUntil("OK", 10000);
+
+    //--------Read POST response-------
+
+    if(!ReadUntil("success", 30000)) {
+      ShowSerialData();
+      datalog.close();
+      return false;
+    }
+    ShowSerialData();
   }
-  if(flag == false)
-    return false;
-  //--Upload successfull if "SUCCESS" is returned by the server--
+  datalog.close();
+  return true;
 }
 
 bool UploadOldSD() {
@@ -745,39 +729,39 @@ bool UploadOldSD() {
   return true;
 }
 
-unsigned int GetPreviousFailedUploads() {
+long int GetPreviousFailedUploads() {
   long int timeout;
   char ch;
-  int lines = 0, p;
+  long int lines = 0;
   int i;
 	
   if(!sd.exists("id.txt")) {
-    if(!sd.begin(SD_CARD_CS_PIN)) return -1;
+    if(!sd.begin(SD_CARD_CS_PIN))
+      return -1;
   }
   if(!sd.exists("datalog.csv")) {
     return -1;
   }
-  datalog.open("datalog.csv", FILE_READ);
-	
+  delay(200);
+  if(!datalog.open("datalog.csv", FILE_READ))
+    return false;
+	delay(200);
   datalog.seekEnd();
-  timeout = 0;
+  timeout = millis();
   do {
     datalog.seekCur(-2);
-    for(; datalog.peek()!= '\n' && datalog.curPosition() != 0 && timeout < 2000; timeout++) {
+    while(datalog.peek()!= '\n' && datalog.curPosition() != 0 && (millis() - timeout) < 90000)
       datalog.seekCur(-1);
-      delay(1);
-    }
     if(datalog.curPosition() == 0) 
       break;
     datalog.seekCur(1);
     ch = datalog.peek();
     if(ch == '0') 
       lines++;
-    if(timeout++ > 2000) {
+    if((millis() - timeout) > 90000) {
       datalog.close();
       return -1;
     }
-    delay(1);
   }while(ch == '0');
   datalog.close();
   return lines;

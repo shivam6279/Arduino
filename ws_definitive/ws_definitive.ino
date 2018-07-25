@@ -142,7 +142,11 @@ void setup() {
 
   delay(6000);
 
-  UploadCSV();
+  if(UploadCSV())
+    Serial.println("Success");
+  else
+    Serial.println("Fail");
+  while(1);
   
   //Interrupt initialization  
   InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz
