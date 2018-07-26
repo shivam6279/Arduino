@@ -259,7 +259,6 @@ bool WriteSD(weatherData w) {
 	int i;
 
   SD_csv_header.toCharArray(str, 100);
-  Serial.println(str);
 	
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) return false;
@@ -289,14 +288,10 @@ bool WriteSD(weatherData w) {
 	
 	i = 0;
   flag = true;
-  Serial.println(SD_csv_header.length());
 	for(i = 0, flag = true, ch = datalog.read(); ch != '\n' && i < 100; i++){
-    if(ch == '\n' && str[i] == '\0')
+    if((!isAlpha(ch) && ch != ',') && i >= SD_csv_header.length())
       break;
-		if((ch != str[i]) || i > (SD_csv_header.length() + 1)) {
-      Serial.println(i);
-      Serial.println(ch);
-      Serial.println(str[i]);
+		if((ch != str[i]) || i > SD_csv_header.length()) {
 			flag = false;
 			break;
 		}
@@ -336,8 +331,8 @@ bool WriteSD(weatherData w) {
   datalog.write((w.t.year / 1000) % 10 + '0'); 
   datalog.write((w.t.year / 100) % 10 + '0'); 
   datalog.write((w.t.year / 10) % 10 + '0'); 
-  datalog.write((w.t.year % 10) + '0');
-  datalog.print('T');
+  datalog.write((w.t.year % 10) + '0');  
+  datalog.print(' ');
   datalog.write((w.t.hours / 10) % 10 + '0'); 
   datalog.write((w.t.hours % 10) + '0');
   datalog.write(':');
@@ -431,7 +426,8 @@ bool UploadCSV() {
     ShowSerialData();
     SendATCommand("AT+QICLOSE", "OK", 1000);
     ShowSerialData();
-    if(SendATCommand("AT+QIOPEN=\"TCP\",\"enigmatic-caverns-27645.herokuapp.com\",\"80\"", "CONNECT", 20000) < 1) {
+    if(SendATCommand("AT+QIOPEN=\"TCP\",\"www.yobi.tech\",\"80\"", "CONNECT", 20000) < 1) {
+    //if(SendATCommand("AT+QIOPEN=\"TCP\",\"enigmatic-caverns-27645.herokuapp.com\",\"80\"", "CONNECT", 20000) < 1) {
       ShowSerialData();
       return false;
     }
@@ -441,18 +437,25 @@ bool UploadCSV() {
     
     //--------------------------------------------POST Message---------------------------------------------------
     Serial1.print("POST /bulk-upload HTTP/1.1\r\n");
-    Serial1.print("Host: enigmatic-caverns-27645.herokuapp.com\r\n");
+    //Serial1.print("Host: enigmatic-caverns-27645.herokuapp.com\r\n");
+    Serial1.print("Host: www.yobi.tech\r\n");
     Serial1.print("Accept: */*\r\n");
+    Serial1.print("Accept-Language: en-US,en;q=0.5\r\n");
+    Serial1.print("Accept-Encoding: gzip, deflate\r\n");
     Serial1.print("Connection: keep-alive\r\n");
-    Serial1.print("User-Agent: Rigor API Tester\r\n");
+    Serial1.print("Pragma: no-cache\r\n");
+    Serial1.print("Cache-Control: no-cache\r\n");
+    Serial1.print("User-Agent: Quectel\r\n");
     Serial1.print("Content-Type: multipart/form-data; boundary=---------------------------196272297923078\r\n");
-    Serial1.print("Content-Length: " + String(204 + bytes) + "\r\n");
+    Serial1.print("Content-Length: " + String(203 + bytes + SD_csv_header.length()) + "\r\n");
     Serial1.print("\r\n");
     Serial1.print("-----------------------------196272297923078\r\n");
-    Serial1.print("Content-Disposition:  form-data; name=\"file\"; filename=\"abcd.csv\"\r\n");
+    Serial1.print("Content-Disposition:  form-data; name=\"file\"; filename=\"datalog.csv\"\r\n");
     Serial1.print("Content-Type: application/octet-stream\r\n\r\n");
+    Serial1.println(SD_csv_header);
     Serial1.write(0x1A);
-    delay(200);
+    
+    ReadUntil("OK", 10000);
     ShowSerialData();
 
     SendATCommand("AT+QISEND", ">", 500);
@@ -484,6 +487,7 @@ bool UploadCSV() {
     ShowSerialData();
     Serial1.print("\r\n");
     Serial1.print("-----------------------------196272297923078--\r");
+    
     ShowSerialData();
     Serial1.write(0x1A);
 

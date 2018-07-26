@@ -28,7 +28,7 @@ const String URL = "http://enigmatic-caverns-27645.herokuapp.com/maytheforcebewi
 const String OTA_URL = "http://www.yobi.tech/ota/4";
 const String TIME_URL = "http://www.yobi.tech/IST";
 
-const String SD_csv_header = "Success,Time Flag,id,ts,t1,t2,h,w,r,p,a,s,cv,bv,sg";
+const String SD_csv_header = "success,tf,id,ts,t1,t2,h,w,r,p,a,s,cv,bv,sg";
 
 const String PHONE_NUMBER = "+919220592205";
 const String BACKUP_ID = "201"; //Backup id in case there is no sd card

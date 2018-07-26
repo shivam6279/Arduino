@@ -141,7 +141,7 @@ void setup() {
   InitGSM();  
 
   delay(6000);
-
+  
   if(UploadCSV())
     Serial.println("Success");
   else
@@ -177,6 +177,7 @@ void loop() {
   #if SERIAL_OUTPUT == true
     Serial.println("\nSeconds till next upload:");
   #endif
+  
   while(1) {
     CheckOTA();
     

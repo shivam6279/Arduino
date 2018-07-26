@@ -25,58 +25,61 @@ bool InitGSM() {
 }
 
 int SendATCommand(char* cmd, char* resp, long int timeout) {
-  int stage;
   char ch;
+  char *temp;
+
+  long int t;
 
   int error_stage;
   char error[] = {'E', 'R', 'R', 'O', 'R', '\0'};
   ShowSerialData();
-  Serial1.print(cmd);
-  Serial1.print('\r');
-  for(stage = 0, error_stage = 0; timeout > 0; timeout--) {
+  Serial1.print(String(cmd) + '\r');
+  for(temp = resp, t = 0, error_stage = 0; t < timeout; t++) {
     delay(1);
     if(Serial1.available()) {
       ch = Serial1.read();
       #if SERIAL_RESPONSE
         Serial.print(ch);
       #endif
-      if(ch == *(resp + stage)) {
-        stage++;
-        if(*(resp + stage) == '\0')
+      if(ch == *resp) {
+        resp++;
+        if(*resp == '\0')
           return 1;
       }
       else
-        stage = 0;
+        resp = temp;
       if(ch == error[error_stage]) {
-        stage++;
-        if(resp[stage] == '\0')
+        error_stage++;
+        if(error[error_stage] == '\0')
           return 0;
       }
       else
-        stage = 0;
+        error_stage = 0;
     }
   }
   return -1;
 }
 
 bool ReadUntil(char* resp, long int timeout) {
-  int stage;
   char ch;
+  char *temp;
+
+  long int t;
   
-  for(stage = 0; timeout > 0; timeout--) {
+  for(temp = resp, t = 0; t < timeout; t++) {
     delay(1);
     if(Serial1.available()) {
       ch = Serial1.read();
       #if SERIAL_RESPONSE
         Serial.print(ch);
       #endif
-      if(ch == *(resp + stage)) {
-        stage++;
-        if(*(resp + stage) == '\0')
+      if(ch == *resp) {
+        resp++;
+        if(*resp == '\0')
           return 1;
       }
       else
-        stage = 0;
+        resp = temp;
     }
   }
   return false;
