@@ -146,7 +146,10 @@ void setup() {
     Serial.println("Success");
   else
     Serial.println("Fail");
-  while(1);
+  while(1) {
+    if(Serial1.available()){ Serial.write(Serial1.read()); }
+    if(Serial.available()){ Serial1.write(Serial.read()); }
+  }
   
   //Interrupt initialization  
   InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz
@@ -179,7 +182,8 @@ void loop() {
   #endif
   
   while(1) {
-    CheckOTA();
+    if(CheckNetwork())
+      CheckOTA();
     
     if(four_sec) {
       four_sec = false;

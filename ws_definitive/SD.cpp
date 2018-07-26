@@ -12,9 +12,7 @@ SdFile datalog, data_temp;
 
 bool CheckOTA() {
   char body_r[40], number[14];
-  if(CheckSMS()) { //Check sms for OTA
-    GetSMS(number, body_r);
-    while(Serial1.available()) Serial1.read();
+  if(CheckOtaSMS(number)) { //Check sms for OTA
     
     if(!sd.exists("id.txt")) {
     	if(!sd.begin(SD_CARD_CS_PIN)) {
@@ -22,48 +20,45 @@ bool CheckOTA() {
 				return false;
 			}
   	}
-    
-    if(toupper(body_r[0]) == 'O' &&  toupper(body_r[1]) == 'T' && toupper(body_r[2]) == 'A') {
-      SendSMS(number, "Downloading new firmware");
-      #if SERIAL_OUTPUT
-        Serial.println("Updating firmware");
-      #endif
-      delay(500);
-      sd.chdir();
-      delay(100);
+    SendSMS(number, "Downloading new firmware");
+    #if SERIAL_OUTPUT
+      Serial.println("Updating firmware");
+    #endif
+    delay(500);
+    sd.chdir();
+    delay(100);
 
-      if(sd.exists("TEMP_OTA.HEX")) sd.remove("TEMP_OTA.HEX");
-      if(sd.exists("firmware.BIN")) sd.remove("firmware.BIN");
-      delay(500);
-      if(DownloadHex()) {
+    if(sd.exists("TEMP_OTA.HEX")) sd.remove("TEMP_OTA.HEX");
+    if(sd.exists("firmware.BIN")) sd.remove("firmware.BIN");
+    delay(500);
+    if(DownloadHex()) {
+      #if SERIAL_OUTPUT
+        Serial.println("\nNew firmware downloaded");
+        Serial.println("Converting .hex file to .bin");
+      #endif
+      if(SDHexToBin()) {
+        while(Serial1.available()) Serial1.read();
         #if SERIAL_OUTPUT
-          Serial.println("\nNew firmware downloaded");
-          Serial.println("Converting .hex file to .bin");
+          Serial.println("Done\nRestarting and reprogramming");
         #endif
-        if(SDHexToBin()) {
-          while(Serial1.available()) Serial1.read();
-          #if SERIAL_OUTPUT
-            Serial.println("Done\nRestarting and reprogramming");
-          #endif
-          SendSMS(number, "Download succesful, Restarting and reprogramming");
-          EEPROM.write(0x1FF,0xF0);
-          wdt_enable(WDTO_500MS);
-          wdt_reset();
-          delay(600);
-        } else {
-          #if SERIAL_OUTPUT
-            Serial.println("SD card copy error- hex file checksum failed");
-          #endif
-            SendSMS(number, "OTA failed - No SD card detected");
-          return false;
-        }
+        SendSMS(number, "Download succesful, Restarting and reprogramming");
+        EEPROM.write(0x1FF,0xF0);
+        wdt_enable(WDTO_500MS);
+        wdt_reset();
+        delay(600);
       } else {
         #if SERIAL_OUTPUT
-          Serial.println("Firmware download failed");
+          Serial.println("SD card copy error- hex file checksum failed");
         #endif
-				SendSMS(number, "Firmware download failed");
+          SendSMS(number, "OTA failed - No SD card detected");
         return false;
       }
+    } else {
+      #if SERIAL_OUTPUT
+        Serial.println("Firmware download failed");
+      #endif
+			SendSMS(number, "Firmware download failed");
+      return false;
     }
   }
 }
@@ -422,15 +417,19 @@ bool UploadCSV() {
     GSMModuleWake();
     delay(200);
     ShowSerialData();
+    #if SERIAL_RESPONSE
+      Serial.println();
+    #endif
     SendATCommand("AT+QIDNSIP=1", "OK", 1000);
     ShowSerialData();
     SendATCommand("AT+QICLOSE", "OK", 1000);
     ShowSerialData();
-    if(SendATCommand("AT+QIOPEN=\"TCP\",\"www.yobi.tech\",\"80\"", "CONNECT", 20000) < 1) {
-    //if(SendATCommand("AT+QIOPEN=\"TCP\",\"enigmatic-caverns-27645.herokuapp.com\",\"80\"", "CONNECT", 20000) < 1) {
+    if(SendATCommand("AT+QIOPEN=\"TCP\",\"www.yobi.tech\",\"80\"", "CONNECT OK", 20000) < 1) {
+    //if(SendATCommand("AT+QIOPEN=\"TCP\",\"enigmatic-caverns-27645.herokuapp.com\",\"80\"", "CONNECT OK", 20000) < 1) {
       ShowSerialData();
       return false;
     }
+    delay(50);
     ShowSerialData();
     SendATCommand("AT+QISEND", ">", 500);
     ShowSerialData();
@@ -455,7 +454,7 @@ bool UploadCSV() {
     Serial1.println(SD_csv_header);
     Serial1.write(0x1A);
     
-    ReadUntil("OK", 10000);
+    GSMReadUntil("OK", 10000);
     ShowSerialData();
 
     SendATCommand("AT+QISEND", ">", 500);
@@ -474,7 +473,7 @@ bool UploadCSV() {
         count = 0;
         ShowSerialData();
         Serial1.write(0x1A);
-        ReadUntil("OK", 10000);
+        GSMReadUntil("OK", 10000);
         ShowSerialData();
         SendATCommand("AT+QISEND", ">", 500);
         ShowSerialData();
@@ -491,11 +490,11 @@ bool UploadCSV() {
     ShowSerialData();
     Serial1.write(0x1A);
 
-    ReadUntil("OK", 10000);
+    GSMReadUntil("OK", 10000);
 
     //--------Read POST response-------
 
-    if(!ReadUntil("success", 30000)) {
+    if(!GSMReadUntil("success", 30000)) {
       ShowSerialData();
       datalog.close();
       return false;

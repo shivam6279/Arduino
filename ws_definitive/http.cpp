@@ -13,7 +13,7 @@ bool HttpInit() {
   ShowSerialData();
   SendATCommand("AT+QIREGAPP", "OK", 500);
   ShowSerialData();
-  if(SendATCommand("AT+QIACT", "OK", 15000) == -1)
+  if(SendATCommand("AT+QIACT", "OK", 30000) == -1)
     return false;
   return true;
 }
