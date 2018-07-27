@@ -13,7 +13,6 @@ extern bool SDHexToBin();
 extern bool WriteSD(weatherData);
 extern long int GetPreviousFailedUploads(long int&);
 extern bool UploadCSV();
-extern bool UploadOldSD();
 extern bool WriteOldTime(int, realTime);
 extern void CharToInt(unsigned char&);
 

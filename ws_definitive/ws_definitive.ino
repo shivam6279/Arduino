@@ -140,11 +140,11 @@ void setup() {
   
   delay(6000);
   
-  if(UploadCSV())
+  /*if(UploadCSV())
     Serial.println("Success");
   else
     Serial.println("Fail");
-  Talk();
+  Talk();*/
   
   //Interrupt initialization  
   InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz
@@ -330,7 +330,7 @@ void loop() {
             if(SERIAL_OUTPUT) {
               Serial.println("\nUploading data");
             }
-            if(UploadOldSD()) {  //Upload successful          
+            if(UploadCSV()) {  //Upload successful          
               startup = false;
               w[reading_number - 1].t = current_time;
               

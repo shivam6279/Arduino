@@ -87,8 +87,8 @@ bool InitGSM() {
     flag = false;
   if(SendATCommand("AT+CNMI=1,0,0,0,0", "OK", 1000) < 1) 
     flag = false;
-  if(SendATCommand("AT+QMGDA=\"DEL ALL\"", "OK", 3000) < 1) 
-    flag = false;
+  //if(SendATCommand("AT+QMGDA=\"DEL ALL\"", "OK", 3000) < 1) 
+    //flag = false;
   if(SendATCommand("AT+CLIP=1", "OK", 3000) < 1) 
     flag = false;
 
@@ -220,58 +220,6 @@ bool CheckOtaSMS(char *number) {
     return false;
 
   return ota_flag;
-}
-
-bool GetSMS(char n[], char b[]) {
-  char ch, i;
-  uint16_t timeout;
-  ch = Serial1.read();
-  while(ch != '"') {
-  	delay(1); 
-  	ch = Serial1.read(); 
-  }
-  i = 0;
-  timeout = 0;
-  while(1) {
-    delay(1);
-    if(timeout++ > 1000) break;
-    ch = Serial1.read();
-    if(ch == '"') break;
-    else n[i++] = ch;
-  }
-  if(timeout > 1000) {
-    b[0] = '\0';
-    ShowSerialData();
-    return false;
-  }
-  n[i] = '\0';
-  timeout = 0;
-  while(ch != '\n') {
-  	delay(1); 
-    if(timeout++ > 1000) break;
-  	ch = Serial1.read(); 
-  }
-  if(timeout > 1000) {
-    b[0] = '\0';
-    ShowSerialData();
-    return false;
-  }
-  i = 0;
-  timeout = 0;
-  while(1) {
-    delay(1);
-    if(timeout++ > 1000) break;
-    ch = Serial1.read();
-    if(ch == '\n' || ch == '\r') break;
-    else b[i++] = ch;
-  }
-  if(timeout > 1000) {
-    b[0] = '\0';
-    ShowSerialData();
-    return false;
-  }
-  b[i] = '\0';
-  return true;
 }
 
 void SendSMS(char *n, char *b) {
