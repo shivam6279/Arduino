@@ -2,11 +2,11 @@
 #include "settings.h"
 #include "weatherData.h"
 
-int SendATCommand(char* cmd, char* resp, long int timeout) {
+int SendATCommand(char* cmd, char* resp, unsigned long timeout) {
   char ch;
   char *temp;
 
-  long int t;
+  unsigned long t;
 
   int error1_stage;
   char error1[] = "ERROR";
@@ -16,8 +16,7 @@ int SendATCommand(char* cmd, char* resp, long int timeout) {
   
   ShowSerialData();
   Serial1.print(String(cmd) + '\r');
-  for(temp = resp, t = 0, error1_stage = 0, error2_stage = 0; t < timeout; t++) {
-    delay(1);
+  for(temp = resp, t = millis(), error1_stage = 0, error2_stage = 0; (millis() - t) < timeout;) {
     if(Serial1.available()) {
       ch = Serial1.read();
       if(SERIAL_RESPONSE) {
@@ -49,14 +48,13 @@ int SendATCommand(char* cmd, char* resp, long int timeout) {
   return -1;
 }
 
-bool GSMReadUntil(char* resp, long int timeout) {
+bool GSMReadUntil(char* resp, unsigned long timeout) {
   char ch;
   char *temp;
 
-  long int t;
+  unsigned long t;
   
-  for(temp = resp, t = 0; t < timeout; t++) {
-    delay(1);
+  for(temp = resp, t = millis(); (millis() - t) < timeout;) {
     if(Serial1.available()) {
       ch = Serial1.read();
       if(SERIAL_RESPONSE) {
@@ -370,25 +368,34 @@ void GSMModuleRestart() {
 #endif
 
 bool IsGSMModuleOn() {
+  bool t_response = SERIAL_RESPONSE;
+  SERIAL_RESPONSE = 0;
   GSMModuleWake();
   if(SendATCommand("AT", "OK", 500) < 1) {
+    SERIAL_RESPONSE = t_response;
     return false;
   }
+  SERIAL_RESPONSE = t_response;
   return true;
 }
 
 void GSMModuleWake() {
+  bool t_response = SERIAL_RESPONSE;
+  SERIAL_RESPONSE = 0;
   if(SendATCommand("AT", "OK", 100) == 1) {
+    SERIAL_RESPONSE = t_response;
     ShowSerialData();
     return;
   }
   SendATCommand("AT", "OK", 100);
   ShowSerialData();
+  SERIAL_RESPONSE = t_response;
 }
 
 
 void Talk() {
   char ch;
+  SERIAL_RESPONSE = 1;
   if(!IsGSMModuleOn()) 
     GSMModuleRestart();
   Serial.println("Talk");

@@ -1,8 +1,8 @@
 #ifndef GSM_h
 #define GSM_h
 
-extern int SendATCommand(char*, char*, long int);
-extern bool GSMReadUntil(char*, long int);
+extern int SendATCommand(char*, char*, unsigned long);
+extern bool GSMReadUntil(char*, unsigned long);
 extern bool InitGSM();
 extern bool CheckOtaSMS(char*);
 extern bool GetSMS(char*, char*);

@@ -78,7 +78,7 @@ void setup() {
   pinMode(GSM_PWRKEY_PIN, OUTPUT);
   digitalWrite(GSM_PWRKEY_PIN, LOW);
 
-  Serial.begin(250000); 
+  Serial.begin(115200); 
   Serial1.begin(115200);
   pinMode(19, INPUT);  
   digitalWrite(19, HIGH);
@@ -140,11 +140,11 @@ void setup() {
   
   delay(6000);
   
-  /*if(UploadCSV())
+  if(UploadCSV())
     Serial.println("Success");
   else
     Serial.println("Fail");
-  Talk();*/
+  Talk();
   
   //Interrupt initialization  
   InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz

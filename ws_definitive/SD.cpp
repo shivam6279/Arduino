@@ -25,8 +25,6 @@ bool CheckOTA() {
       Serial.println("Updating firmware");
     }
     delay(500);
-    sd.chdir();
-    delay(100);
 
     if(sd.exists("TEMP_OTA.HEX")) sd.remove("TEMP_OTA.HEX");
     if(sd.exists("firmware.BIN")) sd.remove("firmware.BIN");
@@ -83,37 +81,12 @@ bool DownloadHex() {
   Serial1.print(OTA_URL + '\r');
   delay(100);
   ShowSerialData();
-  Serial1.println("AT+QHTTPGET=30\r");
-  delay(700);
-  //--------Read httpget response--------
-  j = 0;
-  do {
-    if(Serial1.available()) {
-      ch = Serial1.read();
-      if(SERIAL_RESPONSE) {
-  	    Serial.print(ch);
-  	  }
-    }
-    delay(1);
-    j++;
-  }while(!isdigit(ch) && j < 10000);
-  if(j >= 10000) return false;
-  j = 0;
-  do {
-    if(Serial1.available()) {
-      ch = Serial1.read();
-      if(SERIAL_RESPONSE) {
-  	    Serial.print(ch);
-  	  }
-    }
-    delay(1);
-    j++;
-  }while(!isAlpha(ch) && j < 10000);
-  if(j >= 10000) return false;
-  delay(100);
+  if(SendATCommand("AT+HTTPGET=30", "OK", 30000) < 1) {
+    ShowSerialData();
+    datalog.close();
+    return false;
+  }
   ShowSerialData();
-  if(ch != 'O') return false;
-  //--If the response is not 'OK' - return--
 
   datalog.write(':');
   
@@ -146,7 +119,7 @@ bool DownloadHex() {
         datalog.write(sd_buffer, 512);
       }
       i = 0;
-      Serial.print(ch);
+      //Serial.print(ch);
     }
     if(ch == 'O') break;
     while(Serial1.available() == 0){
@@ -372,12 +345,12 @@ bool UploadCSV() {
   int line_count;
   long int timeout;
   long int p1, p2, bytes;
-  bool flag;
+  bool flag, t_response;
 
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
-  n = 20000;//GetPreviousFailedUploads();
+  p1 = GetPreviousFailedUploads(n);
   if(n < 0) 
     return false;
   if(SERIAL_OUTPUT) {
@@ -393,16 +366,8 @@ bool UploadCSV() {
     datalog.close();
     return false;
   }
-  do {
-    datalog.seekCur(-2);
-    while(datalog.peek()!= '\n' && datalog.curPosition() != 0) {
-      datalog.seekCur(-1);
-    }
-    if(datalog.curPosition() == 0) break;
-    datalog.seekCur(1);
-    ch = datalog.peek();
-  }while(ch == '0');
-  while(datalog.read()!= '\n');
+  
+  datalog.seekSet(p1);
 
   for(lines = 0; lines < n && datalog.available();) {
 
@@ -430,41 +395,45 @@ bool UploadCSV() {
       ShowSerialData();
       return false;
     }
-    delay(100);
     ShowSerialData();
     while(Serial1.availableForWrite() < 50);
+    GSMModuleWake();
     SendATCommand("AT+QISEND", ">", 500);
     ShowSerialData();
     
     //--------------------------------------------POST Message---------------------------------------------------
+    t_response = SERIAL_RESPONSE;
+    SERIAL_RESPONSE = 0;
     
-    Serial1.print("POST /bulk-upload HTTP/1.1\r\n"); ShowSerialData();      
+    Serial1.print("POST /bulk-upload HTTP/1.1\r\n");                                                              GSMReadUntil("\n", 1000);      
     //Serial1.print("Host: enigmatic-caverns-27645.herokuapp.com\r\n"); ShowSerialData(); 
-    Serial1.print("Host: www.yobi.tech\r\n"); ShowSerialData();      
-    Serial1.print("Accept: */*\r\n"); ShowSerialData();      
-    Serial1.print("Accept-Language: en-US,en;q=0.5\r\n"); ShowSerialData();      
-    Serial1.print("Accept-Encoding: gzip, deflate\r\n"); ShowSerialData();      
-    Serial1.print("Connection: keep-alive\r\n"); ShowSerialData();      
-    Serial1.print("Pragma: no-cache\r\n"); ShowSerialData();      
-    Serial1.print("Cache-Control: no-cache\r\n"); ShowSerialData();      
-    Serial1.print("User-Agent: Quectel\r\n"); ShowSerialData();      
-    Serial1.print("Content-Type: multipart/form-data; "); ShowSerialData();      
-    Serial1.print("boundary=---------------------------196272297923078\r\n"); ShowSerialData();      
-    Serial1.print("Content-Length: " + String(207 + bytes + SD_csv_header.length()) + "\r\n"); ShowSerialData();      
-    Serial1.print("\r\n"); ShowSerialData();      
-    Serial1.print("-----------------------------196272297923078\r\n"); ShowSerialData();      
-    Serial1.print("Content-Disposition: form-data; name=\"file\"; filename=\"datalog.csv\"\r\n"); ShowSerialData();      
-    Serial1.print("Content-Type: application/octet-stream\r\n\r\n"); ShowSerialData();      
-    Serial1.println(SD_csv_header); ShowSerialData();
+    Serial1.print("Host: www.yobi.tech\r\n");                                                                     GSMReadUntil("\n", 1000);
+    Serial1.print("Accept: */*\r\n");                                                                             GSMReadUntil("\n", 1000);
+    Serial1.print("Accept-Language: en-US,en;q=0.5\r\n");                                                         GSMReadUntil("\n", 1000);
+    Serial1.print("Accept-Encoding: gzip, deflate\r\n");                                                          GSMReadUntil("\n", 1000);
+    Serial1.print("Connection: keep-alive\r\n");                                                                  GSMReadUntil("\n", 1000); 
+    Serial1.print("Pragma: no-cache\r\n");                                                                        GSMReadUntil("\n", 1000);
+    Serial1.print("Cache-Control: no-cache\r\n");                                                                 GSMReadUntil("\n", 1000); 
+    Serial1.print("User-Agent: Quectel\r\n");                                                                     GSMReadUntil("\n", 1000); 
+    Serial1.print("Content-Type: multipart/form-data; boundary=---------------------------196272297923078\r\n");  GSMReadUntil("\n", 1000); 
+    Serial1.print("Content-Length: " + String(207 + bytes + SD_csv_header.length()) + "\r\n");                    GSMReadUntil("\n", 1000); 
+    Serial1.print("\r\n");                                                                                        GSMReadUntil("\n", 1000);
+    Serial1.print("-----------------------------196272297923078\r\n");                                            GSMReadUntil("\n", 1000); 
+    Serial1.print("Content-Disposition: form-data; name=\"file\"; filename=\"datalog.csv\"\r\n");                 GSMReadUntil("\n", 1000); 
+    Serial1.print("Content-Type: application/octet-stream\r\n");                                                  GSMReadUntil("\n", 1000); 
+    Serial1.print("\r\n");                                                                                        GSMReadUntil("\n", 1000); 
+    Serial1.println(SD_csv_header);                                                                               GSMReadUntil("\n", 1000); 
     
     Serial1.write(0x1A);
     
     GSMReadUntil("OK", 10000);
     ShowSerialData();
 
+    SERIAL_RESPONSE = t_response;
     SendATCommand("AT+QISEND", ">", 500);
+    SERIAL_RESPONSE = 0;
     ShowSerialData();
-
+    
     //Send CSV file data
     for(count = 0, line_count = 0; line_count < 200 && datalog.available();) {
       do{
@@ -483,9 +452,14 @@ bool UploadCSV() {
         count = 0;
         ShowSerialData();
         Serial1.write(0x1A);
+        
         GSMReadUntil("OK", 10000);
+        
         ShowSerialData();
+          
+        SERIAL_RESPONSE = t_response;
         SendATCommand("AT+QISEND", ">", 1000);
+        SERIAL_RESPONSE = 0;        
         ShowSerialData();
       }
       if(lines == n) 
@@ -502,6 +476,8 @@ bool UploadCSV() {
     Serial1.write(0x1A);
 
     GSMReadUntil("OK", 10000);
+
+    SERIAL_RESPONSE = t_response;
 
     //--------Read POST response-------
 
@@ -525,6 +501,7 @@ bool UploadCSV() {
 bool UploadOldSD() {
   char ch, t[20];
   int p;
+  long
   int i;
   uint16_t read_length, timeout;
 
@@ -533,7 +510,7 @@ bool UploadOldSD() {
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
-  i = GetPreviousFailedUploads();
+  GetPreviousFailedUploads(i);
   if(SERIAL_OUTPUT) {
     Serial.println("Number of missed uploads: " + String(i));
   }
@@ -749,10 +726,10 @@ bool UploadOldSD() {
   return true;
 }
 
-long int GetPreviousFailedUploads() {
+long int GetPreviousFailedUploads(long int &n) {
   long int timeout;
   char ch;
-  long int lines = 0;
+  long int lines = 0, p;
   int i;
 	
   if(!sd.exists("id.txt")) {
@@ -783,12 +760,15 @@ long int GetPreviousFailedUploads() {
       return -1;
     }
   }while(ch == '0');
+  while(datalog.read() != '\n');
+  p = datalog.curPosition();
   datalog.close();
-  return lines;
+  n = lines;
+  return p;
 }
 
 bool WriteOldTime(int n, realTime t) {
-  long int timeout;
+  long int timeout, temp_n;
   int lines, i;
   char str[20], ch;
   realTime temp;
@@ -807,7 +787,8 @@ bool WriteOldTime(int n, realTime t) {
     }
     return false;
   }
-  if(GetPreviousFailedUploads() < n) 
+  GetPreviousFailedUploads(temp_n);
+  if(temp_n < n) 
     return false;
 
   delay(500);
