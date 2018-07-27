@@ -20,9 +20,9 @@ int SendATCommand(char* cmd, char* resp, long int timeout) {
     delay(1);
     if(Serial1.available()) {
       ch = Serial1.read();
-      #if SERIAL_RESPONSE
+      if(SERIAL_RESPONSE) {
         Serial.print(ch);
-      #endif
+      }
       if(ch == *resp) {
         resp++;
         if(*resp == '\0')
@@ -59,9 +59,9 @@ bool GSMReadUntil(char* resp, long int timeout) {
     delay(1);
     if(Serial1.available()) {
       ch = Serial1.read();
-      #if SERIAL_RESPONSE
+      if(SERIAL_RESPONSE) {
         Serial.print(ch);
-      #endif
+      }
       if(ch == *resp) {
         resp++;
         if(*resp == '\0')
@@ -87,9 +87,9 @@ bool InitGSM() {
     flag = false;
   if(SendATCommand("AT+CMGF=1", "OK", 1000) < 1) 
     flag = false;
-  if(SendATCommand("AT+CNMI=1,1,0,0,0", "OK", 1000) < 1) 
+  if(SendATCommand("AT+CNMI=1,0,0,0,0", "OK", 1000) < 1) 
     flag = false;
-  if(SendATCommand("AT+QMGDA=\"ALL\"", "OK", 3000) < 1) 
+  if(SendATCommand("AT+QMGDA=\"DEL ALL\"", "OK", 3000) < 1) 
     flag = false;
   if(SendATCommand("AT+CLIP=1", "OK", 3000) < 1) 
     flag = false;
@@ -107,8 +107,15 @@ bool CheckOtaSMS(char *number) {
   long int timeout;
   char str[5];
 
-  if(SendATCommand("AT+CMGL=\"ALL\"", "+", 1000) < 1) 
-      return false;
+  bool t_response = SERIAL_RESPONSE;
+
+  SERIAL_RESPONSE = 0;
+
+  GSMModuleWake();
+  if(SendATCommand("AT+CMGL=\"ALL\"", "+", 1000) < 1) {
+    SERIAL_RESPONSE = t_response;
+    return false;
+  }
 
   for(timeout = 0; timeout < 5000; timeout++) {
     if(GSMReadUntil("CMGL: ", 500) < 1) 
@@ -122,9 +129,6 @@ bool CheckOtaSMS(char *number) {
     if(number_flag == false) {
       do{
         ch = Serial1.read();
-        #if SERIAL_RESPONSE
-          Serial.print(ch);
-        #endif
         if(isDigit(ch) || ch == '+')
           *(number++) = ch;
       }while(ch != ',');
@@ -135,39 +139,13 @@ bool CheckOtaSMS(char *number) {
     }
     if(GSMReadUntil(",", 100) < 1) 
       break;
-    i = 0;
-    do{
-      ch = Serial1.read();
-      #if SERIAL_RESPONSE
-        Serial.print(ch);
-      #endif
-      if(isDigit(ch))
-        str[i++] = ch;
-    }while(ch != '/');
-    str[i] = '\0';
-    t.day = (String(str)).toInt();
 
     i = 0;
     do{
       ch = Serial1.read();
-      #if SERIAL_RESPONSE
-        Serial.print(ch);
-      #endif
       if(isDigit(ch))
         str[i++] = ch;
     }while(ch != '/');
-    str[i] = '\0';
-    t.month = (String(str)).toInt();
-
-    i = 0;
-    do{
-      ch = Serial1.read();
-      #if SERIAL_RESPONSE
-        Serial.print(ch);
-      #endif
-      if(isDigit(ch))
-        str[i++] = ch;
-    }while(ch != ',');
     str[i] = '\0';
     t.year = (String(str)).toInt();
     if(i == 2)
@@ -176,9 +154,24 @@ bool CheckOtaSMS(char *number) {
     i = 0;
     do{
       ch = Serial1.read();
-      #if SERIAL_RESPONSE
-        Serial.print(ch);
-      #endif
+      if(isDigit(ch))
+        str[i++] = ch;
+    }while(ch != '/');
+    str[i] = '\0';
+    t.month = (String(str)).toInt();
+      
+    i = 0;
+    do{
+      ch = Serial1.read();
+      if(isDigit(ch))
+        str[i++] = ch;
+    }while(ch != ' ');
+    str[i] = '\0';
+    t.day = (String(str)).toInt();
+
+    i = 0;
+    do{
+      ch = Serial1.read();
       if(isDigit(ch))
         str[i++] = ch;
     }while(ch != ':');
@@ -188,9 +181,6 @@ bool CheckOtaSMS(char *number) {
     i = 0;
     do{
       ch = Serial1.read();
-      #if SERIAL_RESPONSE
-        Serial.print(ch);
-      #endif
       if(isDigit(ch))
         str[i++] = ch;
     }while(ch != ':');
@@ -200,12 +190,9 @@ bool CheckOtaSMS(char *number) {
     i = 0;
     do{
       ch = Serial1.read();
-      #if SERIAL_RESPONSE
-        Serial.print(ch);
-      #endif
       if(isDigit(ch))
         str[i++] = ch;
-    }while(ch != '"');
+    }while(ch != '+');
     str[i] = '\0';
     t.seconds = (String(str)).toInt();
 
@@ -227,7 +214,9 @@ bool CheckOtaSMS(char *number) {
       break;
   }
   if(delete_flag) 
-    SendATCommand("AT+QMGDA=\"ALL\"", "OK", 3000);
+    SendATCommand("AT+QMGDA=\"DEL ALL\"", "OK", 3000);
+
+  SERIAL_RESPONSE = t_response;
 
   if(timeout > 5000) 
     return false;
@@ -288,6 +277,8 @@ bool GetSMS(char n[], char b[]) {
 }
 
 void SendSMS(char *n, char *b) {
+  bool t = SERIAL_RESPONSE;
+  SERIAL_RESPONSE = 0;
   Serial1.print("AT+CMGS=\"" + String(n) + "\"\n");
   delay(100);
   Serial1.println(b);
@@ -298,16 +289,22 @@ void SendSMS(char *n, char *b) {
   Serial1.write('\n');
   delay(100);
   ShowSerialData();
+  SERIAL_RESPONSE = t;
 }
 
 bool CheckNetwork() {
+  bool t_response = SERIAL_RESPONSE;
+  SERIAL_RESPONSE = 0;
+  
   SendATCommand("AT+QIDNSIP=1", "OK", 1000);
   ShowSerialData();
   SendATCommand("AT+QICLOSE", "OK", 1000);
   ShowSerialData();
   if(SendATCommand("AT+QIOPEN=\"TCP\",\"www.yobi.tech\",\"80\"", "CONNECT OK", 20000) == 1) {
+    SERIAL_RESPONSE = t_response;
     return true;
   }
+  SERIAL_RESPONSE = t_response;
   return false;
 }
 
@@ -341,22 +338,22 @@ int GetSignalStrength() {
 void GSMModuleRestart() {
   bool flag = 0;
 
-  #if SERIAL_OUTPUT
+  if(SERIAL_OUTPUT) {
     Serial.println("Restarting GSM Module");
-  #endif
+  }
 
   GSMModuleWake();
 
   if(IsGSMModuleOn()) {
-    #if SERIAL_OUTPUT
-    Serial.println("GSM Module on, turning off");
-    #endif
+    if(SERIAL_OUTPUT) {
+      Serial.println("GSM Module on, turning off");
+    }
     SendATCommand("AT+QPOWD=1", "POWER DOWN", 10000);
     ShowSerialData();
   } 
-  #if SERIAL_OUTPUT
+  if(SERIAL_OUTPUT) {
     Serial.println("Starting the GSM Module");
-  #endif
+  }
   digitalWrite(GSM_PWRKEY_PIN, HIGH);
   delay(2000);
   digitalWrite(GSM_PWRKEY_PIN, LOW);
@@ -391,18 +388,28 @@ void GSMModuleWake() {
 
 
 void Talk() {
-  GSMModuleRestart();
+  char ch;
+  if(!IsGSMModuleOn()) 
+    GSMModuleRestart();
   Serial.println("Talk");
   while(1){
     if(Serial1.available()){ Serial.write(Serial1.read()); }
-    if(Serial.available()){ Serial1.write(Serial.read()); }
+    if(Serial.available()) { 
+      ch = Serial.read();
+      if(ch == '|') {
+        while(Serial.available()) Serial.read();
+        Serial1.write(0x1A);
+      }
+      else
+        Serial1.write(ch); 
+    }
   }
 }
 
 void ShowSerialData() {
-  #if SERIAL_RESPONSE
+  if(SERIAL_RESPONSE) {
     while(Serial1.available() != 0) Serial.write(Serial1.read());
-  #else
+  } else {
     while(Serial1.available() != 0) Serial1.read();
-  #endif
+  }
 }

@@ -116,22 +116,23 @@ bool ReadTime(realTime &wt){
   do {
     do {
       ch = Serial1.read();
-      #if SERIAL_RESPONSE
-  	  Serial.print(ch);
-  	  #endif
+      if(SERIAL_RESPONSE) {
+        Serial.print(ch);
+  	  }
   	}while(ch != 'e');
   	ch = Serial1.read();
-  	#if SERIAL_RESPONSE
-	  Serial.print(ch);
-  	#endif
+  	if(SERIAL_RESPONSE) {
+      Serial.print(ch);
+  	}
   }while(ch != '(');
   //Year
   for(i = 0, ch = 0;; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
-    Serial.print(ch);
-    #endif
-    if(ch != ',') temp_time[i] = ch;
+    if(SERIAL_RESPONSE) {
+      Serial.print(ch);
+    }
+    if(ch != ',') 
+      temp_time[i] = ch;
     else break;
   }
   for(i = i - 1, t = 1, wt.year = 0; i >= 0; i--, t *= 10){
@@ -140,10 +141,11 @@ bool ReadTime(realTime &wt){
   //Month
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    if(SERIAL_RESPONSE) {
       Serial.print(ch);
-    #endif
-    if(ch != ',') temp_time[i] = ch;
+    }
+    if(ch != ',') 
+      temp_time[i] = ch;
     else break;
   }
   for(i = i - 1, t = 1, wt.month = 0; i >= 0; i--, t *= 10){
@@ -152,10 +154,11 @@ bool ReadTime(realTime &wt){
   //Day
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    if(SERIAL_RESPONSE) {
       Serial.print(ch);
-    #endif
-    if(ch != ',') temp_time[i] = ch;
+    }
+    if(ch != ',') 
+      temp_time[i] = ch;
     else break;
   }
   for(i = i - 1, t = 1, wt.day = 0; i >= 0; i--, t *= 10){
@@ -164,10 +167,11 @@ bool ReadTime(realTime &wt){
   //Hour
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    if(SERIAL_RESPONSE) {
       Serial.print(ch);
-    #endif
-    if(ch != ',') temp_time[i] = ch;
+    }
+    if(ch != ',') 
+      temp_time[i] = ch;
     else break;
   }
   for(i = i - 1, t = 1, wt.hours = 0; i >= 0; i--, t *= 10){
@@ -176,10 +180,11 @@ bool ReadTime(realTime &wt){
   //Minutes
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    if(SERIAL_RESPONSE) {
       Serial.print(ch);
-    #endif
-    if(ch != ',') temp_time[i] = ch;
+    }
+    if(ch != ',') 
+      temp_time[i] = ch;
     else break;
   }
   for(i = i - 1, t = 1, wt.minutes = 0; i >= 0; i--, t *= 10){
@@ -188,10 +193,11 @@ bool ReadTime(realTime &wt){
   //Seconds
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    if(SERIAL_RESPONSE) {
       Serial.print(ch);
-    #endif
-    if(ch != ',') temp_time[i] = ch;
+    }
+    if(ch != ',') 
+      temp_time[i] = ch;
     else break;
   }
   for(i = i - 1, t = 1, wt.seconds = 0; i >= 0; i--, t *= 10){

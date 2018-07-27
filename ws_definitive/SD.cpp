@@ -21,9 +21,9 @@ bool CheckOTA() {
 			}
   	}
     SendSMS(number, "Downloading new firmware");
-    #if SERIAL_OUTPUT
+    if(SERIAL_OUTPUT) {
       Serial.println("Updating firmware");
-    #endif
+    }
     delay(500);
     sd.chdir();
     delay(100);
@@ -32,31 +32,31 @@ bool CheckOTA() {
     if(sd.exists("firmware.BIN")) sd.remove("firmware.BIN");
     delay(500);
     if(DownloadHex()) {
-      #if SERIAL_OUTPUT
+      if(SERIAL_OUTPUT) {
         Serial.println("\nNew firmware downloaded");
         Serial.println("Converting .hex file to .bin");
-      #endif
+      }
       if(SDHexToBin()) {
         while(Serial1.available()) Serial1.read();
-        #if SERIAL_OUTPUT
+        if(SERIAL_OUTPUT) {
           Serial.println("Done\nRestarting and reprogramming");
-        #endif
+        }
         SendSMS(number, "Download succesful, Restarting and reprogramming");
         EEPROM.write(0x1FF,0xF0);
         wdt_enable(WDTO_500MS);
         wdt_reset();
         delay(600);
       } else {
-        #if SERIAL_OUTPUT
+        if(SERIAL_OUTPUT) {
           Serial.println("SD card copy error- hex file checksum failed");
-        #endif
+        }
           SendSMS(number, "OTA failed - No SD card detected");
         return false;
       }
     } else {
-      #if SERIAL_OUTPUT
+      if(SERIAL_OUTPUT) {
         Serial.println("Firmware download failed");
-      #endif
+      }
 			SendSMS(number, "Firmware download failed");
       return false;
     }
@@ -90,9 +90,9 @@ bool DownloadHex() {
   do {
     if(Serial1.available()) {
       ch = Serial1.read();
-      #if SERIAL_RESPONSE
+      if(SERIAL_RESPONSE) {
   	    Serial.print(ch);
-  	  #endif
+  	  }
     }
     delay(1);
     j++;
@@ -102,9 +102,9 @@ bool DownloadHex() {
   do {
     if(Serial1.available()) {
       ch = Serial1.read();
-      #if SERIAL_RESPONSE
+      if(SERIAL_RESPONSE) {
   	    Serial.print(ch);
-  	  #endif
+  	  }
     }
     delay(1);
     j++;
@@ -263,9 +263,9 @@ bool WriteSD(weatherData w) {
     delay(50);
     if(!datalog.open("datalog.csv", FILE_WRITE)) {
       datalog.close();
-      #if SERIAL_OUTPUT
+      if(SERIAL_OUTPUT) {
         Serial.println("Could not create CSV file");
-      #endif
+      }
       return false;
     }
     delay(50);
@@ -273,9 +273,9 @@ bool WriteSD(weatherData w) {
   } else {
     if(!datalog.open("datalog.csv", FILE_WRITE)) {
       datalog.close();
-      #if SERIAL_OUTPUT
+      if(SERIAL_OUTPUT) {
         Serial.println("Could not open CSV file");
-      #endif
+      }
       return false;
     }
   }
@@ -301,9 +301,9 @@ bool WriteSD(weatherData w) {
 		delay(50);
 		if(!datalog.open("datalog.csv", FILE_WRITE)) {
       datalog.close();
-      #if SERIAL_OUTPUT
+      if(SERIAL_OUTPUT) {
         Serial.println("Could not create CSV file");
-      #endif
+      }
       return false;
     }
     delay(50);
@@ -377,12 +377,12 @@ bool UploadCSV() {
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
-  n = GetPreviousFailedUploads();
+  n = 20000;//GetPreviousFailedUploads();
   if(n < 0) 
     return false;
-  #if SERIAL_OUTPUT
+  if(SERIAL_OUTPUT) {
     Serial.println("Number of missed uploads: " + String(n));
-  #endif
+  }
   if(n == 0)
     return true;
   
@@ -404,54 +404,59 @@ bool UploadCSV() {
   }while(ch == '0');
   while(datalog.read()!= '\n');
 
-  for(lines = 0; lines < n;) {
+  for(lines = 0; lines < n && datalog.available();) {
 
     p1 = datalog.curPosition();
-    for(line_count = 0;line_count < 200; line_count++) {
+    for(line_count = 0; line_count < 200 && datalog.available() && (lines + line_count) < n; line_count++) {
       while(datalog.read() != '\n');
     }
     p2 = datalog.curPosition();
     bytes = p2 - p1;
-    datalog.seekCur(-bytes);
+    datalog.seekSet(p1);
 
     GSMModuleWake();
     delay(200);
     ShowSerialData();
-    #if SERIAL_RESPONSE
+    if(SERIAL_RESPONSE) {
       Serial.println();
-    #endif
+    }
     SendATCommand("AT+QIDNSIP=1", "OK", 1000);
     ShowSerialData();
     SendATCommand("AT+QICLOSE", "OK", 1000);
     ShowSerialData();
+    while(Serial1.availableForWrite() < 50);
     if(SendATCommand("AT+QIOPEN=\"TCP\",\"www.yobi.tech\",\"80\"", "CONNECT OK", 20000) < 1) {
     //if(SendATCommand("AT+QIOPEN=\"TCP\",\"enigmatic-caverns-27645.herokuapp.com\",\"80\"", "CONNECT OK", 20000) < 1) {
       ShowSerialData();
       return false;
     }
-    delay(50);
+    delay(100);
     ShowSerialData();
+    while(Serial1.availableForWrite() < 50);
     SendATCommand("AT+QISEND", ">", 500);
     ShowSerialData();
     
     //--------------------------------------------POST Message---------------------------------------------------
-    Serial1.print("POST /bulk-upload HTTP/1.1\r\n");
-    //Serial1.print("Host: enigmatic-caverns-27645.herokuapp.com\r\n");
-    Serial1.print("Host: www.yobi.tech\r\n");
-    Serial1.print("Accept: */*\r\n");
-    Serial1.print("Accept-Language: en-US,en;q=0.5\r\n");
-    Serial1.print("Accept-Encoding: gzip, deflate\r\n");
-    Serial1.print("Connection: keep-alive\r\n");
-    Serial1.print("Pragma: no-cache\r\n");
-    Serial1.print("Cache-Control: no-cache\r\n");
-    Serial1.print("User-Agent: Quectel\r\n");
-    Serial1.print("Content-Type: multipart/form-data; boundary=---------------------------196272297923078\r\n");
-    Serial1.print("Content-Length: " + String(203 + bytes + SD_csv_header.length()) + "\r\n");
-    Serial1.print("\r\n");
-    Serial1.print("-----------------------------196272297923078\r\n");
-    Serial1.print("Content-Disposition:  form-data; name=\"file\"; filename=\"datalog.csv\"\r\n");
-    Serial1.print("Content-Type: application/octet-stream\r\n\r\n");
-    Serial1.println(SD_csv_header);
+    
+    Serial1.print("POST /bulk-upload HTTP/1.1\r\n"); ShowSerialData();      
+    //Serial1.print("Host: enigmatic-caverns-27645.herokuapp.com\r\n"); ShowSerialData(); 
+    Serial1.print("Host: www.yobi.tech\r\n"); ShowSerialData();      
+    Serial1.print("Accept: */*\r\n"); ShowSerialData();      
+    Serial1.print("Accept-Language: en-US,en;q=0.5\r\n"); ShowSerialData();      
+    Serial1.print("Accept-Encoding: gzip, deflate\r\n"); ShowSerialData();      
+    Serial1.print("Connection: keep-alive\r\n"); ShowSerialData();      
+    Serial1.print("Pragma: no-cache\r\n"); ShowSerialData();      
+    Serial1.print("Cache-Control: no-cache\r\n"); ShowSerialData();      
+    Serial1.print("User-Agent: Quectel\r\n"); ShowSerialData();      
+    Serial1.print("Content-Type: multipart/form-data; "); ShowSerialData();      
+    Serial1.print("boundary=---------------------------196272297923078\r\n"); ShowSerialData();      
+    Serial1.print("Content-Length: " + String(207 + bytes + SD_csv_header.length()) + "\r\n"); ShowSerialData();      
+    Serial1.print("\r\n"); ShowSerialData();      
+    Serial1.print("-----------------------------196272297923078\r\n"); ShowSerialData();      
+    Serial1.print("Content-Disposition: form-data; name=\"file\"; filename=\"datalog.csv\"\r\n"); ShowSerialData();      
+    Serial1.print("Content-Type: application/octet-stream\r\n\r\n"); ShowSerialData();      
+    Serial1.println(SD_csv_header); ShowSerialData();
+    
     Serial1.write(0x1A);
     
     GSMReadUntil("OK", 10000);
@@ -461,13 +466,18 @@ bool UploadCSV() {
     ShowSerialData();
 
     //Send CSV file data
-    for(count = 0, line_count = 0; line_count < 200 && datalog.available(); lines++, line_count++) {
+    for(count = 0, line_count = 0; line_count < 200 && datalog.available();) {
       do{
         sd_ch = datalog.read();
         count++;
-        Serial1.write(sd_ch);
+        Serial1.print(sd_ch);
+        while(Serial1.available() == 0);
+        ShowSerialData();
       }while(sd_ch != '\n' && datalog.available());
       ShowSerialData();
+
+      lines++;
+      line_count++;
 
       if(count >= 1200) {
         count = 0;
@@ -475,7 +485,7 @@ bool UploadCSV() {
         Serial1.write(0x1A);
         GSMReadUntil("OK", 10000);
         ShowSerialData();
-        SendATCommand("AT+QISEND", ">", 500);
+        SendATCommand("AT+QISEND", ">", 1000);
         ShowSerialData();
       }
       if(lines == n) 
@@ -485,6 +495,7 @@ bool UploadCSV() {
     delay(500);
     ShowSerialData();
     Serial1.print("\r\n");
+    while(Serial1.availableForWrite() < 50); ShowSerialData();
     Serial1.print("-----------------------------196272297923078--\r");
     
     ShowSerialData();
@@ -494,7 +505,13 @@ bool UploadCSV() {
 
     //--------Read POST response-------
 
-    if(!GSMReadUntil("success", 30000)) {
+    if(!GSMReadUntil("200 OK", 30000)) {
+      ShowSerialData();
+      datalog.close();
+      return false;
+    }
+
+    if(!GSMReadUntil("\"success\"", 30000)) {
       ShowSerialData();
       datalog.close();
       return false;
@@ -517,9 +534,9 @@ bool UploadOldSD() {
     if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
   i = GetPreviousFailedUploads();
-  #if SERIAL_OUTPUT
+  if(SERIAL_OUTPUT) {
     Serial.println("Number of missed uploads: " + String(i));
-  #endif
+  }
   if(i == 0) return true;
   
   datalog.open("datalog.csv", FILE_WRITE);
@@ -753,7 +770,7 @@ long int GetPreviousFailedUploads() {
   timeout = millis();
   do {
     datalog.seekCur(-2);
-    while(datalog.peek()!= '\n' && datalog.curPosition() != 0 && (millis() - timeout) < 90000)
+    while(datalog.peek()!= '\n' && datalog.curPosition() != 0 && (millis() - timeout) < 200000)
       datalog.seekCur(-1);
     if(datalog.curPosition() == 0) 
       break;
@@ -761,7 +778,7 @@ long int GetPreviousFailedUploads() {
     ch = datalog.peek();
     if(ch == '0') 
       lines++;
-    if((millis() - timeout) > 90000) {
+    if((millis() - timeout) > 200000) {
       datalog.close();
       return -1;
     }
@@ -778,16 +795,16 @@ bool WriteOldTime(int n, realTime t) {
 
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) {
-      #if SERIAL_OUTPUT
+      if(SERIAL_OUTPUT) {
         Serial.println("No SD Card detected");
-      #endif
+      }
       return false;
     }
   }
   if(!sd.exists("datalog.csv")) {
-    #if SERIAL_OUTPUT
+    if(SERIAL_OUTPUT) {
       Serial.println("No CSV file detected");
-    #endif
+    }
     return false;
   }
   if(GetPreviousFailedUploads() < n) 

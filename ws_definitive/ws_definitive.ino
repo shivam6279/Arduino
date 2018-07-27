@@ -78,8 +78,8 @@ void setup() {
   pinMode(GSM_PWRKEY_PIN, OUTPUT);
   digitalWrite(GSM_PWRKEY_PIN, LOW);
 
-  Serial.begin(115200); 
-  Serial1.begin(19200);
+  Serial.begin(250000); 
+  Serial1.begin(115200);
   pinMode(19, INPUT);  
   digitalWrite(19, HIGH);
   Serial2.begin(9600);
@@ -90,14 +90,14 @@ void setup() {
   SD_flag = sd.begin(SD_CARD_CS_PIN);
   delay(100);
   if(!sd.exists("id.txt")){
-    #if SERIAL_OUTPUT
+    if(SERIAL_OUTPUT) {
       Serial.println("\nNo id file found on sd card, using bakup id");
-    #endif
+    }
     ws_id = BACKUP_ID.toInt();
   } else {
-    #if SERIAL_OUTPUT
+    if(SERIAL_OUTPUT) {
       Serial.println("\nSD Card detected");
-    #endif
+    }
     datalog.open("id.txt", FILE_READ);
     while(datalog.available()) {
       str[i++] = datalog.read();
@@ -121,7 +121,7 @@ void setup() {
     barometer.Initialize(); 
   #endif
 
-  #if SERIAL_OUTPUT
+  if(SERIAL_OUTPUT) {
     Serial.println("Sensor id: " + String(ws_id));
     Serial.println("Data upload frequency: " + (String)DATA_UPLOAD_FREQUENCY + " minutes");
     Serial.println("Data read frequency: " + (String)DATA_READ_FREQUENCY + " minutes");
@@ -129,27 +129,22 @@ void setup() {
     if(ENABLE_BMP180) Serial.println("BMP180 enabled"); else Serial.println("BMP180 disabled");
     if(ENABLE_GPS) Serial.println("GPS enabled"); else Serial.println("GPS disabled");
     Serial.println();
-  #endif
-  
-  //Talk();
+  }
 
   digitalWrite(UPLOAD_LED, HIGH);
   delay(2000);  //Wait for the GSM module to boot up
   digitalWrite(UPLOAD_LED, LOW);
 
   //Initialize GSM module
-  InitGSM();  
-
+  InitGSM();
+  
   delay(6000);
   
-  if(UploadCSV())
+  /*if(UploadCSV())
     Serial.println("Success");
   else
     Serial.println("Fail");
-  while(1) {
-    if(Serial1.available()){ Serial.write(Serial1.read()); }
-    if(Serial.available()){ Serial1.write(Serial.read()); }
-  }
+  Talk();*/
   
   //Interrupt initialization  
   InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz
@@ -177,9 +172,9 @@ void loop() {
   }
   while(Serial1.available()) Serial1.read();
 
-  #if SERIAL_OUTPUT == true
+  if(SERIAL_OUTPUT) {
     Serial.println("\nSeconds till next upload:");
-  #endif
+  }
   
   while(1) {
     if(CheckNetwork())
@@ -190,10 +185,10 @@ void loop() {
       temp_read = read_flag;
       temp_upload = upload_flag;
   
-      #if SERIAL_OUTPUT
+      if(SERIAL_OUTPUT) {
         if(timer1_counter) Serial.println(((DATA_UPLOAD_FREQUENCY * 15) - timer1_counter + 1) * 4);
         else Serial.println("4");
-      #endif
+      }
 
       ReadData(w[reading_number], avg_counter);
 
@@ -225,9 +220,9 @@ void loop() {
 
         //w[reading_number].CheckIsNan();
 
-        #if SERIAL_OUTPUT
+        if(SERIAL_OUTPUT) {
           w[reading_number].PrintData();
-        #endif
+        }
         
         reading_number++;
         avg_counter = 0;
@@ -247,14 +242,14 @@ void loop() {
           for(i = 0; i < reading_number; i++) {
             w[i].flag = 0;
           }
-          #if SERIAL_OUTPUT
+          if(SERIAL_OUTPUT) {
             Serial.println("\nWriting to the SD card");
-          #endif
+          }
           for(i = 0; i < reading_number; i++) {
             if(!WriteSD(w[i])) {
-              #if SERIAL_OUTPUT
+              if(SERIAL_OUTPUT) {
                 Serial.println("Write failed");
-              #endif
+              }
               temp_sd = false;
               break;
             }
@@ -266,9 +261,9 @@ void loop() {
         //-----------------------------------No SD Card---------------------------------
 
         if(!sd.exists("id.txt") || temp_sd == false) {
-          #if SERIAL_OUTPUT
+          if(SERIAL_OUTPUT) {
             Serial.println("\nUploading data");
-          #endif
+          }
 
           if(UploadWeatherData(w, reading_number, current_time)) {  //Upload successful          
             startup = false;
@@ -280,9 +275,9 @@ void loop() {
             
             number_of_fail_uploads = 0;
             
-            #if SERIAL_OUTPUT
+            if(SERIAL_OUTPUT) {
               Serial.println("\nUpload successful");
-            #endif
+            }
           } else {
             number_of_fail_uploads++;
             
@@ -290,9 +285,9 @@ void loop() {
               w[i].flag = 0;
             }
 
-            #if SERIAL_OUTPUT
+            if(SERIAL_OUTPUT) {
               Serial.println("\nUpload failed\n");
-            #endif
+            }
 
             delay(100);
             //upload_sms(w[reading_number], phone_number);
@@ -302,39 +297,39 @@ void loop() {
           //----------------------------------------------------------------------------
 
           if(current_time.flag == false && startup == true) {
-            #if SERIAL_OUTPUT
+            if(SERIAL_OUTPUT) {
               Serial.println("\nReading time from server");
-            #endif
+            }
 
             temp_time = current_time;
             if(GetTime(current_time)) {
-              #if SERIAL_OUTPUT
+              if(SERIAL_OUTPUT) {
                 Serial.println("\nCurrent Time:");
-              #endif
+              }
               current_time.PrintTime();
               SubtractTime(current_time, temp_time, startup_time);
-              #if SERIAL_OUTPUT
+              if(SERIAL_OUTPUT) {
                 Serial.println("\nStartup Time:");
-              #endif
+              }
               startup_time.PrintTime();
               if(!WriteOldTime(initial_sd_card_uploads, startup_time)) {
                 temp_sd = false;
-                #if SERIAL_OUTPUT
+                if(SERIAL_OUTPUT) {
                   Serial.println("SD Card failure");
-                #endif
+                }
               }
             } else {
-              #if SERIAL_OUTPUT
+              if(SERIAL_OUTPUT) {
                 Serial.println("Server request failed");
-              #endif
+              }
               number_of_fail_uploads++; 
             }
           }
           
           if(current_time.flag) {
-            #if SERIAL_OUTPUT
+            if(SERIAL_OUTPUT) {
               Serial.println("\nUploading data");
-            #endif
+            }
             if(UploadOldSD()) {  //Upload successful          
               startup = false;
               w[reading_number - 1].t = current_time;
@@ -345,15 +340,15 @@ void loop() {
               
               number_of_fail_uploads = 0;
               
-              #if SERIAL_OUTPUT
+              if(SERIAL_OUTPUT) {
                 Serial.println("\nUpload successful");
-              #endif
+              }
             } else {
               number_of_fail_uploads++;
   
-              #if SERIAL_OUTPUT
+              if(SERIAL_OUTPUT) {
                 Serial.println("\nUpload failed\n");
-              #endif
+              }
               
               //upload_sms(w[reading_number], phone_number);
             }
@@ -369,10 +364,10 @@ void loop() {
         reading_number = 0;
         
         digitalWrite(UPLOAD_LED, LOW);
-        #if SERIAL_OUTPUT
+        if(SERIAL_OUTPUT) {
           if(current_time.flag) current_time.PrintTime();
           Serial.println("Seconds till next upload:");
-        #endif
+        }
       }
     }
   }
