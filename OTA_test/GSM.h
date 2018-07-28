@@ -1,11 +1,13 @@
 #ifndef GSM_h
 #define GSM_h
 
-extern void InitGSM();
-extern int GetSignalStrength();
-extern bool CheckSMS();
+extern int SendATCommand(char*, char*, unsigned long);
+extern bool GSMReadUntil(char*, unsigned long);
+extern bool InitGSM();
+extern bool CheckOtaSMS(char*);
 extern bool GetSMS(char*, char*);
 extern void SendSMS(char*, char*);
+extern int GetSignalStrength();
 extern bool CheckNetwork();
 extern void GSMModuleRestart();
 extern bool IsGSMModuleOn();

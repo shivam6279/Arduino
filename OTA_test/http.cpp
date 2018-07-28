@@ -4,62 +4,17 @@
 #include "GSM.h"
 #include "settings.h"
 
-bool SendHttpGet() {
-  uint16_t timeout;
-  char ch;
-
-  ShowSerialData();
-  Serial1.println("AT+QHTTPGET=30\r");
-  delay(700);
-  timeout = 0;
-  do {
-    if(Serial1.available()) {
-      ch = Serial1.read();
-      #if SERIAL_RESPONSE
-        Serial.print(ch);
-      #endif
-    }
-    timeout++;
-    delay(1);
-  }while(!isdigit(ch) && timeout < 30000);
-  if(timeout >= 30000) return false;
-
-  do {
-    if(Serial1.available()) {
-      ch = Serial1.read();
-      #if SERIAL_RESPONSE
-        Serial.print(ch);
-      #endif
-    }
-    timeout++;
-    delay(1);
-  }while(!isAlpha(ch) && timeout < 20000);
-  if(timeout >= 20000) return false;
-
-  delay(100);
-  ShowSerialData();
-  delay(100);
-  if(ch != 'O') return false;  
-  return true;
-}
-
 bool HttpInit() {
   int timeout;
   GSMModuleWake();
-  Serial1.println("AT+QIFGCNT=0\r");
-  delay(100);
+  SendATCommand("AT+QIFGCNT=0", "OK", 500);
   ShowSerialData();
-  Serial1.println("AT+QICSGP=1,\"CMNET\"\r");
-  delay(100);
+  SendATCommand("AT+QICSGP=1,\"CMNET\"", "OK", 500);
   ShowSerialData();
-  Serial1.println("AT+QIREGAPP\r");
-  delay(100);
+  SendATCommand("AT+QIREGAPP", "OK", 500);
   ShowSerialData();
-  Serial1.println("AT+QIACT\r");
-  for(timeout = 0; Serial1.available() < 2 && timeout < 150; timeout++) delay(100);
-  ShowSerialData();
-  if(timeout > 150) 
-	  return false;
+  if(SendATCommand("AT+QIACT", "OK", 30000) == -1)
+    return false;
   return true;
 }
 
@@ -69,12 +24,14 @@ bool UploadWeatherData(weatherData w[], uint8_t n, realTime &wt) {
   int i;
   if(!HttpInit()) return false;
 
-  if(n < 1) n = 1;
+  if(n < 1) 
+    n = 1;
+  
   for(i = n - 1; i >= 0; i--) {
     if(!SendWeatherURL(w[i])) return false;
     ShowSerialData();  
-    Serial1.println("AT+QHTTPREAD=30\r");
-    delay(400);
+    if(SendATCommand("AT+QHTTPREAD=30", "OK", 1000) == -1)
+      return false;
     read_length = Serial1.available();
     if(i != 0) ShowSerialData();
   }
@@ -150,7 +107,7 @@ bool SendWeatherURL(weatherData w) {
   delay(300);
   
   ShowSerialData();  
-  return SendHttpGet();
+  return SendATCommand("AT+QHTTPGET=30", "OK", 30000);
 }
 
 bool ReadTime(realTime &wt){
@@ -159,22 +116,23 @@ bool ReadTime(realTime &wt){
   do {
     do {
       ch = Serial1.read();
-      #if SERIAL_RESPONSE
-  	  Serial.print(ch);
-  	  #endif
+      if(SERIAL_RESPONSE) {
+        Serial.print(ch);
+  	  }
   	}while(ch != 'e');
   	ch = Serial1.read();
-  	#if SERIAL_RESPONSE
-	  Serial.print(ch);
-  	#endif
+  	if(SERIAL_RESPONSE) {
+      Serial.print(ch);
+  	}
   }while(ch != '(');
   //Year
   for(i = 0, ch = 0;; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
-    Serial.print(ch);
-    #endif
-    if(ch != ',') temp_time[i] = ch;
+    if(SERIAL_RESPONSE) {
+      Serial.print(ch);
+    }
+    if(ch != ',') 
+      temp_time[i] = ch;
     else break;
   }
   for(i = i - 1, t = 1, wt.year = 0; i >= 0; i--, t *= 10){
@@ -183,10 +141,11 @@ bool ReadTime(realTime &wt){
   //Month
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    if(SERIAL_RESPONSE) {
       Serial.print(ch);
-    #endif
-    if(ch != ',') temp_time[i] = ch;
+    }
+    if(ch != ',') 
+      temp_time[i] = ch;
     else break;
   }
   for(i = i - 1, t = 1, wt.month = 0; i >= 0; i--, t *= 10){
@@ -195,10 +154,11 @@ bool ReadTime(realTime &wt){
   //Day
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    if(SERIAL_RESPONSE) {
       Serial.print(ch);
-    #endif
-    if(ch != ',') temp_time[i] = ch;
+    }
+    if(ch != ',') 
+      temp_time[i] = ch;
     else break;
   }
   for(i = i - 1, t = 1, wt.day = 0; i >= 0; i--, t *= 10){
@@ -207,10 +167,11 @@ bool ReadTime(realTime &wt){
   //Hour
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    if(SERIAL_RESPONSE) {
       Serial.print(ch);
-    #endif
-    if(ch != ',') temp_time[i] = ch;
+    }
+    if(ch != ',') 
+      temp_time[i] = ch;
     else break;
   }
   for(i = i - 1, t = 1, wt.hours = 0; i >= 0; i--, t *= 10){
@@ -219,10 +180,11 @@ bool ReadTime(realTime &wt){
   //Minutes
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    if(SERIAL_RESPONSE) {
       Serial.print(ch);
-    #endif
-    if(ch != ',') temp_time[i] = ch;
+    }
+    if(ch != ',') 
+      temp_time[i] = ch;
     else break;
   }
   for(i = i - 1, t = 1, wt.minutes = 0; i >= 0; i--, t *= 10){
@@ -231,10 +193,11 @@ bool ReadTime(realTime &wt){
   //Seconds
   for(i = 0, ch = Serial1.read();; i++) {
     ch = Serial1.read();
-    #if SERIAL_RESPONSE
+    if(SERIAL_RESPONSE) {
       Serial.print(ch);
-    #endif
-    if(ch != ',') temp_time[i] = ch;
+    }
+    if(ch != ',') 
+      temp_time[i] = ch;
     else break;
   }
   for(i = i - 1, t = 1, wt.seconds = 0; i >= 0; i--, t *= 10){
@@ -252,11 +215,19 @@ bool GetTime(realTime &w) {
   if(!HttpInit()) 
     return false;
   Serial1.print("AT+QHTTPURL=" + String(TIME_URL.length()) + ",30\r");
-  delay(100);
-  Serial1.print(TIME_URL + '\r');
-  delay(500);
+  delay(1000);
   ShowSerialData();
-  if(!SendHttpGet()) return false;
+  Serial1.print(TIME_URL + '\r');
+  delay(300);
+  ShowSerialData();
+
+  if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
+    GSMReadUntil("\n", 500);
+    ShowSerialData();
+    return false;
+  }
+  ShowSerialData();
+
   delay(200);
   ShowSerialData();
   Serial1.println("AT+QHTTPREAD=30\r");

@@ -9,7 +9,7 @@ bool HttpInit() {
   GSMModuleWake();
   SendATCommand("AT+QIFGCNT=0", "OK", 500);
   ShowSerialData();
-  SendATCommand("AT+QICSGP=1", "OK", 500);
+  SendATCommand("AT+QICSGP=1,\"CMNET\"", "OK", 500);
   ShowSerialData();
   SendATCommand("AT+QIREGAPP", "OK", 500);
   ShowSerialData();
@@ -30,7 +30,7 @@ bool UploadWeatherData(weatherData w[], uint8_t n, realTime &wt) {
   for(i = n - 1; i >= 0; i--) {
     if(!SendWeatherURL(w[i])) return false;
     ShowSerialData();  
-    if(SendATCommand("AT+QHTPREAD=30", "OK", 1000) == -1)
+    if(SendATCommand("AT+QHTTPREAD=30", "OK", 1000) == -1)
       return false;
     read_length = Serial1.available();
     if(i != 0) ShowSerialData();
@@ -107,7 +107,7 @@ bool SendWeatherURL(weatherData w) {
   delay(300);
   
   ShowSerialData();  
-  return SendATCommand("AT+HTTPGET=30", "OK", 30000);
+  return SendATCommand("AT+QHTTPGET=30", "OK", 30000);
 }
 
 bool ReadTime(realTime &wt){
@@ -215,13 +215,18 @@ bool GetTime(realTime &w) {
   if(!HttpInit()) 
     return false;
   Serial1.print("AT+QHTTPURL=" + String(TIME_URL.length()) + ",30\r");
-  delay(100);
+  delay(1000);
+  ShowSerialData();
   Serial1.print(TIME_URL + '\r');
-  delay(500);
+  delay(300);
   ShowSerialData();
 
-  if(SendATCommand("AT+HTTPGET=30", "OK", 30000) < 1) 
+  if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
+    GSMReadUntil("\n", 500);
+    ShowSerialData();
     return false;
+  }
+  ShowSerialData();
 
   delay(200);
   ShowSerialData();

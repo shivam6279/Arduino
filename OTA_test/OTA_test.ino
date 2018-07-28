@@ -16,7 +16,7 @@
 #include "GSM.h"
 #include "SD.h"
 
-//All pin definitions and settings are in "settings.h"
+//All pin definitions and settings are in "settings.h/cpp"
 
 #if HT_MODE == 1
   #define DHTTYPE DHT22 
@@ -79,7 +79,7 @@ void setup() {
   digitalWrite(GSM_PWRKEY_PIN, LOW);
 
   Serial.begin(115200); 
-  Serial1.begin(19200);
+  Serial1.begin(115200);
   pinMode(19, INPUT);  
   digitalWrite(19, HIGH);
   Serial2.begin(9600);
@@ -90,14 +90,14 @@ void setup() {
   SD_flag = sd.begin(SD_CARD_CS_PIN);
   delay(100);
   if(!sd.exists("id.txt")){
-    #if SERIAL_OUTPUT
+    if(SERIAL_OUTPUT) {
       Serial.println("\nNo id file found on sd card, using bakup id");
-    #endif
+    }
     ws_id = BACKUP_ID.toInt();
   } else {
-    #if SERIAL_OUTPUT
+    if(SERIAL_OUTPUT) {
       Serial.println("\nSD Card detected");
-    #endif
+    }
     datalog.open("id.txt", FILE_READ);
     while(datalog.available()) {
       str[i++] = datalog.read();
@@ -121,7 +121,7 @@ void setup() {
     barometer.Initialize(); 
   #endif
 
-  #if SERIAL_OUTPUT
+  if(SERIAL_OUTPUT) {
     Serial.println("Sensor id: " + String(ws_id));
     Serial.println("Data upload frequency: " + (String)DATA_UPLOAD_FREQUENCY + " minutes");
     Serial.println("Data read frequency: " + (String)DATA_READ_FREQUENCY + " minutes");
@@ -129,62 +129,37 @@ void setup() {
     if(ENABLE_BMP180) Serial.println("BMP180 enabled"); else Serial.println("BMP180 disabled");
     if(ENABLE_GPS) Serial.println("GPS enabled"); else Serial.println("GPS disabled");
     Serial.println();
-  #endif
-  
-  //Talk();
+  }
 
   digitalWrite(UPLOAD_LED, HIGH);
   delay(2000);  //Wait for the GSM module to boot up
   digitalWrite(UPLOAD_LED, LOW);
 
   //Initialize GSM module
-  InitGSM();  
+  InitGSM();
+  
+  delay(6000);
+  
+  //Talk();
   
   //Interrupt initialization  
   InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz
 
-  test();
-
   weatherData w;
   w.Reset(ws_id);
-  w.temp1 = 100.0;
+  w.temp1 = 100;
+  w.t.flag = 0;
+
   HttpInit();
-  SendWeatherURL(w);
-  ShowSerialData();  
-  Serial1.println("AT+QHTTPREAD=30\r");
-  delay(400);
-  ShowSerialData();  
-  delay(5000);
+  delay(500);
+  SendWeatherURL(w);  
+  SendATCommand("AT+QHTTPREAD=30", "OK", 1000);
+  delay(100);
+  ShowSerialData();
 }
  
 void loop() {
-  int i, j;
-  unsigned long int avg_counter = 0;
-  bool temp_read, temp_upload, temp_network, temp_sd;
-
-  uint16_t reading_number = 0;
-  uint16_t number_of_fail_uploads = 0;
-  uint16_t initial_sd_card_uploads = 0;
-
-  weatherData w[BUFFER_SIZE];
-
-  realTime temp_time;
-  
-  rain_counter = 0;
-  wind_speed_counter = 0;
-  reading_number = 0;
-
-  for(i = 0; i < BUFFER_SIZE; i++) {
-    w[i].Reset(ws_id);
-  }
-  while(Serial1.available()) Serial1.read();
-
-  #if SERIAL_OUTPUT == true
-    Serial.println("\nSeconds till next upload:");
-  #endif
-  while(1) {
-    CheckOTA();
-  }
+  CheckOTA();  
 }
 
 //Interrupt gets called every 4 seconds
@@ -278,59 +253,5 @@ void InitInterrupt() {
   TCCR2B |= (1 << CS21); 
   TIMSK2 |= (1 << OCIE2A);
   interrupts();
-}
-
-void test() {
-  String str, data;
-
-  datalog.open("datalog.csv", FILE_WRITE);
-  
-  Serial.println(F("\nStarting connection to server..."));
-  
-  HttpInit();
-  delay(1000);
-  Serial1.print("AT+QIOPEN=\"TCP\",\"www.yobi.tech\",\"80\"\r");
-  
-  while(Serial.read() != '\n') {
-    ShowSerialData();
-  }
-
-  Serial1.print("AT+QISEND\r");
-  delay(500);
-  ShowSerialData();
-  
-  str = "POST /bulk-upload HTTP/1.1\r\n";
-  str += "Host: www.yobi.tech\r\n";
-  str += "Accept: */*\r\n";
-  str += "User-Agent: Rigor API Tester\r\n";
-  str += "Content-Type: multipart/form-data; boundary=---------------------------196272297923078\r\n";
-  str += "Content-Length: " + String(204 + datalog.size()) + "\r\n";
-  str += "\r\n";
-  str += "-----------------------------196272297923078\r\n";
-  str += "Content-Disposition:  form-data; name=\"file\"; filename=\"abcd.csv\"\r\n";
-  str += "Content-Type: application/octet-stream\r\n\r\n";
-
-  Serial1.print(str);
-  delay(500);
-  ShowSerialData();
-
-  str = data + "\r\n";
-
-  str += "-----------------------------196272297923078--\r";
-
-  Serial1.print(str);
-  Serial1.write(0x1A);
-  delay(5000);
-  ShowSerialData();
-
-  char ch;
-  while(1){
-    if(Serial1.available()){ Serial.write(Serial1.read()); }
-    if(Serial.available()) { 
-      ch = Serial.read();
-      if(ch == '|') Serial1.write(0x1A); 
-      else Serial1.write(ch); 
-    }
-  }
 }
 

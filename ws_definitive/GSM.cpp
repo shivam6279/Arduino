@@ -76,7 +76,7 @@ bool InitGSM() {
   bool flag = true;
 
   #ifdef GSM_PWRKEY_PIN
-  if(!IsGSMModuleOn()) GSMModuleRestart();
+    GSMModuleRestart();
   #endif
   
   GSMModuleWake();
@@ -247,6 +247,7 @@ bool CheckNetwork() {
   SendATCommand("AT+QICLOSE", "OK", 1000);
   ShowSerialData();
   if(SendATCommand("AT+QIOPEN=\"TCP\",\"www.yobi.tech\",\"80\"", "CONNECT OK", 20000) == 1) {
+    SendATCommand("AT+QICLOSE", "OK", 1000);
     SERIAL_RESPONSE = t_response;
     return true;
   }
@@ -295,6 +296,7 @@ void GSMModuleRestart() {
       Serial.println("GSM Module on, turning off");
     }
     SendATCommand("AT+QPOWD=1", "POWER DOWN", 10000);
+    GSMReadUntil("\n", 500);
     ShowSerialData();
   } 
   if(SERIAL_OUTPUT) {

@@ -16,7 +16,7 @@
 #include "GSM.h"
 #include "SD.h"
 
-//All pin definitions and settings are in "settings.h"
+//All pin definitions and settings are in "settings.h/cpp"
 
 #if HT_MODE == 1
   #define DHTTYPE DHT22 
@@ -140,11 +140,7 @@ void setup() {
   
   delay(6000);
   
-  /*if(UploadCSV())
-    Serial.println("Success");
-  else
-    Serial.println("Fail");
-  Talk();*/
+  //Talk();
   
   //Interrupt initialization  
   InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz
@@ -177,13 +173,12 @@ void loop() {
   }
   
   while(1) {
-    if(CheckNetwork())
-      CheckOTA();
-    
     if(four_sec) {
       four_sec = false;
       temp_read = read_flag;
       temp_upload = upload_flag;
+
+      CheckOTA();
   
       if(SERIAL_OUTPUT) {
         if(timer1_counter) Serial.println(((DATA_UPLOAD_FREQUENCY * 15) - timer1_counter + 1) * 4);
@@ -326,7 +321,8 @@ void loop() {
             }
           }
           
-          if(current_time.flag) {
+          if(current_time.flag && temp_sd) {
+            delay(1000);
             if(SERIAL_OUTPUT) {
               Serial.println("\nUploading data");
             }

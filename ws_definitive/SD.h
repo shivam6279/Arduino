@@ -11,7 +11,7 @@ extern bool CheckOTA();
 extern bool DownloadHex();
 extern bool SDHexToBin();
 extern bool WriteSD(weatherData);
-extern long int GetPreviousFailedUploads(long int&);
+extern long int GetPreviousFailedUploads(long int &n);
 extern bool UploadCSV();
 extern bool WriteOldTime(int, realTime);
 extern void CharToInt(unsigned char&);

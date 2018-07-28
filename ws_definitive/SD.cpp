@@ -79,9 +79,10 @@ bool DownloadHex() {
   delay(1000);
   ShowSerialData();
   Serial1.print(OTA_URL + '\r');
+  GSMReadUntil("OK", 5000);
   delay(100);
   ShowSerialData();
-  if(SendATCommand("AT+HTTPGET=30", "OK", 30000) < 1) {
+  if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
     ShowSerialData();
     datalog.close();
     return false;
@@ -102,8 +103,10 @@ bool DownloadHex() {
   t = millis();
   while(ch != ':' && (millis() - t) < 3000) 
     ch = Serial1.read();
-  if((millis() - t) > 3000) 
+  if((millis() - t) > 3000) {
+    datalog.close();
     return false;
+  }
   //--------------------------------------
 
   i = 0;
@@ -349,6 +352,7 @@ bool UploadCSV() {
   p1 = GetPreviousFailedUploads(n);
   if(n < 0) 
     return false;
+    
   if(SERIAL_OUTPUT) 
     Serial.println("Number of missed uploads: " + String(n));  
   if(n == 0)
@@ -390,13 +394,15 @@ bool UploadCSV() {
     }
     ShowSerialData();
     while(Serial1.availableForWrite() < 50);
+
+    t_response = SERIAL_RESPONSE;
+    SERIAL_RESPONSE = 0;
+    
     GSMModuleWake();
     SendATCommand("AT+QISEND", ">", 500);
     ShowSerialData();
     
     //--------------------------------------------POST Message---------------------------------------------------
-    t_response = SERIAL_RESPONSE;
-    SERIAL_RESPONSE = 0;
     
     Serial1.print("POST /bulk-upload HTTP/1.1\r\n"); //enigmatic-caverns-27645.herokuapp.com
     Serial1.print("Host: www.yobi.tech\r\n");                                                                     GSMReadUntil("\n", 1000);
@@ -485,7 +491,7 @@ bool UploadCSV() {
     ShowSerialData();
 
     if(SERIAL_OUTPUT) 
-      Serial.println("Succesfully uploaded " + String(line_count) + "records");  
+      Serial.println("Succesfully uploaded " + String(line_count) + " records");  
 
     datalog.seekSet(p1);
     for(; line_count > 0; line_count--) {
@@ -506,17 +512,24 @@ long int GetPreviousFailedUploads(long int &n) {
   char ch;
   long int lines = 0, p;
   int i;
+  n = 0;
 	
   if(!sd.exists("id.txt")) {
-    if(!sd.begin(SD_CARD_CS_PIN))
+    if(!sd.begin(SD_CARD_CS_PIN)) {
+      Serial.println('A');
       return -1;
+    }
   }
   if(!sd.exists("datalog.csv")) {
+    Serial.println('B');
     return -1;
   }
   delay(200);
-  if(!datalog.open("datalog.csv", FILE_READ))
-    return false;
+  if(!datalog.open("datalog.csv", FILE_READ)) {
+    datalog.close();
+    Serial.println('C');
+    return -1;
+  }
 	delay(200);
   datalog.seekEnd();
   timeout = millis();
@@ -654,16 +667,7 @@ bool WriteOldTime(int n, realTime t) {
 
     AddTime(t, temp, temp);
 
-    datalog.seekCur(-2);
-    for(timeout = 0; datalog.peek() != ',' && timeout < 2000; timeout++) {
-      datalog.seekCur(-1);
-      delay(1);
-    }
-    if(timeout > 2000) {
-      datalog.close();
-      return false;
-    }
-    datalog.seekCur(2);
+    datalog.seekCur(-19);
 
     datalog.write((temp.day / 10) % 10 + '0'); 
     datalog.write((temp.day % 10) + '0');
@@ -692,6 +696,7 @@ bool WriteOldTime(int n, realTime t) {
       return false;
     }
   }
+  datalog.close();
   return true;
 }
 
