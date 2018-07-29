@@ -64,7 +64,7 @@ bool DownloadHex() {
   int i, j, sd_index = 0;
   unsigned long t, timeout;
   char ch;
-  uint8_t sd_buffer[512];
+  uint8_t sd_buffer[600];
 	
   sd.chdir();
   if(!sd.exists("id.txt")) {
@@ -80,7 +80,7 @@ bool DownloadHex() {
   Serial1.print(OTA_URL + '\r');
   GSMReadUntil("OK", 5000);
   delay(100);
-if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
+  if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
     ShowSerialData();
     datalog.close();
     return false;
@@ -92,11 +92,20 @@ if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
   Serial1.println("AT+QHTTPREAD=30\r");
 
   //-----Read until the actual data------
-  t = millis();
-  for(i = 0; i < 3 && (millis() - t) < 3000;){
+  for(i = 0, t = millis(); i < 3 && (millis() - t) < 3000;){
     if(Serial1.read() ==  '>') i++;
   }
-  if((millis() - t) > 3000) return false;
+  if((millis() - t) > 3000) {
+    datalog.close();
+    return false;
+  }
+  
+  for(t = millis(); Serial1.available() < 1 && (millis() - t) < 3000;);
+  if((millis() - t) > 3000) {
+    datalog.close();
+    return false;
+  }
+  
   ch = Serial1.read();
   t = millis();
   while(ch != ':' && (millis() - t) < 3000) 
@@ -110,17 +119,18 @@ if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
   i = 0;
   j = 1;
   t = millis();
-  while(1) {
+  while((millis() - t) < 150000) {
     while(Serial1.available()){
       ch = Serial1.read();
-      if(ch == 'O') break;
+      if(ch == 'O') 
+        break;
       sd_buffer[sd_index++] = ch;
       if(sd_index >= 512) {
         sd_index = 0;
         datalog.write(sd_buffer, 512);
       }
       i = 0;
-      //Serial.print(ch);
+      Serial.print(ch);
     }
     if(ch == 'O') break;    
     for(timeout = millis(); Serial1.available() == 0 && (millis() - timeout) < 15000;);
@@ -132,6 +142,10 @@ if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
   datalog.seekCur(-1);
   datalog.close();
   while(Serial1.available()) Serial1.read();
+
+  if((millis() - t) < 150000)
+    return false;
+  
   return true;
 }
 
