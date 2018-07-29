@@ -95,13 +95,13 @@ bool DownloadHex() {
   for(i = 0, t = millis(); i < 3 && (millis() - t) < 3000;){
     if(Serial1.read() ==  '>') i++;
   }
-  if((millis() - t) > 3000) {
+  if((millis() - t) >= 3000) {
     datalog.close();
     return false;
   }
   
   for(t = millis(); Serial1.available() < 1 && (millis() - t) < 3000;);
-  if((millis() - t) > 3000) {
+  if((millis() - t) >= 3000) {
     datalog.close();
     return false;
   }
@@ -110,7 +110,7 @@ bool DownloadHex() {
   t = millis();
   while(ch != ':' && (millis() - t) < 3000) 
     ch = Serial1.read();
-  if((millis() - t) > 3000) {
+  if((millis() - t) >= 3000) {
     datalog.close();
     return false;
   }
@@ -134,7 +134,7 @@ bool DownloadHex() {
     }
     if(ch == 'O') break;    
     for(timeout = millis(); Serial1.available() == 0 && (millis() - timeout) < 15000;);
-    if((millis() - timeout) > 15000) 
+    if((millis() - timeout) >= 15000) 
       break;
   }
   datalog.write(sd_buffer, sd_index);
@@ -150,14 +150,17 @@ bool DownloadHex() {
 }
 
 bool SDHexToBin() {
-  unsigned char buff[37], ch, n, t_ch[2];
-  uint16_t i, j, temp_checksum;
-  long int checksum;
+  unsigned char buff[37];
+  uint16_t i, j;
+  uint16_t checksum, temp_checksum;
+  uint16_t timeout;
+
+  uint8_t ch;
+  uint8_t byte_count, record_type;
+  uint32_t address, offset_address = 0;
+  
   bool flag = false;
-
-  SdFile datalog, data_temp;
-
-  sd.chdir();
+  
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
@@ -167,65 +170,71 @@ bool SDHexToBin() {
   data_temp.open("TEMP_OTA.HEX", O_READ);
   datalog.open("firmware.bin", O_WRITE | O_CREAT);
 
-  ch = data_temp.read();
-  while((ch < 'a' && ch > ':') || ch < '0' || ch > 'f') {
-    ch = data_temp.read();
-  }
   data_temp.seekCur(-1);
+  
   j = 0;
-  while(data_temp.available()) {
-    data_temp.read(buff, 9);
-
-    //Get the number of bytes in the line
-    for(i = 1, checksum = 0; i < 9; i++) {
-      t_ch[0] = buff[i++];
-      t_ch[1] = buff[i];
-      if((t_ch[0] >= '0' && t_ch[0] <= '9') || (t_ch[0] >= 'a' && t_ch[0] <= 'f') || (t_ch[0] >= 'A' && t_ch[0] <= 'F')) {// Checks if the character read is a hexadecmal character
-        CharToInt(t_ch[0]);
-        CharToInt(t_ch[1]);
-
-        ch = t_ch[0] * 16 + t_ch[1];
-        checksum += ch;
-        if(i == 2) n = ch;
-      }
-    }
-
-    //Read the data
-    if(n != 0) {
-	  data_temp.read(buff, (n*2)+4);
-	  for(i = 0; i < (n*2); i++) {
-			t_ch[0] = buff[i++];
-			t_ch[1] = buff[i];
-			if((t_ch[0] >= '0' && t_ch[0] <= '9') || (t_ch[0] >= 'a' && t_ch[0] <= 'f') || (t_ch[0] >= 'A' && t_ch[0] <= 'F')) {
-		  	CharToInt(t_ch[0]);
-		  	CharToInt(t_ch[1]);
-
-		  	ch = t_ch[0] * 16 + t_ch[1];
-		  	checksum += ch;
-		  	datalog.write(ch);
-	      if(++j == 500) {
-	        j = 0;
-	        datalog.sync();
-	      }
-	    }
-	  }
-	}
-	else{
-	  if(buff[7] == '0' && buff[8] == '1'){
-	  	flag = true;
-	  	break;
-	  }
-	}
+  while(data_temp.available() > 8) {
+    for(timeout = millis(); data_temp.read() != ':' && (millis() - timeout) < 1000;);  
+    if((millis() - timeout) >= 1000) 
+      break;
     
-    t_ch[0] = buff[(n*2)];
-    t_ch[1] = buff[(n*2) + 1];
-    if((t_ch[0] >= '0' && t_ch[0] <= '9') || (t_ch[0] >= 'a' && t_ch[0] <= 'f') || (t_ch[0] >= 'A' && t_ch[0] <= 'F')) {
-      CharToInt(t_ch[0]);
-      CharToInt(t_ch[1]);
+    data_temp.read(buff, 8);
 
-      temp_checksum = t_ch[0] * 16 + t_ch[1];
+    byte_count = CharToInt(buff[0]) << 4 | CharToInt(buff[1]);
+    address = offset_address + CharToInt(buff[2]) << 12 | CharToInt(buff[3]) << 8 | CharToInt(buff[4]) << 4 | CharToInt(buff[5]);
+    record_type = CharToInt(buff[6]) << 4 | CharToInt(buff[7]);
+
+    checksum = CharToInt(buff[0]) << 4 | CharToInt(buff[1]);
+    checksum += CharToInt(buff[2]) << 4 | CharToInt(buff[3]);
+    checksum += CharToInt(buff[4]) << 4 | CharToInt(buff[5]);
+    checksum += CharToInt(buff[6]) << 4 | CharToInt(buff[7]);
+    
+    //Data
+    if(record_type == 0) {
+	    data_temp.read(buff, (byte_count * 2));
+	    for(i = 0; i < (byte_count * 2); i += 2) {
+        ch = CharToInt(buff[i]) << 4 | CharToInt(buff[i + 1]);
+	  	  checksum += ch;
+	  	  datalog.write(ch);
+        if(++j == 500) {
+          j = 0;
+          datalog.sync();
+        }
+	    }
+	  } 
+    //End line
+	  else if(record_type == 1) {
+      data_temp.read(buff, 2);
+      if(buff[0] == 'F' && buff[1] == 'F')
+	  	  flag = true;
+  	  break;
+	  }    
+    //Segment address
+    else if(record_type == 2) {
+      if(byte_count != 2)
+        break;
+      data_temp.read(buff, (byte_count * 2));
+      offset_address += CharToInt(buff[0]) << 12 | CharToInt(buff[1]) << 8 | CharToInt(buff[2]) << 4 | CharToInt(buff[3]);
+      checksum += CharToInt(buff[0]) << 4 | CharToInt(buff[1]);
+      checksum += CharToInt(buff[2]) << 4 | CharToInt(buff[3]);
+    } 
+    //Start segment address
+    else if(record_type == 3) {
+      if(byte_count != 4)
+        break;
+      data_temp.read(buff, (byte_count * 2));
+      checksum += CharToInt(buff[0]) << 4 | CharToInt(buff[1]);
+      checksum += CharToInt(buff[2]) << 4 | CharToInt(buff[3]);
+      checksum += CharToInt(buff[4]) << 4 | CharToInt(buff[5]);
+      checksum += CharToInt(buff[6]) << 4 | CharToInt(buff[7]);
+    } else {
+      break;
     }
-    if((checksum + temp_checksum) % 0x100 != 0) return false;
+    
+    data_temp.read(buff, 2);
+    temp_checksum = CharToInt(buff[0]) << 4 | CharToInt(buff[1]);
+    if((checksum + temp_checksum) % 0x100 != 0) 
+      break;
   }
   datalog.sync();
   datalog.close();
@@ -398,18 +407,18 @@ bool UploadCSV() {
       Serial.println();
     }
     SendATCommand("AT+QIDNSIP=1", "OK", 1000);
-    ShowSerialData();
+    GSMReadUntil("\n", 50); ShowSerialData();
     SendATCommand("AT+QICLOSE", "OK", 1000);
-    ShowSerialData();
+    GSMReadUntil("\n", 50); ShowSerialData();
     if(SendATCommand("AT+QIOPEN=\"TCP\",\"www.yobi.tech\",\"80\"", "CONNECT OK", 20000) < 1) { //enigmatic-caverns-27645.herokuapp.com
-      ShowSerialData();
+      GSMReadUntil("\n", 50); ShowSerialData();
       return false;
     }
-    ShowSerialData();
+    GSMReadUntil("\n", 50); ShowSerialData();
     while(Serial1.availableForWrite() < 50);
     GSMModuleWake();
     SendATCommand("AT+QISEND", ">", 500);
-    ShowSerialData();
+    GSMReadUntil("\n", 50); ShowSerialData();
     
     //--------------------------------------------POST Message---------------------------------------------------
     t_response = SERIAL_RESPONSE;
@@ -488,13 +497,13 @@ bool UploadCSV() {
     //--------Read POST response-------
 
     if(!GSMReadUntil("200 OK", 30000)) {
-      ShowSerialData();
+      GSMReadUntil("\n", 50); ShowSerialData();
       datalog.close();
       return false;
     }
 
     if(!GSMReadUntil("\"success\"", 30000)) {
-      ShowSerialData();
+      GSMReadUntil("\n", 50); ShowSerialData();
       datalog.close();
       return false;
     }
@@ -652,7 +661,7 @@ bool WriteOldTime(int n, realTime t) {
 
     for(timeout = millis(); datalog.read() != ':' && (millis() - timeout) < 1000;);
     
-    if((millis() - timeout) > 2000) {
+    if((millis() - timeout) > 1000) {
       datalog.close();
       return false;
     }
@@ -711,14 +720,16 @@ bool WriteOldTime(int n, realTime t) {
   return true;
 }
 
-void CharToInt(unsigned char &a){
+uint8_t CharToInt(unsigned char &a){
+  uint8_t r = 0;
   if((a >= '0' && a <= '9')) {
-    a -= '0';
+    r = a - '0';
   } 
   else if(a >= 'a' && a <= 'f') {
-    a -= 87;
+    r = a -  87;
   }
   else if(a >= 'A' && a <= 'F') {
-    a -= 55;
+    r = a - 55;
   }
+  return r;
 }

@@ -76,7 +76,7 @@ bool InitGSM() {
   bool flag = true;
 
   #ifdef GSM_PWRKEY_PIN
-    GSMModuleRestart();
+    if(!IsGSMModuleOn()) GSMModuleRestart();
   #endif
   
   GSMModuleWake();
@@ -92,6 +92,7 @@ bool InitGSM() {
   if(SendATCommand("AT+CLIP=1", "OK", 3000) < 1) 
     flag = false;
 
+  delay(50);
   ShowSerialData();
   delay(1000); 
   return flag;
@@ -247,7 +248,6 @@ bool CheckNetwork() {
   SendATCommand("AT+QICLOSE", "OK", 1000);
   ShowSerialData();
   if(SendATCommand("AT+QIOPEN=\"TCP\",\"www.yobi.tech\",\"80\"", "CONNECT OK", 20000) == 1) {
-    SendATCommand("AT+QICLOSE", "OK", 1000);
     SERIAL_RESPONSE = t_response;
     return true;
   }

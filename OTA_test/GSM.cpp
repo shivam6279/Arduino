@@ -92,6 +92,7 @@ bool InitGSM() {
   if(SendATCommand("AT+CLIP=1", "OK", 3000) < 1) 
     flag = false;
 
+  delay(50);
   ShowSerialData();
   delay(1000); 
   return flag;
