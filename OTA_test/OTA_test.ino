@@ -67,6 +67,8 @@ void setup() {
   unsigned int i;
   char str[10];
 
+  SdFile datalog;
+
   pinMode(RAIN_LED, OUTPUT);
   pinMode(WIND_LED, OUTPUT);
   pinMode(UPLOAD_LED, OUTPUT);
@@ -130,6 +132,8 @@ void setup() {
     if(ENABLE_GPS) Serial.println("GPS enabled"); else Serial.println("GPS disabled");
     Serial.println();
   }
+
+  Serial.println(SDHexToBin());
 
   digitalWrite(UPLOAD_LED, HIGH);
   delay(2000);  //Wait for the GSM module to boot up

@@ -65,6 +65,8 @@ bool SendWeatherURL(weatherData w) {
   str_len += String(w.signal_strength).length() + 3;
 
   delay(1000);
+  GSMModuleWake();
+  
   Serial1.print("AT+QHTTPURL=");
   Serial1.print(str_len);
   Serial1.print(",30\r");
@@ -112,7 +114,7 @@ bool SendWeatherURL(weatherData w) {
   ShowSerialData();  
   if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
     GSMReadUntil("\n", 50); ShowSerialData();  
-    return false
+    return false;
   }
   GSMReadUntil("\n", 50); ShowSerialData();  
   return true;

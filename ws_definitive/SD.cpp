@@ -8,7 +8,7 @@
 #include <EEPROM.h>
 
 SdFat sd;
-SdFile datalog, data_temp;
+//SdFile datalog, data_temp;
 
 bool CheckOTA() {
   char body_r[40], number[14];
@@ -25,10 +25,14 @@ bool CheckOTA() {
     }
     delay(500);
 
-    if(sd.exists("TEMP_OTA.HEX")) sd.remove("TEMP_OTA.HEX");
-    if(sd.exists("firmware.BIN")) sd.remove("firmware.BIN");
+    if(sd.exists("TEMP_OTA.HEX")) 
+      sd.remove("TEMP_OTA.HEX");
+      
+    if(sd.exists("firmware.BIN")) 
+      sd.remove("firmware.BIN");
     delay(500);
     if(DownloadHex()) {
+      delay(5000);
       if(SERIAL_OUTPUT) {
         Serial.println("\nNew firmware downloaded");
         Serial.println("Converting .hex file to .bin");
@@ -65,12 +69,13 @@ bool DownloadHex() {
   unsigned long t, timeout;
   char ch;
   uint8_t sd_buffer[600];
-	
-  sd.chdir();
+
+  SdFile datalog;
+
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) return false;
   }
-  datalog.open("temp_ota.hex",  FILE_WRITE);
+  datalog.open("temp_ota.hex",  O_WRITE | O_CREAT);
   delay(5000);
   HttpInit();
   i = OTA_URL.length();
@@ -81,10 +86,12 @@ bool DownloadHex() {
   GSMReadUntil("OK", 5000);
   delay(100);
   if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
+    GSMReadUntil("\n", 100);
     ShowSerialData();
     datalog.close();
     return false;
   }
+  GSMReadUntil("\n", 100);
   ShowSerialData();
 
   datalog.write(':');
@@ -115,8 +122,7 @@ bool DownloadHex() {
     return false;
   }
   //--------------------------------------
-
-  i = 0;
+  
   j = 1;
   t = millis();
   while((millis() - t) < 150000) {
@@ -124,12 +130,11 @@ bool DownloadHex() {
       ch = Serial1.read();
       if(ch == 'O') 
         break;
-      sd_buffer[sd_index++] = ch;
+      datalog.write(ch);
       if(sd_index >= 512) {
         sd_index = 0;
-        datalog.write(sd_buffer, 512);
+        datalog.sync();
       }
-      i = 0;
       Serial.print(ch);
     }
     if(ch == 'O') break;    
@@ -137,13 +142,12 @@ bool DownloadHex() {
     if((millis() - timeout) >= 15000) 
       break;
   }
-  datalog.write(sd_buffer, sd_index);
   datalog.sync();
-  datalog.seekCur(-1);
+  delay(1000);
   datalog.close();
   while(Serial1.available()) Serial1.read();
 
-  if((millis() - t) < 150000)
+  if((millis() - t) >= 150000)
     return false;
   
   return true;
@@ -153,30 +157,44 @@ bool SDHexToBin() {
   unsigned char buff[37];
   uint16_t i, j;
   uint16_t checksum, temp_checksum;
-  uint16_t timeout;
+  unsigned long timeout;
 
   uint8_t ch;
   uint8_t byte_count, record_type;
   uint32_t address, offset_address = 0;
   
   bool flag = false;
+
+  SdFile datalog, data_temp;
   
   if(!sd.exists("id.txt")) {
-    if(!sd.begin(SD_CARD_CS_PIN)) return false;
+    if(!sd.begin(SD_CARD_CS_PIN)) {
+      return false;
+    }
   }
   delay(100);
-  if(!sd.exists("TEMP_OTA.HEX")) return false;
+  if(!sd.exists("temp_ota.hex"))
+    return false;
 
-  data_temp.open("TEMP_OTA.HEX", O_READ);
-  datalog.open("firmware.bin", O_WRITE | O_CREAT);
+  if(!data_temp.open("temp_ota.hex", O_READ)) {
+    data_temp.close();
+    return false;
+  }
+  if(!datalog.open("firmware.bin", O_WRITE | O_CREAT)) {
+    datalog.close();
+    return false;
+  }
 
-  data_temp.seekCur(-1);
+  data_temp.seekSet(0);
+  datalog.seekSet(0);
   
   j = 0;
   while(data_temp.available() > 8) {
-    for(timeout = millis(); data_temp.read() != ':' && (millis() - timeout) < 1000;);  
-    if((millis() - timeout) >= 1000) 
+    for(timeout = millis(); data_temp.read() != ':' && (millis() - timeout) < 5000;);
+    if((millis() - timeout) >= 5000) {
+      Serial.println('E');
       break;
+    }
     
     data_temp.read(buff, 8);
 
@@ -246,6 +264,8 @@ bool WriteSD(weatherData w) {
 	bool flag;
 	char ch, str[100];
 	int i;
+
+  SdFile datalog;
 
   SD_csv_header.toCharArray(str, 100);
 	
@@ -366,6 +386,8 @@ bool UploadCSV() {
   long int timeout;
   long int p1, p2, bytes;
   bool flag, t_response;
+
+  SdFile datalog;
 
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) return false;
@@ -533,6 +555,8 @@ long int GetPreviousFailedUploads(long int &n) {
   long int lines = 0, p;
   int i;
   n = 0;
+
+  SdFile datalog;
 	
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) {
@@ -581,6 +605,8 @@ bool WriteOldTime(int n, realTime t) {
   int lines, i;
   char str[20], ch;
   realTime temp;
+
+  SdFile datalog;
 
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) {
