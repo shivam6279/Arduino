@@ -67,6 +67,8 @@ void setup() {
   unsigned int i;
   char str[10];
 
+  SdFile datalog;
+
   pinMode(RAIN_LED, OUTPUT);
   pinMode(WIND_LED, OUTPUT);
   pinMode(UPLOAD_LED, OUTPUT);
@@ -168,11 +170,24 @@ void loop() {
   }
   while(Serial1.available()) Serial1.read();
 
+  
+
   if(SERIAL_OUTPUT) {
     Serial.println("\nSeconds till next upload:");
   }
   
   while(1) {
+    if(Serial.available() >= 4) {
+      if(Serial.read() == 'T') {
+        if(Serial.read() == 'a') {
+          if(Serial.read() == 'l') {
+            if(Serial.read() == 'k') {
+              Talk();
+            }
+          }
+        }
+      }
+    }
     if(four_sec) {
       four_sec = false;
       temp_read = read_flag;

@@ -95,7 +95,7 @@ bool DownloadHex() {
   ShowSerialData();
 
   datalog.write(':');
-  
+  GSMModuleWake();
   Serial1.println("AT+QHTTPREAD=30\r");
 
   //-----Read until the actual data------
@@ -135,7 +135,6 @@ bool DownloadHex() {
         sd_index = 0;
         datalog.sync();
       }
-      Serial.print(ch);
     }
     if(ch == 'O') break;    
     for(timeout = millis(); Serial1.available() == 0 && (millis() - timeout) < 15000;);

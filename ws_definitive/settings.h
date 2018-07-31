@@ -27,6 +27,8 @@
 extern String URL;
 extern String OTA_URL;
 extern String TIME_URL;
+extern String CHECK_ID_URL;
+extern String CREATE_ID_URL;
 
 extern String SD_csv_header;
 

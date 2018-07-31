@@ -12,7 +12,7 @@ SdFat sd;
 
 bool CheckOTA() {
   char body_r[40], number[14];
-  if(1) {    
+  if(CheckOtaSMS(number)) {    
     if(!sd.exists("id.txt")) {
     	if(!sd.begin(SD_CARD_CS_PIN)) {
 				SendSMS(number, "No SD card detected");
@@ -95,7 +95,7 @@ bool DownloadHex() {
   ShowSerialData();
 
   datalog.write(':');
-  
+  GSMModuleWake();
   Serial1.println("AT+QHTTPREAD=30\r");
 
   //-----Read until the actual data------
@@ -135,7 +135,6 @@ bool DownloadHex() {
         sd_index = 0;
         datalog.sync();
       }
-      Serial.print(ch);
     }
     if(ch == 'O') break;    
     for(timeout = millis(); Serial1.available() == 0 && (millis() - timeout) < 15000;);

@@ -76,7 +76,7 @@ bool InitGSM() {
   bool flag = true;
 
   #ifdef GSM_PWRKEY_PIN
-    if(!IsGSMModuleOn()) GSMModuleRestart();
+    GSMModuleRestart();
   #endif
   
   GSMModuleWake();
@@ -348,6 +348,8 @@ void Talk() {
   SERIAL_RESPONSE = 1;
   if(!IsGSMModuleOn()) 
     GSMModuleRestart();
+  while(Serial.available()) 
+    Serial.read();
   Serial.println("Talk");
   while(1){
     if(Serial1.available()){ Serial.write(Serial1.read()); }

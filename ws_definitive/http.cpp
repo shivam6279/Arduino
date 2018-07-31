@@ -3,6 +3,7 @@
 #include "weatherData.h"
 #include "GSM.h"
 #include "settings.h"
+#include "SD.h"
 
 bool HttpInit() {
   int timeout;
@@ -217,6 +218,61 @@ bool ReadTime(realTime &wt){
 
   wt.flag = 1;
   return true;
+}
+
+bool GetVersion(int &id) {
+  SdFile datalog;
+
+  char str[10];
+  int i;
+  char ch;
+  
+  HttpInit();
+  GSMModuleWake();
+  Serial1.print("AT+QHTTPURL=" + String(CHECK_ID_URL) + ",30\r");
+  GSMReadUntil("CONNECT", 5000);
+  GSMReadUntil("\n", 100);
+  Serial1.print(CREATE_ID_URL + '\r');
+  GSMReadUntil("OK", 5000);
+  GSMReadUntil("\n", 100);
+  if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
+    GSMReadUntil("\n", 100);
+    ShowSerialData();
+    return false;
+  }
+  GSMReadUntil("\n", 100);
+  ShowSerialData();
+
+  if(SendATCommand("AT+QHTTPREAD=30", "OK", 1000) == -1) {
+    GSMReadUntil("\n", 50); 
+    return false;
+  }
+  GSMReadUntil("\n", 50); 
+
+  do{
+    ch = Serial.read();
+  }while(!isdigit(ch));
+
+  for(i = 0; isdigit(ch) || ch == '.';) {
+    if(isdigit(ch))  
+      str[i++] = ch;
+    ch = Serial1.read();
+  }
+  str[i] = '\0';
+  while(Serial1.available()) Serial1.read();
+  id = (String(str)).toInt();
+
+  Serial.println(id);
+
+  
+
+  sd.begin(SD_CARD_CS_PIN);
+  if(sd.exists("id.txt"))
+    sd.remove("id.txt");
+  
+  datalog.open("id.txt",  O_WRITE | O_CREAT);
+  datalog.print(id);
+  datalog.close();
 }
 
 bool GetTime(realTime &w) {

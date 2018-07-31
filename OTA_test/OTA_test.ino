@@ -133,8 +133,6 @@ void setup() {
     Serial.println();
   }
 
-  Serial.println(SDHexToBin());
-
   digitalWrite(UPLOAD_LED, HIGH);
   delay(2000);  //Wait for the GSM module to boot up
   digitalWrite(UPLOAD_LED, LOW);
@@ -156,7 +154,9 @@ void setup() {
 
   HttpInit();
   delay(500);
+  GSMModuleWake();
   SendWeatherURL(w);  
+  GSMModuleWake();
   SendATCommand("AT+QHTTPREAD=30", "OK", 1000);
   delay(100);
   ShowSerialData();
