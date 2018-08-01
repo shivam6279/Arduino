@@ -24,7 +24,7 @@ public:
   bool CheckLeapYear();
 };
 
-struct weatherData {
+class weatherData {
 public:
   //Temperature and humidity
   int id;
@@ -63,5 +63,6 @@ extern void AddTime(realTime, realTime, realTime&);
 extern void SubtractTime(realTime, realTime, realTime&);
 extern double ArrayAvg(double[], int);
 extern double StdDiv(double[], int);
+extern bool Debug();
 
 #endif

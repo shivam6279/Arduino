@@ -9,6 +9,7 @@ extern bool GetSMS(char*, char*);
 extern void SendSMS(char*, char*);
 extern int GetSignalStrength();
 extern bool CheckNetwork();
+extern bool GetGSMLoc(float&, float&);
 extern void GSMModuleRestart();
 extern bool IsGSMModuleOn();
 extern void GSMModuleWake();

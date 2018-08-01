@@ -133,6 +133,8 @@ void setup() {
     Serial.println();
   }
 
+  //Serial.println(SDHexToBin());
+
   digitalWrite(UPLOAD_LED, HIGH);
   delay(2000);  //Wait for the GSM module to boot up
   digitalWrite(UPLOAD_LED, LOW);
@@ -141,8 +143,6 @@ void setup() {
   InitGSM();
   
   delay(6000);
-  
-  //Talk();
   
   //Interrupt initialization  
   InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz

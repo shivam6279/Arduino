@@ -281,6 +281,36 @@ int GetSignalStrength() {
   return ret;
 }
 
+bool GetGSMLoc(float &lat, float &lon) {
+  char lat_str[20], lon_str[20];
+  char ch;
+  int i;
+  if(SendATCommand("AT+QGSMLOC", "+QGSMLOC:", 10000) < 1)
+    return false;
+
+  GSMReadUntil(",", 100);
+  delay(50);
+
+  for(i = 0, ch = Serial1.read(); isDigit(ch) || ch == '.' || ch == '-' || ch == '+';) {
+    lon_str[i++] = ch;
+    ch = Serial1.read();
+  }
+  lon_str[i] = '\0';
+  lon = String(lon_str).toFloat(); 
+
+  for(i = 0, ch = Serial1.read(); isDigit(ch) || ch == '.' || ch == '-' || ch == '+';) {
+    lat_str[i++] = ch;
+    ch = Serial1.read();
+  }
+  lat_str[i] = '\0';
+  lat = String(lat_str).toFloat(); 
+
+  GSMReadUntil("OK", 100);
+  GSMReadUntil("\n", 100);
+
+  return true;
+}
+
 #ifdef GSM_PWRKEY_PIN
 void GSMModuleRestart() {
   bool flag = 0;
@@ -356,11 +386,19 @@ void Talk() {
     if(Serial.available()) { 
       ch = Serial.read();
       if(ch == '|') {
-        while(Serial.available()) Serial.read();
+        while(Serial.available()) 
+          Serial.read();
         Serial1.write(0x1A);
       }
-      else
+      else if(ch == '~') {
+        while(Serial.available()) 
+          Serial.read();
+        Serial.println("End");
+        return;
+      }
+      else {
         Serial1.write(ch); 
+      }
     }
   }
 }

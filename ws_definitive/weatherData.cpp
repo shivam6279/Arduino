@@ -1,4 +1,6 @@
 #include "weatherData.h"
+#include "SD.h"
+#include "GSM.h"
 
 void weatherData::Reset(int ws_id){
   id = ws_id;
@@ -260,4 +262,106 @@ double StdDiv(double a[], int n) {
   }
   r = sqrt(r / double(n));
   return r;
+}
+
+bool Debug() {
+  char ch;
+  SdFile datalog;
+
+  while(Serial.available()) {
+    ch = Serial.peek();
+    //Talk
+    if(ch == 'T') {
+      if(Serial.available() < 4)
+        return false;
+      else {
+        Serial.read();
+        if(Serial.read() == 'a') {
+          if(Serial.read() == 'l') {
+            if(Serial.read() == 'k') {
+              Talk();
+              return true;
+            }
+          }
+        }
+      }
+    }
+
+    //Datalog.txt
+    else if(ch == 'd') {
+      if(Serial.available() < 11)
+        return false;
+      else {
+        Serial.read();
+        if(Serial.read() == 'a') {
+          if(Serial.read() == 't') {
+            if(Serial.read() == 'a') {
+              if(Serial.read() == 'l') {
+                if(Serial.read() == 'o') {
+                  if(Serial.read() == 'g') {
+                    if(Serial.read() == '.') {
+                      if(Serial.read() == 'c') {
+                        if(Serial.read() == 's') {
+                          if(Serial.read() == 'v') {
+                            Serial.println();
+                            Serial.println("Displaying datalog.csv");
+                            if(!datalog.open("datalog.csv", FILE_READ)) {
+                              datalog.close();
+                              return false;
+                            }
+                            while(datalog.available()) {
+                              Serial.write(datalog.read());
+                            }
+                            datalog.close();
+                            Serial.println();
+                            return true;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    //id.txt
+    else if(ch == 'i') {
+      if(Serial.available() < 6)
+        return false;
+      else {
+        Serial.read();
+        if(Serial.read() == 'd') {
+          if(Serial.read() == '.') {
+            if(Serial.read() == 't') {
+              if(Serial.read() == 'x') {
+                if(Serial.read() == 't') {
+                  Serial.println();
+                  Serial.println("Displaying id.txt");
+                  if(!datalog.open("id.txt", FILE_READ)) {
+                    datalog.close();
+                    return false;
+                  }
+                  while(datalog.available()) {
+                    Serial.write(datalog.read());
+                  }
+                  datalog.close();
+                  Serial.println();
+                  return true;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    else {
+      Serial.read();
+    }
+  }
+  
+  return false;
 }

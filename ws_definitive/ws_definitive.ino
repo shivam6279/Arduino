@@ -93,13 +93,10 @@ void setup() {
   delay(100);
   if(!sd.exists("id.txt")){
     if(SERIAL_OUTPUT) {
-      Serial.println("\nNo id file found on sd card, using bakup id");
+      Serial.println("\nNo id file found on sd card");
     }
-    ws_id = BACKUP_ID.toInt();
+    ws_id = 0;//BACKUP_ID.toInt();
   } else {
-    if(SERIAL_OUTPUT) {
-      Serial.println("\nSD Card detected");
-    }
     datalog.open("id.txt", FILE_READ);
     while(datalog.available()) {
       str[i++] = datalog.read();
@@ -170,22 +167,26 @@ void loop() {
   }
   while(Serial1.available()) Serial1.read();
 
+  if(ws_id == 0) {
+    if(GetID(ws_id)) {
+      Serial.println("True");
+    } else {
+      ws_id = 0;
+    }
+  }
   
-
   if(SERIAL_OUTPUT) {
     Serial.println("\nSeconds till next upload:");
   }
   
   while(1) {
-    if(Serial.available() >= 4) {
-      if(Serial.read() == 'T') {
-        if(Serial.read() == 'a') {
-          if(Serial.read() == 'l') {
-            if(Serial.read() == 'k') {
-              Talk();
-            }
-          }
-        }
+    Debug();
+
+    if(ws_id == 0) {
+      if(GetID(ws_id)) {
+        Serial.println("True");
+      } else {
+        ws_id = 0;
       }
     }
     if(four_sec) {

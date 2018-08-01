@@ -220,21 +220,28 @@ bool ReadTime(realTime &wt){
   return true;
 }
 
-bool GetVersion(int &id) {
+bool GetID(int &id) {
   SdFile datalog;
+  float lat, lon;
 
   char str[10];
-  int i;
+  int i, str_len;
   char ch;
+
+  int temp_id;
   
-  HttpInit();
+  if(!HttpInit()) 
+    return false;
+
   GSMModuleWake();
-  Serial1.print("AT+QHTTPURL=" + String(CHECK_ID_URL) + ",30\r");
-  GSMReadUntil("CONNECT", 5000);
+  Serial1.print("AT+QHTTPURL=" + String(CHECK_ID_URL.length()) + ",30\r");
+  GSMReadUntil("CONNECT", 20000);
   GSMReadUntil("\n", 100);
-  Serial1.print(CREATE_ID_URL + '\r');
+  Serial1.print(CHECK_ID_URL + '\r');
   GSMReadUntil("OK", 5000);
   GSMReadUntil("\n", 100);
+
+  GSMModuleWake();
   if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
     GSMReadUntil("\n", 100);
     ShowSerialData();
@@ -242,29 +249,77 @@ bool GetVersion(int &id) {
   }
   GSMReadUntil("\n", 100);
   ShowSerialData();
-
-  if(SendATCommand("AT+QHTTPREAD=30", "OK", 1000) == -1) {
+  
+  GSMModuleWake();
+  if(SendATCommand("AT+QHTTPREAD=30", "CONNECT", 1000) == -1) {
+    GSMReadUntil("OK", 1000); 
     GSMReadUntil("\n", 50); 
     return false;
   }
-  GSMReadUntil("\n", 50); 
+  delay(100);
+  ch = Serial1.peek();
+  while(!isDigit(ch)) {
+    ch = Serial1.read();
+  }
 
-  do{
-    ch = Serial.read();
-  }while(!isdigit(ch));
-
-  for(i = 0; isdigit(ch) || ch == '.';) {
-    if(isdigit(ch))  
-      str[i++] = ch;
+  for(i = 0; isDigit(ch);) {
+    str[i++] = ch;
     ch = Serial1.read();
   }
   str[i] = '\0';
-  while(Serial1.available()) Serial1.read();
-  id = (String(str)).toInt();
+  temp_id = (String(str)).toInt();
 
-  Serial.println(id);
+  GSMReadUntil("OK", 1000); 
+  GSMReadUntil("\n", 50); 
 
-  
+  if(SERIAL_OUTPUT)
+    Serial.println("ID: " + String(temp_id));
+
+  if(!GetGSMLoc(lat, lon))
+    return false;
+
+  if(SERIAL_OUTPUT)
+    Serial.println("Location: " + String(lat) + ", " + String(lon));
+
+  str_len = CREATE_ID_URL.length();
+  str_len += String(id).length() + 3;
+  str_len += String(DATA_UPLOAD_FREQUENCY).length() + 6;
+  str_len += String(lat).length() + 4;
+  str_len += String(lon).length() + 4;
+
+  GSMModuleWake();
+  Serial1.print("AT+QHTTPURL=" + String(str_len) + ",30\r");
+  GSMReadUntil("CONNECT", 20000);
+  GSMReadUntil("\n", 100);
+  Serial1.print(CREATE_ID_URL);
+  Serial1.print("id=" + String(temp_id));  delay(1);
+  Serial1.print("&freq=" + String(DATA_UPLOAD_FREQUENCY));  delay(1);
+  Serial1.print("&lt=" + String(lat));  delay(1);
+  Serial1.print("&ln=" + String(lon) + "\r"); delay(1);
+  GSMReadUntil("OK", 5000);
+  GSMReadUntil("\n", 100);
+
+  if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
+    GSMReadUntil("\n", 100);
+    ShowSerialData();
+    return false;
+  }
+  GSMReadUntil("\n", 100);
+  ShowSerialData();
+  if(SendATCommand("AT+QHTTPREAD=30", "CONNECT", 1000) == -1) {
+    GSMReadUntil("OK", 1000); 
+    GSMReadUntil("\n", 50); 
+    return false;
+  }
+  delay(50);
+  GSMReadUntil("OK", 1000); 
+  GSMReadUntil("\n", 50); 
+  ShowSerialData();
+
+  GSMModuleWake();
+  SendIdSMS(temp_id, PHONE_NUMBER);
+
+  id = temp_id;
 
   sd.begin(SD_CARD_CS_PIN);
   if(sd.exists("id.txt"))
@@ -273,6 +328,8 @@ bool GetVersion(int &id) {
   datalog.open("id.txt",  O_WRITE | O_CREAT);
   datalog.print(id);
   datalog.close();
+
+  return true;
 }
 
 bool GetTime(realTime &w) {
@@ -329,6 +386,23 @@ bool GetTime(realTime &w) {
   ShowSerialData();
   t.flag = 1;
   w = t;
+  return true;
+}
+
+bool SendIdSMS(int id, String phone_number) {
+  GSMModuleWake();
+  Serial1.print("AT+CMGS=\"" + phone_number + "\"\n");
+  delay(100);
+  Serial1.print("HK9D7 ");
+  Serial1.print("NEWID ");
+  Serial1.print(id);
+  delay(100);
+  Serial1.write(26);
+  Serial1.write('\n');
+  delay(100);
+  Serial1.write('\n');
+  ShowSerialData();
+
   return true;
 }
 

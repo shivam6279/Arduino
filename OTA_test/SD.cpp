@@ -159,10 +159,10 @@ bool SDHexToBin() {
   unsigned long timeout;
 
   uint8_t ch;
-  uint8_t byte_count, record_type;
-  uint32_t address, offset_address = 0;
+  uint8_t byte_count, p_byte_count, record_type;
+  uint32_t address, offset_address = 0, p_address;
   
-  bool flag = false;
+  bool flag = false, start = true;
 
   SdFile datalog, data_temp;
   
@@ -208,6 +208,12 @@ bool SDHexToBin() {
     
     //Data
     if(record_type == 0) {
+      
+      if(address != 0 && start == false) {
+        if(address != (p_address + p_byte_count))
+          break;
+      }
+
 	    data_temp.read(buff, (byte_count * 2));
 	    for(i = 0; i < (byte_count * 2); i += 2) {
         ch = CharToInt(buff[i]) << 4 | CharToInt(buff[i + 1]);
@@ -252,6 +258,11 @@ bool SDHexToBin() {
     temp_checksum = CharToInt(buff[0]) << 4 | CharToInt(buff[1]);
     if((checksum + temp_checksum) % 0x100 != 0) 
       break;
+
+    start = false;
+
+    p_byte_count = byte_count;
+    p_address = address;
   }
   datalog.sync();
   datalog.close();
