@@ -126,7 +126,6 @@ void setup() {
     Serial.println("Data read frequency: " + (String)DATA_READ_FREQUENCY + " minutes");
     if(HT_MODE == 0) Serial.println("Using SHT21"); else if(HT_MODE == 1) Serial.println("Using DHT22"); else Serial.println("No HT sensor");
     if(ENABLE_BMP180) Serial.println("BMP180 enabled"); else Serial.println("BMP180 disabled");
-    if(ENABLE_GPS) Serial.println("GPS enabled"); else Serial.println("GPS disabled");
     Serial.println();
   }
 
@@ -138,9 +137,7 @@ void setup() {
   InitGSM();
   
   delay(6000);
-  
-  //Talk();
-  
+
   //Interrupt initialization  
   InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz
 }
@@ -167,12 +164,10 @@ void loop() {
   }
   while(Serial1.available()) Serial1.read();
 
+  //Fetch new id
   if(ws_id == 0) {
-    if(GetID(ws_id)) {
-      Serial.println("True");
-    } else {
+    if(!GetID(ws_id))
       ws_id = 0;
-    }
   }
   
   if(SERIAL_OUTPUT) {
@@ -182,13 +177,6 @@ void loop() {
   while(1) {
     Debug();
 
-    if(ws_id == 0) {
-      if(GetID(ws_id)) {
-        Serial.println("True");
-      } else {
-        ws_id = 0;
-      }
-    }
     if(four_sec) {
       four_sec = false;
       temp_read = read_flag;
@@ -224,17 +212,29 @@ void loop() {
         w[reading_number].t = current_time;
 
         w[reading_number].signal_strength = GetSignalStrength();
-        
-        #if ENABLE_GPS
-          //GetGPS();
-        #endif
 
-        //w[reading_number].CheckIsNan();
+        w[reading_number].CheckIsNan();
 
-        if(SERIAL_OUTPUT) {
+        if(SERIAL_OUTPUT)
           w[reading_number].PrintData();
+
+        //---------------SD Card Datalog---------------
+        temp_sd = true;
+        w[reading_number].flag = 0;
+
+        if(SERIAL_OUTPUT)
+          Serial.println("Writing to the SD card");
+          
+        if(!WriteSD(w[reading_number])) {
+          if(SERIAL_OUTPUT)
+            Serial.println("Write failed");
+          temp_sd = false;
+          break;
         }
-        
+        if(startup == true) 
+          initial_sd_card_uploads++;
+        //----------------------------------------------
+
         reading_number++;
         avg_counter = 0;
         
@@ -246,26 +246,18 @@ void loop() {
 
         upload_flag = false;
 
-        //-------------------------------SD Card Datalog--------------------------------
-
-        temp_sd = true;
-        if(sd.exists("id.txt")) {
-          for(i = 0; i < reading_number; i++) {
-            w[i].flag = 0;
-          }
-          if(SERIAL_OUTPUT) {
-            Serial.println("\nWriting to the SD card");
-          }
-          for(i = 0; i < reading_number; i++) {
-            if(!WriteSD(w[i])) {
-              if(SERIAL_OUTPUT) {
-                Serial.println("Write failed");
+        //Fetch new id
+        if(ws_id == 0) {
+          if(GetID(ws_id)){
+            if(!WriteOldID(initial_sd_card_uploads, ws_id)) {
+              ws_id = 0;
+            } else {
+              for(i = 0; i < BUFFER_SIZE; i++) {
+                w[i].id = ws_id;
               }
-              temp_sd = false;
-              break;
             }
-            if(startup == true) 
-              initial_sd_card_uploads++;
+          } else {
+            ws_id = 0;
           }
         }
         
@@ -301,7 +293,7 @@ void loop() {
             }
 
             delay(100);
-            //upload_sms(w[reading_number], phone_number);
+            //upload_sms(w[reading_number], SERVER_PHONE_NUMBER);
           }
         } else {
 
@@ -362,7 +354,7 @@ void loop() {
                 Serial.println("\nUpload failed\n");
               }
               
-              //upload_sms(w[reading_number], phone_number);
+              //upload_sms(w[reading_number], SERVER_PHONE_NUMBER);
             }
           }
         }

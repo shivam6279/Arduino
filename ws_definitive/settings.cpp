@@ -9,8 +9,7 @@ String CREATE_ID_URL = "http://www.yobi.tech/create-id?";
 
 String SD_csv_header = "success,tf,id,ts,t1,t2,h,w,r,p,a,s,cv,bv,sg";
 
-String PHONE_NUMBER = "+919220592205";
-String BACKUP_ID = "201"; //Backup id in case there is no sd card
+String SERVER_PHONE_NUMBER = "+919220592205";
 
 bool SERIAL_OUTPUT = true;
 bool SERIAL_RESPONSE = true;

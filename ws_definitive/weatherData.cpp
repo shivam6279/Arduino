@@ -304,6 +304,10 @@ bool Debug() {
                         if(Serial.read() == 's') {
                           if(Serial.read() == 'v') {
                             Serial.println();
+                            if(!sd.exists("datalog.csv")) {
+                              Serial.println("datalog.csv not found");
+                              return false;
+                            }
                             Serial.println("Displaying datalog.csv");
                             if(!datalog.open("datalog.csv", FILE_READ)) {
                               datalog.close();
@@ -340,6 +344,10 @@ bool Debug() {
               if(Serial.read() == 'x') {
                 if(Serial.read() == 't') {
                   Serial.println();
+                  if(!sd.exists("id.txt")) {
+                    Serial.println("id.txt not found");
+                    return false;
+                  }
                   Serial.println("Displaying id.txt");
                   if(!datalog.open("id.txt", FILE_READ)) {
                     datalog.close();

@@ -14,6 +14,7 @@ extern bool WriteSD(weatherData);
 extern long int GetPreviousFailedUploads(long int &n);
 extern bool UploadCSV();
 extern bool WriteOldTime(int, realTime);
+extern bool WriteOldID(int, int);
 extern uint8_t CharToInt(unsigned char&);
 
 #endif

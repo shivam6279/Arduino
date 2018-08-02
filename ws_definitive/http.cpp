@@ -233,6 +233,9 @@ bool GetID(int &id) {
   if(!HttpInit()) 
     return false;
 
+  if(SERIAL_OUTPUT)
+    Serial.println("Getting new id");
+
   GSMModuleWake();
   Serial1.print("AT+QHTTPURL=" + String(CHECK_ID_URL.length()) + ",30\r");
   GSMReadUntil("CONNECT", 20000);
@@ -317,7 +320,7 @@ bool GetID(int &id) {
   ShowSerialData();
 
   GSMModuleWake();
-  SendIdSMS(temp_id, PHONE_NUMBER);
+  SendIdSMS(temp_id, SERVER_PHONE_NUMBER);
 
   id = temp_id;
 
@@ -389,9 +392,9 @@ bool GetTime(realTime &w) {
   return true;
 }
 
-bool SendIdSMS(int id, String phone_number) {
+bool SendIdSMS(int id, String SERVER_PHONE_NUMBER) {
   GSMModuleWake();
-  Serial1.print("AT+CMGS=\"" + phone_number + "\"\n");
+  Serial1.print("AT+CMGS=\"" + SERVER_PHONE_NUMBER + "\"\n");
   delay(100);
   Serial1.print("HK9D7 ");
   Serial1.print("NEWID ");
@@ -406,8 +409,8 @@ bool SendIdSMS(int id, String phone_number) {
   return true;
 }
 
-void UploadSMS(weatherData w, String phone_number) {
-  Serial1.print("AT+CMGS=\"" + phone_number + "\"\n");
+void UploadSMS(weatherData w, String SERVER_PHONE_NUMBER) {
+  Serial1.print("AT+CMGS=\"" + SERVER_PHONE_NUMBER + "\"\n");
   delay(100);
   Serial1.print("HK9D7 ");
   Serial1.print("'id':" + String(w.id) + ",");

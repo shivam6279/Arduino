@@ -32,7 +32,7 @@ extern String CREATE_ID_URL;
 
 extern String SD_csv_header;
 
-extern String PHONE_NUMBER;
+extern String SERVER_PHONE_NUMBER;
 extern String BACKUP_ID; //Backup id in case there is no sd card
 
 #define WIND_RADIUS 63.7 / 1000.0	//63.7mm
@@ -44,7 +44,6 @@ extern String BACKUP_ID; //Backup id in case there is no sd card
 #define DATA_READ_FREQUENCY 1  //Minutes
 #define BUFFER_SIZE (DATA_UPLOAD_FREQUENCY / DATA_READ_FREQUENCY)
 
-#define ENABLE_GPS false        //True to enable GPS   
 #define ENABLE_BMP180 false 	  //True to enable BMP180
 
 extern bool SERIAL_OUTPUT; 		  //True to debug: display values through the serial port

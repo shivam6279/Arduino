@@ -272,7 +272,7 @@ bool SDHexToBin() {
 
 
 bool WriteSD(weatherData w) {
-	bool flag;
+	bool flag = false;
 	char ch, str[100];
 	int i;
 
@@ -280,21 +280,27 @@ bool WriteSD(weatherData w) {
 
   SD_csv_header.toCharArray(str, 100);
 	
-  if(!sd.exists("id.txt")) {
-    if(!sd.begin(SD_CARD_CS_PIN)) return false;
-  }
-  delay(50);
   if(!sd.exists("datalog.csv")) {
     delay(50);
     if(!datalog.open("datalog.csv", FILE_WRITE)) {
-      datalog.close();
-      if(SERIAL_OUTPUT)
-        Serial.println("Could not create CSV file");
-      
-      return false;
+      if(!sd.begin(SD_CARD_CS_PIN)) {
+        datalog.close();
+        if(SERIAL_OUTPUT)
+          Serial.println("Could not create CSV file");
+        
+        return false;
+      }
+      if(!datalog.open("datalog.csv", FILE_WRITE)) {
+        datalog.close();
+        if(SERIAL_OUTPUT)
+          Serial.println("Could not create CSV file");
+        
+        return false;
+      }
     }
     delay(50);
     datalog.println(SD_csv_header);
+    flag = true;
   } else {
     if(!datalog.open("datalog.csv", FILE_WRITE)) {
       datalog.close();
@@ -304,19 +310,21 @@ bool WriteSD(weatherData w) {
       return false;
     }
   }
-	datalog.seekSet(0);
-	
-	i = 0;
-  flag = true;
-	for(i = 0, flag = true, ch = datalog.read(); ch != '\n' && i < 100; i++){
-    if((!isAlpha(ch) && ch != ',') && i >= SD_csv_header.length())
-      break;
-		if((ch != str[i]) || i > SD_csv_header.length()) {
-			flag = false;
-			break;
-		}
-    ch = datalog.read();
-	};
+
+  if(flag == false) {
+    datalog.seekSet(0);
+  	i = 0;
+    flag = true;
+  	for(i = 0, flag = true, ch = datalog.read(); ch != '\n' && i < 100; i++){
+      if((!isAlpha(ch) && ch != ',') && i >= SD_csv_header.length())
+        break;
+  		if((ch != str[i]) || i > SD_csv_header.length()) {
+  			flag = false;
+  			break;
+  		}
+      ch = datalog.read();
+  	};
+  }
   
 	if(flag == false || i >= 100) {
 		datalog.close();
@@ -339,7 +347,11 @@ bool WriteSD(weatherData w) {
   datalog.print(',');
   datalog.print(w.t.flag);
   datalog.print(',');
-  datalog.print(w.id);
+  datalog.write(((w.id / 10000) % 10) + '0');
+  datalog.write(((w.id / 1000) % 10) + '0');
+  datalog.write(((w.id / 100) % 10) + '0');
+  datalog.write(((w.id / 10) % 10) + '0');
+  datalog.write((w.id % 10) + '0');
   datalog.print(',');
   datalog.write((w.t.day / 10) % 10 + '0'); 
   datalog.write((w.t.day % 10) + '0');
@@ -401,7 +413,8 @@ bool UploadCSV() {
   SdFile datalog;
 
   if(!sd.exists("id.txt")) {
-    if(!sd.begin(SD_CARD_CS_PIN)) return false;
+    if(!sd.begin(SD_CARD_CS_PIN)) 
+      return false;
   }
   p1 = GetPreviousFailedUploads(n);
   Serial.println(n);
@@ -450,12 +463,14 @@ bool UploadCSV() {
     GSMReadUntil("\n", 50); ShowSerialData();
     while(Serial1.availableForWrite() < 50);
     GSMModuleWake();
+
+    t_response = SERIAL_RESPONSE;
+    SERIAL_RESPONSE = 0;
+    
     SendATCommand("AT+QISEND", ">", 500);
     GSMReadUntil("\n", 50); ShowSerialData();
     
     //--------------------------------------------POST Message---------------------------------------------------
-    t_response = SERIAL_RESPONSE;
-    SERIAL_RESPONSE = 0;
     
     Serial1.print("POST /bulk-upload HTTP/1.1\r\n"); //enigmatic-caverns-27645.herokuapp.com
     Serial1.print("Host: www.yobi.tech\r\n");                                                                     GSMReadUntil("\n", 1000);
@@ -480,7 +495,7 @@ bool UploadCSV() {
     GSMReadUntil("OK", 10000);
     ShowSerialData();
 
-    SendATCommand("AT+QISEND", ">", 500);
+    SendATCommand("AT+QISEND", ">", 1000);
     ShowSerialData();
     
     //Send CSV file data
@@ -497,7 +512,7 @@ bool UploadCSV() {
       lines++;
       line_count++;
 
-      if(count >= 1200) {
+      if(count >= 1200) { 
         count = 0;
         ShowSerialData();
         Serial1.write(0x1A);
@@ -508,9 +523,6 @@ bool UploadCSV() {
         
         SendATCommand("AT+QISEND", ">", 1000);
         ShowSerialData();
-
-        if(SERIAL_OUTPUT) 
-          Serial.println(n - lines);
       }
       if(lines == n) 
         break;
@@ -561,8 +573,8 @@ bool UploadCSV() {
 }
 
 long int GetPreviousFailedUploads(long int &n) {
-  long int timeout;
-  char ch;
+  unsigned long timeout;
+  char ch1, ch2;
   long int lines = 0, p;
   int i;
   n = 0;
@@ -571,41 +583,46 @@ long int GetPreviousFailedUploads(long int &n) {
 	
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) {
-      Serial.println('A');
       return -1;
     }
   }
   if(!sd.exists("datalog.csv")) {
-    Serial.println('B');
     return -1;
   }
   delay(200);
   if(!datalog.open("datalog.csv", FILE_READ)) {
     datalog.close();
-    Serial.println('C');
     return -1;
   }
 	delay(200);
   datalog.seekEnd();
   timeout = millis();
   do {
-    datalog.seekCur(-2);
-    while(datalog.peek()!= '\n' && datalog.curPosition() != 0 && (millis() - timeout) < 200000)
+    datalog.seekCur(-6);
+    while(datalog.peek()!= '\n' && datalog.curPosition() != 0 && (millis() - timeout) < 200000) {
       datalog.seekCur(-1);
+    }
     if(datalog.curPosition() == 0) 
       break;
     datalog.seekCur(1);
-    ch = datalog.peek();
-    if(ch == '0') 
+    ch1 = datalog.read();
+    datalog.seekCur(1);
+    ch2 = datalog.read();
+    if(ch1 == '0' && ch2 == '1') 
       lines++;
     if((millis() - timeout) > 200000) {
       datalog.close();
       return -1;
     }
-  }while(ch == '0');
-  while(datalog.read() != '\n');
+  }while(ch1 == '0' && ch2 == '1');
+  for(timeout = millis(); datalog.read() != '\n' && datalog.available() && (millis() - timeout) < 1000;);
+  if((millis() - timeout) >= 1000) {
+    datalog.close();
+    return -1;
+  }
   p = datalog.curPosition();
   datalog.close();
+  
   n = lines;
   return p;
 }
@@ -633,9 +650,6 @@ bool WriteOldTime(int n, realTime t) {
     }
     return false;
   }
-  GetPreviousFailedUploads(temp_n);
-  if(temp_n < n) 
-    return false;
 
   delay(500);
   datalog.open("datalog.csv", FILE_WRITE);
@@ -745,6 +759,99 @@ bool WriteOldTime(int n, realTime t) {
     datalog.seekCur(1);
     datalog.write((temp.seconds / 10) % 10 + '0'); 
     datalog.write((temp.seconds % 10) + '0');
+
+    for(timeout = 0; datalog.read() != '\n' && datalog.available() && timeout < 2000; timeout++);
+      delay(1);
+    if(timeout > 2000) {
+      datalog.close();
+      return false;
+    }
+  }
+  datalog.close();
+  return true;
+}
+
+bool WriteOldID(int n, int id) {
+  unsigned long timeout;
+  long int temp_n;
+  int lines, i;
+  char str[20], ch;
+  realTime temp;
+
+  SdFile datalog;
+
+  if(!sd.exists("id.txt")) {
+    if(!sd.begin(SD_CARD_CS_PIN)) {
+      if(SERIAL_OUTPUT) {
+        Serial.println("No SD Card detected");
+      }
+      return false;
+    }
+  }
+  if(!sd.exists("datalog.csv")) {
+    if(SERIAL_OUTPUT) {
+      Serial.println("No CSV file detected");
+    }
+    return false;
+  }
+  GetPreviousFailedUploads(temp_n);
+  if(temp_n < n) 
+    return false;
+
+  delay(500);
+  datalog.open("datalog.csv", FILE_WRITE);
+  datalog.seekEnd();
+  lines = 0;
+  do {
+    datalog.seekCur(-2);
+    for(timeout = millis(); datalog.peek()!= '\n' && datalog.curPosition() != 0 && (millis() - timeout) < 4000;) {
+      datalog.seekCur(-1);
+    }
+    if(datalog.curPosition() == 0) 
+      break;
+    datalog.seekCur(1);
+    ch = datalog.peek();
+    if(ch == '0') 
+      lines++;
+    if((millis() - timeout) > 4000) {
+      datalog.close();
+      return false;
+    }
+  }while(ch == '0' && lines < n);
+  if(lines != n) {
+    datalog.close();
+    return false;
+  }
+
+  for(; lines > 0; lines--) {
+    temp.seconds = 0;
+    temp.minutes = 0;
+    temp.hours = 0;
+    temp.day = 0;
+    temp.month = 0;
+    temp.year = 0;
+    temp.flag = 1;
+
+    //Read past success flag
+    for(timeout = millis(); datalog.read() != ',' && (millis() - timeout) < 1000;);
+
+    if((millis() - timeout) > 1000) {
+      datalog.close();
+      return false;
+    }
+    //Read past time flag
+    for(timeout = millis(); datalog.read() != ',' && (millis() - timeout) < 1000;);
+
+    if((millis() - timeout) > 1000) {
+      datalog.close();
+      return false;
+    }
+    
+    datalog.write(((id / 10000) % 10) + '0');
+    datalog.write(((id / 1000) % 10) + '0');
+    datalog.write(((id / 100) % 10) + '0');
+    datalog.write(((id / 10) % 10) + '0');
+    datalog.write((id % 10) + '0');
 
     for(timeout = 0; datalog.read() != '\n' && datalog.available() && timeout < 2000; timeout++);
       delay(1);
