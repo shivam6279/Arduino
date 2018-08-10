@@ -124,6 +124,7 @@ void setup() {
   #endif
 
   if(SERIAL_OUTPUT) {
+    Serial.println("RX Buffer Size: " + String(SERIAL_RX_BUFFER_SIZE));
     Serial.println("Sensor id: " + String(ws_id));
     Serial.println("Data upload frequency: " + (String)DATA_UPLOAD_FREQUENCY + " minutes");
     Serial.println("Data read frequency: " + (String)DATA_READ_FREQUENCY + " minutes");
@@ -258,4 +259,3 @@ void InitInterrupt() {
   TIMSK2 |= (1 << OCIE2A);
   interrupts();
 }
-

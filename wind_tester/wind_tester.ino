@@ -5,6 +5,7 @@
 //-------------------------------------------------
 const float radius = 63.7 / 1000.0;
 const float scaler = 2.5;
+#define INTERVAL 30 //multiple of 4 seconds
 //-------------------------------------------------
 
 //Wind speed
@@ -18,6 +19,10 @@ volatile uint32_t timer_counter = 0;
 volatile uint32_t wind_speed_counter1 = 0, wind_speed_counter2 = 0;
 
 double wind_speed1 = 0.0, wind_speed2 = 0.0;
+
+bool tflag = false;
+
+int avg_counter;
 
 volatile int timer = 0;
 
@@ -49,15 +54,23 @@ void setup() {
 }
  
 void loop() {
-  if(timer) {
-    timer = 0;
-    wind_speed2 = wind_speed_counter2 * radius * 6.2831 / 4.0 * scaler;
+  float temp_ws2;
+  if(tflag) {
+    tflag = false;
+    temp_ws2 = wind_speed_counter2 * radius * 6.2831 / 4.0 * scaler;
     wind_speed_counter2 = 0;
+    
+    wind_speed2 = (wind_speed2 * float(avg_counter) + temp_ws2) / (float(avg_counter) + 1.0);
+    avg_counter++;
+  }
+  if(timer == INTERVAL) {
+    timer = 0;
+    avg_counter = 0;
+    lcd.setCursor(7, 1);
+    lcd.print(wind_speed2, 4);
   }
   lcd.setCursor(7, 0);
   lcd.print(wind_speed1, 4);
-  lcd.setCursor(7, 1);
-  lcd.print(wind_speed2, 4);
 }
 
 ISR(TIMER1_COMPA_vect){ //Interrupt gets called every 4 seconds 
@@ -66,6 +79,7 @@ ISR(TIMER1_COMPA_vect){ //Interrupt gets called every 4 seconds
 
 ISR(TIMER2_COMPA_vect) { 
   timer_counter++;
+  tflag = true;
   wind_temp = digitalRead(wind_pin);
   if(wind_temp == 0 && wind_flag == true) {
     if(timer_counter) wind_speed1 = 8000.0 / float(timer_counter) * radius * 6.2831 * scaler;

@@ -259,7 +259,7 @@ int GetSignalStrength() {
   char ch, temp[3];
   int i = 0, tens, ret;
   GSMModuleWake();
-  Serial1.print("AT+CSQ\r");
+  Serial1.print(F("AT+CSQ\r"));
   delay(200);
   do {
     ch = Serial1.read();
@@ -286,21 +286,21 @@ void GSMModuleRestart() {
   bool flag = 0;
 
   if(SERIAL_OUTPUT) {
-    Serial.println("Restarting GSM Module");
+    Serial.println(F("Restarting GSM Module"));
   }
 
   GSMModuleWake();
 
   if(IsGSMModuleOn()) {
     if(SERIAL_OUTPUT) {
-      Serial.println("GSM Module on, turning off");
+      Serial.println(F("GSM Module on, turning off"));
     }
     SendATCommand("AT+QPOWD=1", "POWER DOWN", 10000);
     GSMReadUntil("\n", 500);
     ShowSerialData();
   } 
   if(SERIAL_OUTPUT) {
-    Serial.println("Starting the GSM Module");
+    Serial.println(F("Starting the GSM Module"));
   }
   digitalWrite(GSM_PWRKEY_PIN, HIGH);
   delay(2000);
@@ -348,7 +348,7 @@ void Talk() {
   SERIAL_RESPONSE = 1;
   if(!IsGSMModuleOn()) 
     GSMModuleRestart();
-  Serial.println("Talk");
+  Serial.println(F("Talk"));
   while(1){
     if(Serial1.available()){ Serial.write(Serial1.read()); }
     if(Serial.available()) { 

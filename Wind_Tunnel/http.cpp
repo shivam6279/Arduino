@@ -3,6 +3,7 @@
 #include "weatherData.h"
 #include "GSM.h"
 #include "settings.h"
+#include "SD.h"
 
 bool HttpInit() {
   int timeout;
@@ -219,6 +220,121 @@ bool ReadTime(realTime &wt){
   return true;
 }
 
+bool GetID(int &id) {
+  SdFile datalog;
+  float lat, lon;
+
+  char str[10];
+  int i, str_len;
+  char ch;
+
+  int temp_id;
+  
+  if(!HttpInit()) 
+    return false;
+
+  if(SERIAL_OUTPUT)
+    Serial.println("Getting new id");
+
+  GSMModuleWake();
+  Serial1.print("AT+QHTTPURL=" + String(CHECK_ID_URL.length()) + ",30\r");
+  GSMReadUntil("CONNECT", 20000);
+  GSMReadUntil("\n", 100);
+  Serial1.print(CHECK_ID_URL + '\r');
+  GSMReadUntil("OK", 5000);
+  GSMReadUntil("\n", 100);
+
+  GSMModuleWake();
+  if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
+    GSMReadUntil("\n", 100);
+    ShowSerialData();
+    return false;
+  }
+  GSMReadUntil("\n", 100);
+  ShowSerialData();
+  
+  GSMModuleWake();
+  if(SendATCommand("AT+QHTTPREAD=30", "CONNECT", 1000) == -1) {
+    GSMReadUntil("OK", 1000); 
+    GSMReadUntil("\n", 50); 
+    return false;
+  }
+  delay(100);
+  ch = Serial1.peek();
+  while(!isDigit(ch)) {
+    ch = Serial1.read();
+  }
+
+  for(i = 0; isDigit(ch);) {
+    str[i++] = ch;
+    ch = Serial1.read();
+  }
+  str[i] = '\0';
+  temp_id = (String(str)).toInt();
+
+  GSMReadUntil("OK", 1000); 
+  GSMReadUntil("\n", 50); 
+
+  if(SERIAL_OUTPUT)
+    Serial.println("ID: " + String(temp_id));
+
+  if(!GetGSMLoc(lat, lon))
+    return false;
+
+  if(SERIAL_OUTPUT)
+    Serial.println("Location: " + String(lat) + ", " + String(lon));
+
+  str_len = CREATE_ID_URL.length();
+  str_len += String(id).length() + 3;
+  str_len += String(DATA_UPLOAD_FREQUENCY).length() + 6;
+  str_len += String(lat).length() + 4;
+  str_len += String(lon).length() + 4;
+
+  GSMModuleWake();
+  Serial1.print("AT+QHTTPURL=" + String(str_len) + ",30\r");
+  GSMReadUntil("CONNECT", 20000);
+  GSMReadUntil("\n", 100);
+  Serial1.print(CREATE_ID_URL);
+  Serial1.print("id=" + String(temp_id));  delay(1);
+  Serial1.print("&freq=" + String(DATA_UPLOAD_FREQUENCY));  delay(1);
+  Serial1.print("&lt=" + String(lat));  delay(1);
+  Serial1.print("&ln=" + String(lon) + "\r"); delay(1);
+  GSMReadUntil("OK", 5000);
+  GSMReadUntil("\n", 100);
+
+  if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
+    GSMReadUntil("\n", 100);
+    ShowSerialData();
+    return false;
+  }
+  GSMReadUntil("\n", 100);
+  ShowSerialData();
+  if(SendATCommand("AT+QHTTPREAD=30", "CONNECT", 1000) == -1) {
+    GSMReadUntil("OK", 1000); 
+    GSMReadUntil("\n", 50); 
+    return false;
+  }
+  delay(50);
+  GSMReadUntil("OK", 1000); 
+  GSMReadUntil("\n", 50); 
+  ShowSerialData();
+
+  GSMModuleWake();
+  SendIdSMS(temp_id, SERVER_PHONE_NUMBER);
+
+  id = temp_id;
+
+  sd.begin(SD_CARD_CS_PIN);
+  if(sd.exists("id.txt"))
+    sd.remove("id.txt");
+  
+  datalog.open("id.txt",  O_WRITE | O_CREAT);
+  datalog.print(id);
+  datalog.close();
+
+  return true;
+}
+
 bool GetTime(realTime &w) {
   uint8_t i, c;
   realTime t;
@@ -240,7 +356,7 @@ bool GetTime(realTime &w) {
 
   delay(200);
   ShowSerialData();
-  Serial1.println(F("AT+QHTTPREAD=30\r"));
+  Serial1.println("AT+QHTTPREAD=30\r");
   delay(800);
   for(i = 0, c = 0; c < 2 && i < 200; i++) {
     if(Serial1.read() == '\n')
@@ -274,4 +390,42 @@ bool GetTime(realTime &w) {
   t.flag = 1;
   w = t;
   return true;
+}
+
+bool SendIdSMS(int id, String SERVER_PHONE_NUMBER) {
+  GSMModuleWake();
+  Serial1.print("AT+CMGS=\"" + SERVER_PHONE_NUMBER + "\"\n");
+  delay(100);
+  Serial1.print("HK9D7 ");
+  Serial1.print("NEWID ");
+  Serial1.print(id);
+  delay(100);
+  Serial1.write(26);
+  Serial1.write('\n');
+  delay(100);
+  Serial1.write('\n');
+  ShowSerialData();
+
+  return true;
+}
+
+void UploadSMS(weatherData w, String SERVER_PHONE_NUMBER) {
+  Serial1.print("AT+CMGS=\"" + SERVER_PHONE_NUMBER + "\"\n");
+  delay(100);
+  Serial1.print("HK9D7 ");
+  Serial1.print("'id':" + String(w.id) + ",");
+  Serial1.print("'t1':" + String(w.temp1) + ",");
+  Serial1.print("'t2':" + String(w.temp2) + ",");
+  Serial1.print("'h':" + String(w.hum) + ",");
+  Serial1.print("'w':" + String(w.wind_speed) + ",");
+  Serial1.print("'r':" + String(w.rain) + ",");
+  Serial1.print("'p':" + String(w.pressure) + ",");
+  Serial1.print("'s':" + String(w.amps) + ",");
+  Serial1.print("'sg':" + String(w.signal_strength));
+  delay(100);
+  Serial1.write(26);
+  Serial1.write('\n');
+  delay(100);
+  Serial1.write('\n');
+  ShowSerialData();
 }

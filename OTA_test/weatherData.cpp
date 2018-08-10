@@ -1,4 +1,6 @@
 #include "weatherData.h"
+#include "SD.h"
+#include "GSM.h"
 
 void weatherData::Reset(int ws_id){
   id = ws_id;
@@ -42,20 +44,20 @@ void weatherData::CheckIsNan() {
 }
 
 void weatherData::PrintData() {
-  Serial.println("Temperature 1(C): " + String(temp1));
-  Serial.println("Temperature 2(C): " + String(temp2));
-  Serial.println("Humidity(%RH): " + String(hum));
-  Serial.println("Wind speed (m/s): " + String(wind_speed));
-  Serial.println("Standard deviation: " + String(wind_stdDiv));
-  Serial.println("Rain: " + String(rain));
-  Serial.println("Current(Amps): " + String(amps));
-  Serial.println("Panel Voltage(V): " + String(panel_voltage));
-  Serial.println("Battery Voltage(V): " + String(battery_voltage));
+  Serial.print(F("Temperature 1(C): ")); Serial.println(temp1);
+  Serial.print(F("Temperature 2(C): ")); Serial.println(temp2);
+  Serial.print(F("Humidity(%RH): ")); Serial.println(hum);
+  Serial.print(F("Wind speed (m/s): ")); Serial.println(wind_speed);
+  Serial.print(F("Standard deviation: ")); Serial.println(wind_stdDiv);
+  Serial.print(F("Rain: ")); Serial.println(rain);
+  Serial.print(F("Current(Amps): ")); Serial.println(amps);
+  Serial.print(F("Panel Voltage(V): ")); Serial.println(panel_voltage);
+  Serial.print(F("Battery Voltage(V): ")); Serial.println(battery_voltage);
   #if enable_BMP180
-    Serial.println("Pressure: " + String(pressure) + "atm"); 
+    Serial.print(F("Pressure: ")); Serial.println(pressure); 
   #endif
-  Serial.println("Solar radiation(V): " + String(float(solar_radiation) * 5.0 / 1023.0)); 
-  Serial.println("Signal Strength: " + String(signal_strength)); 
+  Serial.print(F("Solar radiation(V): ")); Serial.println(float(solar_radiation) * 5.0 / 1023.0); 
+  Serial.print(F("Signal Strength: ")); Serial.println(signal_strength); 
 }
 
 void realTime::PrintTime() {
@@ -260,4 +262,114 @@ double StdDiv(double a[], int n) {
   }
   r = sqrt(r / double(n));
   return r;
+}
+
+bool Debug() {
+  char ch;
+  SdFile datalog;
+
+  while(Serial.available()) {
+    ch = Serial.peek();
+    //Talk
+    if(ch == 'T') {
+      if(Serial.available() < 4)
+        return false;
+      else {
+        Serial.read();
+        if(Serial.read() == 'a') {
+          if(Serial.read() == 'l') {
+            if(Serial.read() == 'k') {
+              Talk();
+              return true;
+            }
+          }
+        }
+      }
+    }
+
+    //Datalog.txt
+    else if(ch == 'd') {
+      if(Serial.available() < 11)
+        return false;
+      else {
+        Serial.read();
+        if(Serial.read() == 'a') {
+          if(Serial.read() == 't') {
+            if(Serial.read() == 'a') {
+              if(Serial.read() == 'l') {
+                if(Serial.read() == 'o') {
+                  if(Serial.read() == 'g') {
+                    if(Serial.read() == '.') {
+                      if(Serial.read() == 'c') {
+                        if(Serial.read() == 's') {
+                          if(Serial.read() == 'v') {
+                            Serial.println();
+                            if(!sd.exists("datalog.csv")) {
+                              Serial.println("datalog.csv not found");
+                              return false;
+                            }
+                            Serial.println("Displaying datalog.csv");
+                            if(!datalog.open("datalog.csv", FILE_READ)) {
+                              datalog.close();
+                              return false;
+                            }
+                            while(datalog.available()) {
+                              Serial.write(datalog.read());
+                            }
+                            datalog.close();
+                            Serial.println();
+                            return true;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    //id.txt
+    else if(ch == 'i') {
+      if(Serial.available() < 6)
+        return false;
+      else {
+        Serial.read();
+        if(Serial.read() == 'd') {
+          if(Serial.read() == '.') {
+            if(Serial.read() == 't') {
+              if(Serial.read() == 'x') {
+                if(Serial.read() == 't') {
+                  Serial.println();
+                  if(!sd.exists("id.txt")) {
+                    Serial.println("id.txt not found");
+                    return false;
+                  }
+                  Serial.println("Displaying id.txt");
+                  if(!datalog.open("id.txt", FILE_READ)) {
+                    datalog.close();
+                    return false;
+                  }
+                  while(datalog.available()) {
+                    Serial.write(datalog.read());
+                  }
+                  datalog.close();
+                  Serial.println();
+                  return true;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    else {
+      Serial.read();
+    }
+  }
+  
+  return false;
 }

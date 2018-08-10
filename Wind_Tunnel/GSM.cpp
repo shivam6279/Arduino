@@ -76,7 +76,7 @@ bool InitGSM() {
   bool flag = true;
 
   #ifdef GSM_PWRKEY_PIN
-    GSMModuleRestart();
+    if(!IsGSMMoudleOn()) GSMModuleRestart();
   #endif
   
   GSMModuleWake();

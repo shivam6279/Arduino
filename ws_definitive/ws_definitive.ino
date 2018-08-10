@@ -77,8 +77,10 @@ void setup() {
   pinMode(WIND_PIN , INPUT);
   pinMode(GSM_DTR_PIN, OUTPUT);
   digitalWrite(GSM_DTR_PIN, LOW);
-  pinMode(GSM_PWRKEY_PIN, OUTPUT);
-  digitalWrite(GSM_PWRKEY_PIN, LOW);
+  #ifdef GSM_PWRKEY_PIN
+    pinMode(GSM_PWRKEY_PIN, OUTPUT);
+    digitalWrite(GSM_PWRKEY_PIN, LOW);
+  #endif
 
   Serial.begin(115200); 
   Serial1.begin(115200);
@@ -93,7 +95,7 @@ void setup() {
   delay(100);
   if(!sd.exists("id.txt")){
     if(SERIAL_OUTPUT) {
-      Serial.println("\nNo id file found on sd card");
+      Serial.println(F("\nNo id file found on sd card"));
     }
     ws_id = 0;//BACKUP_ID.toInt();
   } else {
@@ -121,11 +123,11 @@ void setup() {
   #endif
 
   if(SERIAL_OUTPUT) {
-    Serial.println("Sensor id: " + String(ws_id));
-    Serial.println("Data upload frequency: " + (String)DATA_UPLOAD_FREQUENCY + " minutes");
-    Serial.println("Data read frequency: " + (String)DATA_READ_FREQUENCY + " minutes");
-    if(HT_MODE == 0) Serial.println("Using SHT21"); else if(HT_MODE == 1) Serial.println("Using DHT22"); else Serial.println("No HT sensor");
-    if(ENABLE_BMP180) Serial.println("BMP180 enabled"); else Serial.println("BMP180 disabled");
+    Serial.print(F("Sensor id: ")); Serial.println(ws_id);
+    Serial.print(F("Data upload frequency: ")); Serial.print(DATA_UPLOAD_FREQUENCY); Serial.println(F(" minutes"));
+    Serial.println(F("Data read frequency: ")); Serial.print(DATA_READ_FREQUENCY); Serial.println(F(" minutes"));
+    if(HT_MODE == 0) Serial.println(F("Using SHT21")); else if(HT_MODE == 1) Serial.println(F("Using DHT22")); else Serial.println(F("No HT sensor"));
+    if(ENABLE_BMP180) Serial.println(F("BMP180 enabled")); else Serial.println(F("BMP180 disabled"));
     Serial.println();
   }
 
@@ -171,7 +173,7 @@ void loop() {
   }
   
   if(SERIAL_OUTPUT) {
-    Serial.println("\nSeconds till next upload:");
+    Serial.println(F("\nSeconds till next upload:"));
   }
   
   while(1) {
@@ -186,7 +188,7 @@ void loop() {
   
       if(SERIAL_OUTPUT) {
         if(timer1_counter) Serial.println(((DATA_UPLOAD_FREQUENCY * 15) - timer1_counter + 1) * 4);
-        else Serial.println("4");
+        else Serial.println(F("4"));
       }
 
       ReadData(w[reading_number], avg_counter);
@@ -223,11 +225,11 @@ void loop() {
         w[reading_number].flag = 0;
 
         if(SERIAL_OUTPUT)
-          Serial.println("Writing to the SD card");
+          Serial.println(F("Writing to the SD card"));
           
         if(!WriteSD(w[reading_number])) {
           if(SERIAL_OUTPUT)
-            Serial.println("Write failed");
+            Serial.println(F("Write failed"));
           temp_sd = false;
           break;
         }
@@ -279,7 +281,7 @@ void loop() {
             number_of_fail_uploads = 0;
             
             if(SERIAL_OUTPUT) {
-              Serial.println("\nUpload successful");
+              Serial.println(F("\nUpload successful"));
             }
           } else {
             number_of_fail_uploads++;
@@ -289,7 +291,7 @@ void loop() {
             }
 
             if(SERIAL_OUTPUT) {
-              Serial.println("\nUpload failed\n");
+              Serial.println(F("\nUpload failed\n"));
             }
 
             delay(100);
@@ -301,29 +303,29 @@ void loop() {
 
           if(current_time.flag == false && startup == true) {
             if(SERIAL_OUTPUT) {
-              Serial.println("\nReading time from server");
+              Serial.println(F("\nReading time from server"));
             }
 
             temp_time = current_time;
             if(GetTime(current_time)) {
               if(SERIAL_OUTPUT) {
-                Serial.println("\nCurrent Time:");
+                Serial.println(F("\nCurrent Time:"));
               }
               current_time.PrintTime();
               SubtractTime(current_time, temp_time, startup_time);
               if(SERIAL_OUTPUT) {
-                Serial.println("\nStartup Time:");
+                Serial.println(F("\nStartup Time:"));
               }
               startup_time.PrintTime();
               if(!WriteOldTime(initial_sd_card_uploads, startup_time)) {
                 temp_sd = false;
                 if(SERIAL_OUTPUT) {
-                  Serial.println("SD Card failure");
+                  Serial.println(F("SD Card failure"));
                 }
               }
             } else {
               if(SERIAL_OUTPUT) {
-                Serial.println("Server request failed");
+                Serial.println(F("Server request failed"));
               }
               number_of_fail_uploads++; 
             }
@@ -332,7 +334,7 @@ void loop() {
           if(current_time.flag && temp_sd) {
             delay(1000);
             if(SERIAL_OUTPUT) {
-              Serial.println("\nUploading data");
+              Serial.println(F("\nUploading data"));
             }
             if(UploadCSV()) {  //Upload successful          
               startup = false;
@@ -345,13 +347,13 @@ void loop() {
               number_of_fail_uploads = 0;
               
               if(SERIAL_OUTPUT) {
-                Serial.println("\nUpload successful");
+                Serial.println(F("\nUpload successful"));
               }
             } else {
               number_of_fail_uploads++;
   
               if(SERIAL_OUTPUT) {
-                Serial.println("\nUpload failed\n");
+                Serial.println(F("\nUpload failed\n"));
               }
               
               //upload_sms(w[reading_number], SERVER_PHONE_NUMBER);
@@ -370,7 +372,7 @@ void loop() {
         digitalWrite(UPLOAD_LED, LOW);
         if(SERIAL_OUTPUT) {
           if(current_time.flag) current_time.PrintTime();
-          Serial.println("Seconds till next upload:");
+          Serial.println(F("Seconds till next upload:"));
         }
       }
     }

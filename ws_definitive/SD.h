@@ -5,7 +5,6 @@
 #include "weatherData.h"
 
 extern SdFat sd;
-//extern SdFile datalog, data_temp;
 
 extern bool CheckOTA();
 extern bool DownloadHex();
