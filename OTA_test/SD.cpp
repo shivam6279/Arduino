@@ -293,9 +293,9 @@ bool WriteSD(weatherData w) {
 
   SD_csv_header.toCharArray(str, 100);
   
-  if(!sd.exists("datalog.csv")) {
+  if(!sd.exists("otalog.csv")) {
     delay(50);
-    if(!datalog.open("datalog.csv", FILE_WRITE)) {
+    if(!datalog.open("otalog.csv", FILE_WRITE)) {
       if(!sd.begin(SD_CARD_CS_PIN)) {
         datalog.close();
         if(SERIAL_OUTPUT)
@@ -303,7 +303,7 @@ bool WriteSD(weatherData w) {
         
         return false;
       }
-      if(!datalog.open("datalog.csv", FILE_WRITE)) {
+      if(!datalog.open("otalog.csv", FILE_WRITE)) {
         datalog.close();
         if(SERIAL_OUTPUT)
           Serial.println(F("Could not create CSV file"));
@@ -315,7 +315,7 @@ bool WriteSD(weatherData w) {
     datalog.println(SD_csv_header);
     flag = true;
   } else {
-    if(!datalog.open("datalog.csv", FILE_WRITE)) {
+    if(!datalog.open("otalog.csv", FILE_WRITE)) {
       datalog.close();
       if(SERIAL_OUTPUT)
         Serial.println(F("Could not open CSV file"));

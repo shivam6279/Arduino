@@ -332,6 +332,48 @@ bool Debug() {
       }
     }
 
+    else if(ch == 'o') {
+      if(Serial.available() < 11)
+        return false;
+      else {
+        Serial.read();
+        if(Serial.read() == 't') {
+          if(Serial.read() == 'a') {
+            if(Serial.read() == 'l') {
+              if(Serial.read() == 'o') {
+                if(Serial.read() == 'g') {
+                  if(Serial.read() == '.') {
+                    if(Serial.read() == 'c') {
+                      if(Serial.read() == 's') {
+                        if(Serial.read() == 'v') {
+                          Serial.println();
+                          if(!sd.exists("otalog.csv")) {
+                            Serial.println("otalog.csv not found");
+                            return false;
+                          }
+                          Serial.println("Displaying otalog.csv");
+                          if(!datalog.open("otalog.csv", FILE_READ)) {
+                            datalog.close();
+                            return false;
+                          }
+                          while(datalog.available()) {
+                            Serial.write(datalog.read());
+                          }
+                          datalog.close();
+                          Serial.println();
+                          return true;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     //id.txt
     else if(ch == 'i') {
       if(Serial.available() < 6)

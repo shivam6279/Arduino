@@ -123,97 +123,96 @@ bool SendWeatherURL(weatherData w) {
 bool ReadTime(realTime &wt){
   int i, t;
   char ch, temp_time[8];
-  do {
-    do {
-      ch = Serial1.read();
-      if(SERIAL_RESPONSE) {
-        Serial.print(ch);
-  	  }
-  	}while(ch != 'e');
-  	ch = Serial1.read();
-  	if(SERIAL_RESPONSE) {
-      Serial.print(ch);
-  	}
-  }while(ch != '(');
+  if(!GSMReadUntil(".datetime(", 1000))
+    return false;
+    
+  delay(200);
   //Year
-  for(i = 0, ch = 0;; i++) {
+  for(i = 0;;) {
     ch = Serial1.read();
     if(SERIAL_RESPONSE) {
-      Serial.print(ch);
+      Serial.write(ch);
     }
-    if(ch != ',') 
-      temp_time[i] = ch;
-    else break;
+    if(isDigit(ch)) 
+      temp_time[i++] = ch;
+    else if(ch == ',')
+      break;
   }
-  for(i = i - 1, t = 1, wt.year = 0; i >= 0; i--, t *= 10){
-  	wt.year += (temp_time[i] - '0') * t;
-  }
+  temp_time[i] = '\0';
+  wt.year = String(temp_time).toInt();
+  
   //Month
-  for(i = 0, ch = Serial1.read();; i++) {
+  for(i = 0;;) {
     ch = Serial1.read();
     if(SERIAL_RESPONSE) {
       Serial.print(ch);
     }
-    if(ch != ',') 
-      temp_time[i] = ch;
-    else break;
+    if(isDigit(ch)) 
+      temp_time[i++] = ch;
+    else if(ch == ',')
+      break;
   }
-  for(i = i - 1, t = 1, wt.month = 0; i >= 0; i--, t *= 10){
-  	wt.month += (temp_time[i] - '0') * t;
-  }
+  temp_time[i] = '\0';
+  wt.month = String(temp_time).toInt();
+  
   //Day
-  for(i = 0, ch = Serial1.read();; i++) {
+  for(i = 0;;) {
     ch = Serial1.read();
     if(SERIAL_RESPONSE) {
       Serial.print(ch);
     }
-    if(ch != ',') 
-      temp_time[i] = ch;
-    else break;
+    if(isDigit(ch)) 
+      temp_time[i++] = ch;
+    else if(ch == ',')
+      break;
   }
-  for(i = i - 1, t = 1, wt.day = 0; i >= 0; i--, t *= 10){
-  	wt.day += (temp_time[i] - '0') * t;
-  }
+  temp_time[i] = '\0';
+  wt.day = String(temp_time).toInt();
+  
   //Hour
-  for(i = 0, ch = Serial1.read();; i++) {
+  for(i = 0;;) {
     ch = Serial1.read();
     if(SERIAL_RESPONSE) {
       Serial.print(ch);
     }
-    if(ch != ',') 
-      temp_time[i] = ch;
-    else break;
+    if(isDigit(ch)) 
+      temp_time[i++] = ch;
+    else if(ch == ',')
+      break;
   }
-  for(i = i - 1, t = 1, wt.hours = 0; i >= 0; i--, t *= 10){
-  	wt.hours += (temp_time[i] - '0') * t;
-  }
+  temp_time[i] = '\0';
+  wt.hours = String(temp_time).toInt();
+  
   //Minutes
-  for(i = 0, ch = Serial1.read();; i++) {
+  for(i = 0;;) {
     ch = Serial1.read();
     if(SERIAL_RESPONSE) {
       Serial.print(ch);
     }
-    if(ch != ',') 
-      temp_time[i] = ch;
-    else break;
+    if(isDigit(ch)) 
+      temp_time[i++] = ch;
+    else if(ch == ',')
+      break;
   }
-  for(i = i - 1, t = 1, wt.minutes = 0; i >= 0; i--, t *= 10){
-  	wt.minutes += (temp_time[i] - '0') * t;
-  }
+  temp_time[i] = '\0';
+  wt.minutes = String(temp_time).toInt();
+  
   //Seconds
-  for(i = 0, ch = Serial1.read();; i++) {
+  for(i = 0;;) {
     ch = Serial1.read();
     if(SERIAL_RESPONSE) {
       Serial.print(ch);
     }
-    if(ch != ',') 
-      temp_time[i] = ch;
-    else break;
+    if(isDigit(ch)) 
+      temp_time[i++] = ch;
+    else if(ch == ',')
+      break;
   }
-  for(i = i - 1, t = 1, wt.seconds = 0; i >= 0; i--, t *= 10){
-  	wt.seconds += (temp_time[i] - '0') * t;
-  }
+  temp_time[i] = '\0';
+  wt.seconds = String(temp_time).toInt();
+
   ShowSerialData();
+  Serial.println();
 
   wt.flag = 1;
   return true;

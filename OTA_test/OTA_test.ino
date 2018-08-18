@@ -53,6 +53,7 @@ volatile bool four_sec = false, read_flag = false, upload_flag = false;
 
 //Weather data
 int ws_id;
+weatherData w;
 
 //Times
 realTime current_time;
@@ -147,8 +148,7 @@ void setup() {
   
   //Interrupt initialization  
   InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz
-
-  weatherData w;
+  
   w.Reset(ws_id);
   w.temp1 = 100;
   w.t.flag = 0;
@@ -157,13 +157,17 @@ void setup() {
   delay(500);
   GSMModuleWake();
   SendWeatherURL(w);  
-  GSMModuleWake();
-  SendATCommand("AT+QHTTPREAD=30", "OK", 1000);
-  delay(100);
   ShowSerialData();
+  GSMModuleWake();  
+  SendATCommand("AT+QHTTPREAD=30", "CONNECT", 1000);
+  ReadTime(current_time);
+  current_time.PrintTime();
 }
  
 void loop() {
+  Debug();
+  WriteSD(w);
+  w.temp2++;
   CheckOTA();  
 }
 
