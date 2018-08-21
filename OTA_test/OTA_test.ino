@@ -166,6 +166,7 @@ void setup() {
  
 void loop() {
   Debug();
+  w.t = current_time;
   WriteSD(w);
   w.temp2++;
   CheckOTA();  
