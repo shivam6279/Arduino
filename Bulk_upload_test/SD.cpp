@@ -11,13 +11,13 @@ SdFat sd;
 
 bool CheckOTA() {
   char body_r[40], number[14];
-  if(1) {    
+  if(CheckOtaSMS(number)) {
     if(!sd.exists("id.txt")) {
-    	if(!sd.begin(SD_CARD_CS_PIN)) {
-				SendSMS(number, "No SD card detected");
-				return false;
-			}
-  	}
+      if(!sd.begin(SD_CARD_CS_PIN)) {
+        SendSMS(number, "No SD card detected");
+        return false;
+      }
+    }
     SendSMS(number, "Downloading new firmware");
     if(SERIAL_OUTPUT) {
       Serial.println(F("Updating firmware"));
@@ -57,7 +57,7 @@ bool CheckOTA() {
       if(SERIAL_OUTPUT) {
         Serial.println(F("Firmware download failed"));
       }
-			SendSMS(number, "Firmware download failed");
+      SendSMS(number, "Firmware download failed");
       return false;
     }
   }
@@ -81,10 +81,7 @@ bool DownloadHex() {
   }
   datalog.open("temp_ota.hex",  FILE_WRITE);
   delay(5000);
-  if(!HttpInit()) {
-    datalog.close();
-    return false;
-  }
+  HttpInit();
   i = OTA_URL.length();
   Serial1.print("AT+QHTTPURL=" + String(i) + ",30\r");
   delay(1000);
@@ -139,7 +136,7 @@ bool DownloadHex() {
         break;
       sd_buffer[sd_index++] = ch;
       
-      Serial.write(ch);
+      //Serial.write(ch);
       
       if(sd_index >= 256) {
         datalog.write(sd_buffer, sd_index);
@@ -152,10 +149,11 @@ bool DownloadHex() {
       break;
   }
   datalog.write(sd_buffer, sd_index);
+  delay(1000);
   datalog.close();
   while(Serial1.available()) Serial1.read();
 
-  if((millis() - t) >= 500000)
+  if((millis() - t) >= 150000)
     return false;
   
   return true;
@@ -212,7 +210,7 @@ bool SDHexToBin() {
     checksum += CharToInt(buff[2]) << 4 | CharToInt(buff[3]);
     checksum += CharToInt(buff[4]) << 4 | CharToInt(buff[5]);
     checksum += CharToInt(buff[6]) << 4 | CharToInt(buff[7]);
-
+    
     //Serial.print(String(byte_count) + ", " + String(address) + ", " + String(record_type) + ": ");
     
     //Data
@@ -223,27 +221,27 @@ bool SDHexToBin() {
           break;
       }
 
-	    data_temp.read(buff, (byte_count * 2));
-	    for(i = 0; i < (byte_count * 2); i += 2) {
+      data_temp.read(buff, (byte_count * 2));
+      for(i = 0; i < (byte_count * 2); i += 2) {
         ch = CharToInt(buff[i]) << 4 | CharToInt(buff[i + 1]);
-	  	  checksum += ch;
-	  	  datalog.write(ch);
-        
+        checksum += ch;
+        datalog.write(ch);
+
         //Serial.print(ch, HEX);
-          
+
         if(++j == 500) {
           j = 0;
           datalog.sync();
         }
-	    }
-	  } 
+      }
+    } 
     //End line
-	  else if(record_type == 1) {
+    else if(record_type == 1) {
       data_temp.read(buff, 2);
       if(buff[0] == 'F' && buff[1] == 'F')
-	  	  flag = true;
-  	  break;
-	  }    
+        flag = true;
+      break;
+    }    
     //Segment address
     else if(record_type == 2) {
       if(byte_count != 2)
@@ -268,7 +266,7 @@ bool SDHexToBin() {
     
     data_temp.read(buff, 2);
     temp_checksum = CharToInt(buff[0]) << 4 | CharToInt(buff[1]);
-
+    
     /*Serial.print(", ");
     Serial.print(checksum, HEX);
     Serial.print(", ");
@@ -288,17 +286,17 @@ bool SDHexToBin() {
 }
 
 bool WriteSD(weatherData w) {
-  bool flag = false;
-  char ch, str[100];
-  int i;
+	bool flag = false;
+	char ch, str[100];
+	int i;
 
   SdFile datalog;
 
   SD_csv_header.toCharArray(str, 100);
-  
-  if(!sd.exists("otalog.csv")) {
+	
+  if(!sd.exists("datalog.csv")) {
     delay(50);
-    if(!datalog.open("otalog.csv", FILE_WRITE)) {
+    if(!datalog.open("datalog.csv", FILE_WRITE)) {
       if(!sd.begin(SD_CARD_CS_PIN)) {
         datalog.close();
         if(SERIAL_OUTPUT)
@@ -306,7 +304,7 @@ bool WriteSD(weatherData w) {
         
         return false;
       }
-      if(!datalog.open("otalog.csv", FILE_WRITE)) {
+      if(!datalog.open("datalog.csv", FILE_WRITE)) {
         datalog.close();
         if(SERIAL_OUTPUT)
           Serial.println(F("Could not create CSV file"));
@@ -318,7 +316,7 @@ bool WriteSD(weatherData w) {
     datalog.println(SD_csv_header);
     flag = true;
   } else {
-    if(!datalog.open("otalog.csv", FILE_WRITE)) {
+    if(!datalog.open("datalog.csv", FILE_WRITE)) {
       datalog.close();
       if(SERIAL_OUTPUT)
         Serial.println(F("Could not open CSV file"));
@@ -329,25 +327,25 @@ bool WriteSD(weatherData w) {
 
   if(flag == false) {
     datalog.seekSet(0);
-    i = 0;
+  	i = 0;
     flag = true;
-    for(i = 0, flag = true, ch = datalog.read(); ch != '\n' && i < 100; i++){
+  	for(i = 0, flag = true, ch = datalog.read(); ch != '\n' && i < 100; i++){
       if((!isAlpha(ch) && ch != ',') && i >= SD_csv_header.length())
         break;
-      if((ch != str[i]) || i > SD_csv_header.length()) {
-        flag = false;
-        break;
-      }
+  		if((ch != str[i]) || i > SD_csv_header.length()) {
+  			flag = false;
+  			break;
+  		}
       ch = datalog.read();
-    };
+  	};
   }
   
-  if(flag == false || i >= 100) {
-    datalog.close();
-    delay(50);
-    sd.remove("datalog.csv");
-    delay(50);
-    if(!datalog.open("datalog.csv", FILE_WRITE)) {
+	if(flag == false || i >= 100) {
+		datalog.close();
+		delay(50);
+		sd.remove("datalog.csv");
+		delay(50);
+		if(!datalog.open("datalog.csv", FILE_WRITE)) {
       datalog.close();
       if(SERIAL_OUTPUT) 
         Serial.println(F("Could not create CSV file"));
@@ -356,8 +354,8 @@ bool WriteSD(weatherData w) {
     }
     delay(50);
     datalog.println(SD_csv_header);
-  } 
-  
+	}	
+	
   datalog.seekEnd();
   datalog.print(w.flag);
   datalog.print(',');
@@ -410,10 +408,10 @@ bool WriteSD(weatherData w) {
   datalog.print(w.battery_voltage);
   datalog.print(',');
   datalog.println(w.signal_strength);
-  
+	
   if(!datalog.close())
     return false;
-  
+	
   return true;
 }
 
@@ -424,7 +422,7 @@ bool UploadCSV() {
   int line_count;
   long int timeout;
   long int p1, p2, bytes;
-  bool flag, t_response;
+  bool flag = 1, t_response;
 
   SdFile datalog;
 
@@ -433,7 +431,6 @@ bool UploadCSV() {
       return false;
   }
   p1 = GetPreviousFailedUploads(n);
-  Serial.println(n);
   if(n < 0) 
     return false;
     
@@ -483,7 +480,7 @@ bool UploadCSV() {
     GSMModuleWake();
 
     t_response = SERIAL_RESPONSE;
-    SERIAL_RESPONSE = 0;
+    SERIAL_RESPONSE = 1;
     
     SendATCommand("AT+QISEND", ">", 500);
     GSMReadUntil("\n", 50); ShowSerialData();
@@ -511,10 +508,16 @@ bool UploadCSV() {
     
     Serial1.write(0x1A);
     
-    GSMReadUntil("OK", 10000);
+    if(!GSMReadUntil("OK", 10000)) {
+      flag = 0;
+      break;
+    }
     ShowSerialData();
 
-    SendATCommand("AT+QISEND", ">", 1000);
+    if(SendATCommand("AT+QISEND", ">", 1000) < 1) {
+      flag = 0;
+      break;
+    }
     ShowSerialData();
     
     //Send CSV file data
@@ -536,16 +539,24 @@ bool UploadCSV() {
         ShowSerialData();
         Serial1.write(0x1A);
         
-        GSMReadUntil("OK", 10000);
+        if(!GSMReadUntil("OK", 10000)) {
+          flag = 0;
+          break;
+        }
         
         ShowSerialData();
         
-        SendATCommand("AT+QISEND", ">", 1000);
+        if(SendATCommand("AT+QISEND", ">", 1000) < 1){
+          flag = 0;
+          break;
+        }
         ShowSerialData();
       }
       if(lines == n) 
         break;
     }
+    if(flag == 0)
+      break;
     
     delay(500);
     ShowSerialData();
@@ -556,20 +567,21 @@ bool UploadCSV() {
     ShowSerialData();
     Serial1.write(0x1A);
 
-    GSMReadUntil("OK", 10000);
+    if(!GSMReadUntil("OK", 10000)) {
+      flag = 0;
+      break;
+    }
 
     //--------Read POST response-------
 
     if(!GSMReadUntil("200 OK", 30000)) {
-      GSMReadUntil("\n", 50); ShowSerialData();
-      datalog.close();
-      return false;
+      flag = 0;
+      break;
     }
 
     if(!GSMReadUntil("\"success\"", 30000)) {
-      GSMReadUntil("\n", 50); ShowSerialData();
-      datalog.close();
-      return false;
+      flag = 0;
+      break;
     }
     GSMReadUntil("\n", 500);
     ShowSerialData();
@@ -578,20 +590,24 @@ bool UploadCSV() {
       Serial.print(F("Succesfully uploaded "));
       Serial.print(line_count);
       Serial.println(F(" records"));  
+      Serial.print(F("Total uploaded "));
+      Serial.print(lines);
+      Serial.println(F(" records"));  
     }
 
     datalog.seekSet(p1);
     for(; line_count > 0; line_count--) {
-      datalog.write('1');
+      datalog.write('0');
       while(datalog.read() != '\n');
     }
     datalog.seekSet(p2);
     
     SERIAL_RESPONSE = t_response;
   }
-
+  delay(500);
+  ShowSerialData();
   datalog.close();
-  return true;
+  return flag;
 }
 
 long int GetPreviousFailedUploads(long int &n) {
@@ -602,7 +618,7 @@ long int GetPreviousFailedUploads(long int &n) {
   n = 0;
 
   SdFile datalog;
-  
+	
   if(!sd.exists("id.txt")) {
     if(!sd.begin(SD_CARD_CS_PIN)) {
       return -1;
@@ -616,7 +632,7 @@ long int GetPreviousFailedUploads(long int &n) {
     datalog.close();
     return -1;
   }
-  delay(200);
+	delay(200);
   datalog.seekEnd();
   timeout = millis();
   do {
@@ -714,19 +730,19 @@ bool WriteOldTime(int n, realTime t) {
       datalog.close();
       return false;
     }
-    
+		
     datalog.write('1');
-    
+		
     //Read past Id flag
     for(timeout = millis(); datalog.read() != '/' && (millis() - timeout) < 1000;);
-    
+		
     if((millis() - timeout) > 1000) {
       datalog.close();
       return false;
     }
-    
+		
     datalog.seekCur(-3);
-    
+		
     str[0] = datalog.read();
     str[1] = datalog.read();
     str[2] = '\0';
@@ -746,7 +762,7 @@ bool WriteOldTime(int n, realTime t) {
     str[2] = '\0';
     temp.hours = String(str).toInt();
     datalog.seekCur(1);
-    
+		
     str[0] = datalog.read();  
     str[1] = datalog.read();
     str[2] = '\0';
