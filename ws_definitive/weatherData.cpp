@@ -12,7 +12,9 @@ void weatherData::Reset(int ws_id){
   battery_voltage = 0.0;
   amps = 0.0;
   rain = 0;
-  wind_speed = 0;
+  wind_speed = 0.0;
+  davis_wind_speed = 0.0;
+  wind_direction = 0.0;
   signal_strength = 0;
   pressure = 0;
   flag = 0;
@@ -35,6 +37,10 @@ void weatherData::CheckIsNan() {
     amps = 0.0;
   if(isnan(wind_speed)) 
     wind_speed = 0.0;
+  if(isnan(davis_wind_speed)) 
+    davis_wind_speed = 0.0;
+  if(isnan(wind_direction)) 
+    wind_direction = 0.0;
   if(isnan(wind_stdDiv)) 
     wind_stdDiv = 0.0;
   if(isnan(pressure)) 
@@ -48,6 +54,7 @@ void weatherData::PrintData() {
   Serial.print(F("Temperature 2(C): ")); Serial.println(temp2);
   Serial.print(F("Humidity(%RH): ")); Serial.println(hum);
   Serial.print(F("Wind speed (m/s): ")); Serial.println(wind_speed);
+  Serial.print(F("Wind direction: ")); Serial.println(wind_speed); Serial.print(F("Degrees"));
   Serial.print(F("Standard deviation: ")); Serial.println(wind_stdDiv);
   Serial.print(F("Rain: ")); Serial.println(rain);
   Serial.print(F("Current(Amps): ")); Serial.println(amps);
@@ -58,6 +65,24 @@ void weatherData::PrintData() {
   #endif
   Serial.print(F("Solar radiation(V): ")); Serial.println(float(solar_radiation) * 5.0 / 1023.0); 
   Serial.print(F("Signal Strength: ")); Serial.println(signal_strength); 
+}
+
+double GetWindDirection() {
+  #ifdef DAVIS_WIND_DIRECTION_PIN
+    double d;
+    int val;
+    val = analogRead(DAVIS_WIND_DIRECTION_PIN); 
+    d = double(val) * 360.0 / 1023.0 - 180.0 - WIND_DIRECTION_OFFSET;
+    while(d > 180.0) {
+      d -= 360.0
+    }
+    while(d < -180.0) {
+      d += 360.0
+    }
+    return d;
+  #else
+    return 0;
+  #endif
 }
 
 void realTime::PrintTime() {

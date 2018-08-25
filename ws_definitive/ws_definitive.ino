@@ -28,6 +28,10 @@
   BMP180 barometer;
 #endif
 
+//#define DAVIS_WIND_SPEED_PIN
+//#define DAVIS_WIND_DIRECTION_PIN
+#define DAVIS_WIND_DIRECTION_OFFSET 0.0
+
 //SD
 bool SD_flag = false;
 
@@ -35,6 +39,10 @@ bool SD_flag = false;
 volatile int wind_speed_counter;
 bool wind_flag = false, wind_temp;
 double wind_speed_buffer[DATA_READ_FREQUENCY * 15 + 1];
+
+//Davis wind speed
+volatile int wind_speed_counter_davis;
+bool wind_flag_davis = false, wind_temp_davis;
 
 //Rain guage
 volatile int rain_counter;
@@ -80,6 +88,13 @@ void setup() {
   #ifdef GSM_PWRKEY_PIN
     pinMode(GSM_PWRKEY_PIN, OUTPUT);
     digitalWrite(GSM_PWRKEY_PIN, LOW);
+  #endif
+
+  #ifdef DAVIS_WIND_SPEED_PIN
+    pinMode(DAVIS_WIND_SPEED_PIN , INPUT);
+  #endif
+  #ifdef DAVIS_WIND_DIRECTION_PIN
+    pinMode(DAVIS_WIND_DIRECTION_PIN , INPUT);
   #endif
 
   Serial.begin(115200); 
@@ -398,9 +413,11 @@ ISR(TIMER1_COMPA_vect) {
 
 }
 
-//Interrupt gets called every 125 micro seconds
+//Interrupt gets called every 125 micro seconds - 8kHz
+//Increment a counter everytime 
 ISR(TIMER2_COMPA_vect) {
   rain_temp = digitalRead(RAIN_PIN);
+  //Debounce Pin
   if(rain_temp == 1 && rain_flag == true) {
     digitalWrite(RAIN_LED, HIGH);
     rain_counter++;
@@ -410,33 +427,61 @@ ISR(TIMER2_COMPA_vect) {
     rain_flag = true;
     digitalWrite(RAIN_LED, LOW);
   }
-  wind_temp = digitalRead(WIND_PIN);
-  if(wind_temp == 0 && wind_flag == true) {
-    wind_speed_counter++;
-    wind_flag = false;
-    digitalWrite(WIND_LED, HIGH);
-  } 
-  else if(wind_temp == 1) {
-    wind_flag = true;
-    digitalWrite(WIND_LED, LOW);
-  } 
+
+  #ifdef WIND_PIN
+    wind_temp = digitalRead(WIND_PIN);
+    //Debounce Pin
+    if(wind_temp == 0 && wind_flag == true) {
+      wind_speed_counter++;
+      wind_flag = false;
+      #ifndef DAVIS_WIND_SPEED_PIN
+        digitalWrite(WIND_LED, HIGH);
+      #endif
+    } 
+    else if(wind_temp == 1) {
+      wind_flag = true;
+      #ifndef DAVIS_WIND_SPEED_PIN
+        digitalWrite(WIND_LED, LOW);
+      #endif
+    } 
+  #endif
+
+  #ifdef DAVIS_WIND_SPEED_PIN
+    wind_temp_davis = digitalRead(DAVIS_WIND_SPEED_PIN);
+    //Debounce Pin
+    if(wind_temp_davis == 0 && wind_flag_davis == true) {
+      wind_speed_counter_davis++;
+      wind_flag_davis = false;
+      digitalWrite(WIND_LED, HIGH);
+    } 
+    else if(wind_temp_davis == 1) {
+      wind_flag_davis = true;
+      digitalWrite(WIND_LED, LOW);
+    } 
+  #endif
 }
 
+//Compute the running average of sensor data
+//Takes the number of previous data points as input (c)
 void ReadData(weatherData &w, int c) {
   //SHT
   #if HT_MODE == 0
     w.hum = (w.hum * float(c) + SHT2x.GetHumidity()) / (float(c) + 1.0);
     w.temp1 = (w.temp1 * float(c) + SHT2x.GetTemperature()) / (float(c) + 1.0);
   #endif
+  
   //DHT
   #if HT_MODE == 1
     w.hum = (w.hum * float(c) + dht.readHumidity()) / (float(c) + 1.0);
     w.temp1 = (w.temp1 * float(c) + dht.readTemperature()) / (float(c) + 1.0);
   #endif
+
+  //BMP180
   #if ENABLE_BMP180 == true
     w.pressure = (w.pressure * float(c) + barometer.GetPressure()) / (float(c) + 1.0);
     //w.temp2 = (w.temp2 * c + barometer.GetTemperature()) / (float(c) + 1.0);
   #endif
+  
   //w.solar_radiation = (w.solar_radiation * float(c) + (float(analogRead(BATTERY_PIN)) * 5.0 / 1024.0)) / (float(c) + 1.0);
   
   w.battery_voltage = (w.battery_voltage * float(c) + (float(analogRead(BATTERY_PIN)) * 5.0 / 1024.0 * (R1 + R2) / R2)) / (float(c) + 1.0);
@@ -444,12 +489,32 @@ void ReadData(weatherData &w, int c) {
   w.amps = (w.amps * float(c) + (((float(analogRead(CURRENT_SENSOR_PIN)) / 1023.0 * 5000.0) - ACSoffset) / mVperAmp)) / (float(c) + 1.0);
 
   w.panel_voltage = (w.panel_voltage * float(c) + (float(analogRead(CHARGE_PIN)) * 5.0 / 1024.0 * ((R1 + R2) / R2))) / (float(c) + 1.0);
+
+  #ifdef DAVIS_WIND_DIRECTION_PIN
+  //COmpute running average of circular data
+  //Convert the wind direction(angle) to a 2-D vector, then average the x and y values with the previous average
+    double angle;
+    double x1, y1, x2, y2;
+    angle = GetWindDirection();
+    //New vector
+    x1 = cos(angle * PI / 180.0);
+    y1 = sin(angle * PI / 180.0);
+
+    //Old average vector
+    x2 = cos(w.wind_direction * PI / 180.0);
+    y2 = sin(w.wind_direction * PI / 180.0);
+
+    x2 = (x2 * float(c) + x1) / (float(c) + 1.0);
+    y2 = (y2 * float(c) + y1) / (float(c) + 1.0);
+
+    //Convert the vector back to an angle
+    w.wind_direction = atan2(y2, x2) * 180.0 / PI;
+  #endif
   
   sensors.requestTemperatures();
   w.temp2 = (w.temp2 * float(c) + sensors.getTempCByIndex(0)) / (float(c) + 1.0);
 
-  w.CheckIsNan();
-  
+  w.CheckIsNan();  
 }
 
 void InitInterrupt() {

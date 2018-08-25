@@ -156,12 +156,15 @@ void setup() {
   HttpInit();
   delay(500);
   GSMModuleWake();
-  SendWeatherURL(w);  
+  if(SendWeatherURL(w)) {  
+    ShowSerialData();
+    GSMModuleWake();  
+    if(SendATCommand("AT+QHTTPREAD=30", "CONNECT", 1000) == 1) {
+      ReadTime(current_time);
+      current_time.PrintTime();
+    }
+  }
   ShowSerialData();
-  GSMModuleWake();  
-  SendATCommand("AT+QHTTPREAD=30", "CONNECT", 1000);
-  ReadTime(current_time);
-  current_time.PrintTime();
 }
  
 void loop() {
@@ -170,6 +173,7 @@ void loop() {
   WriteSD(w);
   w.temp2++;
   CheckOTA();  
+  delay(5000);
 }
 
 //Interrupt gets called every 4 seconds

@@ -120,24 +120,7 @@ void setup(){
   //Serial3.begin(9600);
   
   uint8_t i = 0;
-  SD_flag = sd.begin(53);
-  delay(100);
-  if(!sd.exists("id.txt")){
-    #if serial_output
-    Serial.println("No id file found on sd card, using backup id");
-    #endif
-    backup_id.toCharArray(w.id, 5);
-  }
-  else{
-    datalog.open("id.txt", FILE_READ);
-    while(datalog.available()){
-      w.id[i++] = datalog.read();
-    }
-    w.id[i] = '\0';
-    datalog.close();
-  }
-
-  //Serial.println("OTA WOKRED!!!\n\n");
+  backup_id.toCharArray(w.id, 5);
   
   //Wire.begin();
   dht.begin();
@@ -162,7 +145,7 @@ void setup(){
 
   //GSMModuleReset();
   digitalWrite(upload_led, HIGH);
-  delay(10000);//Wait for the SIM to log on to the network
+  delay(5000);//Wait for the SIM to log on to the network
   digitalWrite(upload_led, LOW);
 
   //Initialize GSM module
@@ -173,9 +156,6 @@ void setup(){
   TCCR1A = 0; TCCR1B = 0; TCNT1  = 0; OCR1A = 62500; TCCR1B |= (1 << WGM12); TCCR1B |= 5;
   TCCR1B &= 253; TIMSK1 |= (1 << OCIE1A); TCCR2A = 0; TCCR2B = 0; TCNT2  = 0;
   OCR2A = 249; TCCR2A |= (1 << WGM21); TCCR2B |= (1 << CS21); TIMSK2 |= (1 << OCIE2A);
-  #if serial_output == true
-  Serial.println("\nSeconds till next upload:");
-  #endif
   
   interrupts();//Timer1: 0.25hz, Timer2: 8Khz
 }
@@ -202,8 +182,6 @@ void loop(){
     
     if(four_sec){
       four_sec = false;
-      temp_read = read_flag;
-      temp_upload = upload_flag;
   
       #if serial_output
         Serial.print(String(rain1_counter) + '\t');
@@ -215,57 +193,29 @@ void loop(){
         Serial.print(String(rain7_counter) + '\t');
         Serial.println(String(rain8_counter) + '\t');
       #endif
-      
-     
-      //Serial.println(String(w.voltage) + ", " + String(w.battery_voltage) + ", " + String(w.temp2) + ", " + String(w.amps));
-      
-      avg_counter++;
 
       WeatherCheckIsNan(w);
+      
+      if(digitalRead(wind_pin) == 0 && temp_upload){//Upload data
+        temp_upload = false;
+        for(i = 0; i < 300; i++) {
+          if(digitalRead(wind_pin) != 0) {
+            temp_upload == true;
+            break;
+          }
+          delay(10);
+        }
+        if(temp_upload != true) {
+          digitalWrite(upload_led, HIGH);
+          w.temp1           = rain1_counter;
+          w.temp2           = rain2_counter;
+          w.hum             = rain3_counter;
+          w.rain            = rain4_counter;
+          w.wind_speed      = rain5_counter;
+          w.solar_radiation = rain6_counter;
+          w.voltage         = rain7_counter;
+          w.battery_voltage = rain8_counter;
   
-      if(temp_read){//Read data
-        read_flag = false;
-        digitalWrite(upload_led, HIGH);
-        
-        //Read data
-        avg_counter = 0;
-        
-        w.wind_speed = wind_speed_counter;
-        wind_speed_counter = 0;
-        
-        #if enable_GPS == true
-        //GetGPS();
-        #endif
-
-        #if serial_output
-        PrintWeatherData(w);
-        #endif
-        
-        reading_number++;
-        
-        digitalWrite(upload_led, LOW);
-      }
-      if(temp_upload){//Upload data
-        digitalWrite(upload_led, HIGH);
-        w.temp1           = rain1_counter;
-        w.temp2           = rain2_counter;
-        w.hum             = rain3_counter;
-        w.rain            = rain4_counter;
-        w.wind_speed      = rain5_counter;
-        w.solar_radiation = rain6_counter;
-        w.voltage         = rain7_counter;
-        w.battery_voltage = rain8_counter;
-
-        GSMModuleWake();
-        w.signal_strength = GetSignalStrength();
-        #if serial_output
-        Serial.println("Signal strength: " + String(w.signal_strength));
-        #endif
-        
-        GSMModuleWake();
-        if(!SubmitHttpRequest(w, current_time)) {          
-          number_of_fail_uploads++;
-          reading_number = 0;
           rain1_counter = 0;
           rain2_counter = 0;
           rain3_counter = 0;
@@ -274,41 +224,39 @@ void loop(){
           rain6_counter = 0;
           rain7_counter = 0;
           rain8_counter = 0;
+  
+          GSMModuleWake();
+          w.signal_strength = GetSignalStrength();
           #if serial_output
-          Serial.println("\nUpload failed - sending sms");
+            Serial.println("Signal strength: " + String(w.signal_strength));
           #endif
-          delay(100);
-          //upload_sms(w, phone_number);
+          
+          GSMModuleWake();
+          if(!SubmitHttpRequest(w, current_time)) {          
+            number_of_fail_uploads++;
+            reading_number = 0;
+            #if serial_output
+              Serial.println("\nUpload failed");
+            #endif
+          }
+          else{
+            startup = false;
+            reading_number = 0;
+            number_of_fail_uploads = 0;
+            #if serial_output
+              Serial.println("\nUpload successful");
+            #endif
+          }
+          delay(2000);
+  
+          temp_upload = 1;
+          
+          digitalWrite(upload_led, LOW);
+
+          while(digitalRead(wind_pin) == 0) {
+            delay(10);
+          }
         }
-        else{
-          startup = false;
-          reading_number = 0;
-          number_of_fail_uploads = 0;
-          rain1_counter = 0;
-          rain2_counter = 0;
-          rain3_counter = 0;
-          rain4_counter = 0;
-          rain5_counter = 0;
-          rain6_counter = 0;
-          rain7_counter = 0;
-          rain8_counter = 0;
-          #if serial_output
-          Serial.println("\nUpload successful");
-          #endif
-        }
-        delay(2000);
-        
-        #if serial_output
-        Serial.println("\nWriting to SD card");
-        #endif
-        WriteSD(w, current_time);
-        
-        digitalWrite(upload_led, LOW);
-        upload_flag = false;
-        #if serial_output
-        if(current_time.flag) PrintTime(current_time);
-        Serial.println("Seconds till next upload:");
-        #endif
       }
     }
   }
@@ -389,19 +337,8 @@ ISR(TIMER1_COMPA_vect){
 
 //Interrupt gets called every 125 micro seconds
 ISR(TIMER2_COMPA_vect){
-  wind_temp = digitalRead(wind_pin);
-  if(wind_temp == 0 && wind_flag == true) {
-    wind_flag = false;
-    upload_flag = true;
-    digitalWrite(wind_led, HIGH);
-  } 
-  else if(wind_temp == 1) {
-    wind_flag = true;
-    upload_flag = false;
-    digitalWrite(wind_led, LOW);
-  } 
-
-    rain1_temp = digitalRead(rain1_pin);
+    
+  rain1_temp = digitalRead(rain1_pin);
   if (rain1_temp == 1 && rain1_flag == true) {
     rain1_counter++;
     rain1_flag = false;

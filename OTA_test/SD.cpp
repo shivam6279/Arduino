@@ -90,7 +90,10 @@ bool DownloadHex() {
   delay(1000);
   ShowSerialData();
   Serial1.print(OTA_URL + '\r');
-  GSMReadUntil("OK", 5000);
+  if(!GSMReadUntil("OK", 5000)) {
+    datalog.close();
+    return false;
+  }
   delay(100);
   if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
     GSMReadUntil("\n", 100);
@@ -103,7 +106,10 @@ bool DownloadHex() {
 
   datalog.write(':');
   GSMModuleWake();
-  Serial1.println("AT+QHTTPREAD=500\r");
+  if(SendATCommand("AT+QHTTPREAD=500", "CONNECT", 5000) != 1) {
+    datalog.close();
+    return false;
+  }
 
   //-----Read until the actual data------
   for(i = 0, t = millis(); i < 3 && (millis() - t) < 3000;){

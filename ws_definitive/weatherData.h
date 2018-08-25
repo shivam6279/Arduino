@@ -41,7 +41,8 @@ public:
   int rain;
 
   //Anemometer
-  double wind_speed;
+  double wind_speed, davis_wind_speed;
+  double wind_direction;
   double wind_stdDiv;
 
   //Signal Srength
@@ -59,6 +60,7 @@ public:
   void PrintData();
 };
 
+double GetWindDirection();
 extern void AddTime(realTime, realTime, realTime&);
 extern void SubtractTime(realTime, realTime, realTime&);
 extern double ArrayAvg(double[], int);
