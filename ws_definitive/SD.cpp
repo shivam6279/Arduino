@@ -408,7 +408,7 @@ bool WriteSD(weatherData w) {
   datalog.print(w.battery_voltage);
   datalog.print(',');
   datalog.println(w.signal_strength);
-	
+  
   if(!datalog.close())
     return false;
 	
