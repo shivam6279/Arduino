@@ -7,6 +7,8 @@ String TIME_URL = "http://www.yobi.tech/IST";
 String CHECK_ID_URL = "http://www.yobi.tech/check-id";
 String CREATE_ID_URL = "http://www.yobi.tech/create-id?";
 
+String BACKUP_ID = "164";
+
 String SD_csv_header = "success,tf,id,ts,t1,t2,h,w,r,p,a,s,cv,bv,sg";
 
 String SERVER_PHONE_NUMBER = "+919220592205";

@@ -42,6 +42,7 @@ bool UploadWeatherData(weatherData w[], uint8_t n, realTime &wt) {
     }
     
     if(i != 0) {
+      GSMReadUntil("\n", 100); 
       GSMReadUntil("\n", 50); 
       ShowSerialData();
     }
@@ -327,7 +328,14 @@ bool GetID(int &id) {
 
   id = temp_id;
 
-  sd.begin(SD_CARD_CS_PIN);
+  if(SD_connected == false) {
+    if(!sd.begin(SD_CARD_CS_PIN)) {
+      return false;
+    } else {
+      SD_connected = true;  
+    }    
+  }
+  
   if(sd.exists("id.txt"))
     sd.remove("id.txt");
   

@@ -106,21 +106,23 @@ void setup() {
   digitalWrite(17, HIGH);
   //Serial3.begin(9600);
 
-  SD_flag = sd.begin(SD_CARD_CS_PIN);
+  SD_connected = sd.begin(SD_CARD_CS_PIN);
   delay(100);
-  if(!sd.exists("id.txt")){
-    if(SERIAL_OUTPUT) {
-      Serial.println(F("\nNo id file found on sd card"));
+  if(SD_connected) {
+    if(!sd.exists("id.txt")){
+      if(SERIAL_OUTPUT) {
+        Serial.println(F("\nNo id file found on sd card"));
+      }
+      ws_id = BACKUP_ID.toInt();
+    } else {
+      datalog.open("id.txt", FILE_READ);
+      while(datalog.available()) {
+        str[i++] = datalog.read();
+      }
+      str[i] = '\0';
+      ws_id = String(str).toInt();
+      datalog.close();
     }
-    ws_id = 0;//BACKUP_ID.toInt();
-  } else {
-    datalog.open("id.txt", FILE_READ);
-    while(datalog.available()) {
-      str[i++] = datalog.read();
-    }
-    str[i] = '\0';
-    ws_id = String(str).toInt();
-    datalog.close();
   }
   
   #if HT_MODE == 0 || ENABLE_BMP180 == true

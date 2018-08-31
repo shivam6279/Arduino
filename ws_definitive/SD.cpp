@@ -8,13 +8,24 @@
 #include <EEPROM.h>
 
 SdFat sd;
+bool SD_connected = false;
 
 bool CheckOTA() {
   char body_r[40], number[14];
+  
+  if(SD_connected == false) {
+    if(!sd.begin(SD_CARD_CS_PIN)) {
+      return false;
+    } else {
+      SD_connected = true;  
+    }    
+  }
+  
   if(CheckOtaSMS(number)) {
     if(!sd.exists("id.txt")) {
       if(!sd.begin(SD_CARD_CS_PIN)) {
         SendSMS(number, "No SD card detected");
+        SD_connected = false;
         return false;
       }
     }
@@ -71,14 +82,24 @@ bool DownloadHex() {
 
   SdFile datalog;
 
+  if(SD_connected == false) {
+    if(!sd.begin(SD_CARD_CS_PIN)) {
+      return false;
+    } else {
+      SD_connected = true;  
+    }    
+  }
+
+  if(!sd.exists("id.txt")) {
+    SD_connected = false;
+    return false;
+  }
+
   Serial1.begin(19200);
   delay(500);
   GSMModuleWake();
   GSMModuleWake();
-
-  if(!sd.exists("id.txt")) {
-    if(!sd.begin(SD_CARD_CS_PIN)) return false;
-  }
+  
   datalog.open("temp_ota.hex",  FILE_WRITE);
   delay(5000);
   HttpInit();
@@ -172,12 +193,18 @@ bool SDHexToBin() {
   bool flag = false, start = true;
 
   SdFile datalog, data_temp;
-  
-  if(!sd.exists("id.txt")) {
+
+  if(SD_connected == false) {
     if(!sd.begin(SD_CARD_CS_PIN)) {
       return false;
-    }
+    } else {
+      SD_connected = true;  
+    }    
   }
+  if(!sd.exists("id.txt")) {
+      return false;
+  }
+  
   delay(100);
   if(!sd.exists("temp_ota.hex"))
     return false;
@@ -291,6 +318,17 @@ bool WriteSD(weatherData w) {
 	int i;
 
   SdFile datalog;
+
+  if(SD_connected == false) {
+    if(!sd.begin(SD_CARD_CS_PIN)) {
+      return false;
+    } else {
+      SD_connected = true;  
+    }    
+  }
+  if(!sd.exists("id.txt")) {
+    return false;
+  }
 
   SD_csv_header.toCharArray(str, 100);
 	
@@ -426,10 +464,17 @@ bool UploadCSV() {
 
   SdFile datalog;
 
-  if(!sd.exists("id.txt")) {
-    if(!sd.begin(SD_CARD_CS_PIN)) 
+  if(SD_connected == false) {
+    if(!sd.begin(SD_CARD_CS_PIN)) {
       return false;
+    } else {
+      SD_connected = true;  
+    }    
   }
+  if(!sd.exists("id.txt")) {
+    return false;
+  }
+  
   p1 = GetPreviousFailedUploads(n);
   Serial.println(n);
   if(n < 0) 
@@ -601,11 +646,14 @@ long int GetPreviousFailedUploads(long int &n) {
 
   SdFile datalog;
 	
-  if(!sd.exists("id.txt")) {
+ if(SD_connected == false) {
     if(!sd.begin(SD_CARD_CS_PIN)) {
       return -1;
-    }
+    } else {
+      SD_connected = true;  
+    }    
   }
+  
   if(!sd.exists("datalog.csv")) {
     return -1;
   }
@@ -656,14 +704,17 @@ bool WriteOldTime(int n, realTime t) {
 
   SdFile datalog;
 
-  if(!sd.exists("id.txt")) {
+  if(SD_connected == false) {
     if(!sd.begin(SD_CARD_CS_PIN)) {
-      if(SERIAL_OUTPUT) {
-        Serial.println(F("No SD Card detected"));
-      }
       return false;
-    }
+    } else {
+      SD_connected = true;  
+    }    
   }
+  if(!sd.exists("id.txt")) {
+    return false;
+  }
+  
   if(!sd.exists("datalog.csv")) {
     if(SERIAL_OUTPUT) {
       Serial.println(F("No CSV file detected"));
@@ -800,14 +851,17 @@ bool WriteOldID(int n, int id) {
 
   SdFile datalog;
 
-  if(!sd.exists("id.txt")) {
+  if(SD_connected == false) {
     if(!sd.begin(SD_CARD_CS_PIN)) {
-      if(SERIAL_OUTPUT) {
-        Serial.println(F("No SD Card detected"));
-      }
       return false;
-    }
+    } else {
+      SD_connected = true;  
+    }    
   }
+  if(!sd.exists("id.txt")) {
+    return false;
+  }
+  
   if(!sd.exists("datalog.csv")) {
     if(SERIAL_OUTPUT) {
       Serial.println(F("No CSV file detected"));

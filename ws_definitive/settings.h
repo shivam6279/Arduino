@@ -5,10 +5,11 @@
 
 /*
 Board versions:
+2 - Without current sensor, without transistor for quectel reset
 3 - With current sensor, without transistor for quectel reset
-4 - With current sensor, with transistor
+4 - With current sensor, with transistor for quectel reset
 */
-#define BOARD_VERSION 3
+#define BOARD_VERSION 4
 
 //--------------------------------------Pin Config--------------------------------------  
 #if BOARD_VERSION == 3
