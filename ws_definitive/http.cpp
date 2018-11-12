@@ -126,6 +126,22 @@ bool SendWeatherURL(weatherData w) {
   return true;
 }
 
+bool SendTestPacket(int id, realTime &wt) {
+  weatherData w;
+  w.id = id;
+  w.temp1 = 100.0;
+  w.temp2 = 100.0;
+  w.hum = 100.0;
+  w.rain = 100.0;
+  w.pressure = 100.0;
+  w.amps = 100.0;
+  w.panel_voltage = 100.0;
+  w.battery_voltage = 100.0;
+  w.signal_strength = 100.0;
+  w.t.flag = 0;
+  return UploadWeatherData(&w, 1, wt);
+}
+
 bool ReadTime(realTime &wt){
   int i, t;
   char ch, temp_time[8];

@@ -5,14 +5,22 @@
 void weatherData::Reset(int ws_id){
   id = ws_id;
   temp1 = 0.0;
+  temp1_max = 0.0;
+  temp1_min = 0.0;
   temp2 = 0.0;
+  temp2_max = 0.0;
+  temp2_min = 0.0;
   hum = 0.0;
+  hum_max = 0.0;
+  hum_min = 0.0;
   solar_radiation = 0.0;
   panel_voltage = 0.0;
   battery_voltage = 0.0;
   amps = 0.0;
   rain = 0;
   wind_speed = 0.0;
+  wind_max = 0.0;
+  wind_stdDiv = 0.0;
   davis_wind_speed = 0.0;
   wind_direction = 0.0;
   signal_strength = 0;
@@ -23,28 +31,51 @@ void weatherData::Reset(int ws_id){
 void weatherData::CheckIsNan() {
   if(isnan(hum)) 
     hum = 0.0;
+  if(isnan(hum_max)) 
+    hum_max = 0.0;
+  if(isnan(hum_min)) 
+    hum_min = 0.0;
+
   if(isnan(temp1)) 
     temp1 = 0.0;
+  if(isnan(temp1_max)) 
+    temp1_max = 0.0;
+  if(isnan(temp1_min)) 
+    temp1_min = 0.0;
+
   if(isnan(temp2)) 
     temp2 = 0.0;
+  if(isnan(temp2_max)) 
+    temp2_max = 0.0;
+  if(isnan(temp2_min)) 
+    temp2_min = 0.0;
+
   if(isnan(solar_radiation)) 
     solar_radiation = 0.0;
+
   if(isnan(panel_voltage)) 
     panel_voltage = 0.0;
+
   if(isnan(battery_voltage)) 
     battery_voltage = 0.0;
+
   if(isnan(amps)) 
     amps = 0.0;
+
   if(isnan(wind_speed)) 
     wind_speed = 0.0;
   if(isnan(davis_wind_speed)) 
     davis_wind_speed = 0.0;
   if(isnan(wind_direction)) 
     wind_direction = 0.0;
+  if(isnan(wind_max)) 
+    wind_max = 0.0;
   if(isnan(wind_stdDiv)) 
     wind_stdDiv = 0.0;
+
   if(isnan(pressure)) 
     pressure = 0;
+
   if(isnan(signal_strength)) 
     signal_strength = 0.0;
 }
@@ -271,6 +302,23 @@ double ArrayAvg(double a[], int n) {
   avg /= double(n);
 
   return avg;
+}
+
+double ArrayMax(double a[], int n) {
+  double large;
+  int i;
+
+  if(n < 0) 
+    return 0.0;
+  if(n == 1) 
+    return a[0];
+
+  for(i = 1, large = a[0]; i < n; i++) {
+    if(a[i] > large) 
+      large = a[i];
+  }
+
+  return large;
 }
 
 double StdDiv(double a[], int n) {

@@ -7,7 +7,7 @@
 extern SdFat sd;
 extern bool SD_connected;
 
-extern bool CheckOTA();
+extern bool OTA();
 extern bool DownloadHex();
 extern bool SDHexToBin();
 extern bool WriteSD(weatherData);

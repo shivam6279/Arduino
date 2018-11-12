@@ -1,6 +1,7 @@
 #include "SD.h"
 #include <SdFat.h>
 #include "GSM.h"
+#include "SMS.h"
 #include "settings.h"
 #include "http.h"
 #include "weatherData.h"
@@ -10,7 +11,7 @@
 SdFat sd;
 bool SD_connected = false;
 
-bool CheckOTA() {
+bool OTA() {
   char body_r[40], number[14];
   
   if(SD_connected == false) {
@@ -20,57 +21,54 @@ bool CheckOTA() {
       SD_connected = true;  
     }    
   }
-  
-  if(CheckOtaSMS(number)) {
-    if(!sd.exists("id.txt")) {
-      if(!sd.begin(SD_CARD_CS_PIN)) {
-        SendSMS(number, "No SD card detected");
-        SD_connected = false;
-        return false;
-      }
-    }
-    SendSMS(number, "Downloading new firmware");
-    if(SERIAL_OUTPUT) {
-      Serial.println(F("Updating firmware"));
-    }
-    delay(500);
-
-    if(sd.exists("TEMP_OTA.HEX")) 
-      sd.remove("TEMP_OTA.HEX");
-      
-    if(sd.exists("firmware.BIN")) 
-      sd.remove("firmware.BIN");
-    delay(500);
-    if(DownloadHex()) {
-      delay(5000);
-      if(SERIAL_OUTPUT) {
-        Serial.println(F("\nNew firmware downloaded"));
-        Serial.println(F("Converting .hex file to .bin"));
-      }
-      if(SDHexToBin()) {
-        while(Serial1.available()) Serial1.read();
-        if(SERIAL_OUTPUT) {
-          Serial.println(F("Done\nRestarting and reprogramming"));
-        }
-        SendSMS(number, "Download succesful, Restarting and reprogramming");
-        EEPROM.write(0x1FF,0xF0);
-        wdt_enable(WDTO_500MS);
-        wdt_reset();
-        delay(600);
-      } else {
-        if(SERIAL_OUTPUT) {
-          Serial.println(F("SD card copy error- hex file checksum failed"));
-        }
-          SendSMS(number, "OTA failed - No SD card detected");
-        return false;
-      }
-    } else {
-      if(SERIAL_OUTPUT) {
-        Serial.println(F("Firmware download failed"));
-      }
-      SendSMS(number, "Firmware download failed");
+  if(!sd.exists("id.txt")) {
+    if(!sd.begin(SD_CARD_CS_PIN)) {
+      SendSMS(number, "No SD card detected");
+      SD_connected = false;
       return false;
     }
+  }
+  SendSMS(number, "Downloading new firmware");
+  if(SERIAL_OUTPUT) {
+    Serial.println(F("Updating firmware"));
+  }
+  delay(500);
+
+  if(sd.exists("TEMP_OTA.HEX")) 
+    sd.remove("TEMP_OTA.HEX");
+    
+  if(sd.exists("firmware.BIN")) 
+    sd.remove("firmware.BIN");
+  delay(500);
+  if(DownloadHex()) {
+    delay(5000);
+    if(SERIAL_OUTPUT) {
+      Serial.println(F("\nNew firmware downloaded"));
+      Serial.println(F("Converting .hex file to .bin"));
+    }
+    if(SDHexToBin()) {
+      while(Serial1.available()) Serial1.read();
+      if(SERIAL_OUTPUT) {
+        Serial.println(F("Done\nRestarting and reprogramming"));
+      }
+      //SendSMS(number, "Download succesful, Restarting and reprogramming");
+      EEPROM.write(0x1FF,0xF0);
+      wdt_enable(WDTO_500MS);
+      wdt_reset();
+      delay(600);
+    } else {
+      if(SERIAL_OUTPUT) {
+        Serial.println(F("SD card copy error- hex file checksum failed"));
+      }
+        //SendSMS(number, "OTA failed - No SD card detected");
+      return false;
+    }
+  } else {
+    if(SERIAL_OUTPUT) {
+      Serial.println(F("Firmware download failed"));
+    }
+    //SendSMS(number, "Firmware download failed");
+    return false;
   }
 }
 

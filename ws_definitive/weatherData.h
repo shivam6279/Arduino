@@ -28,7 +28,9 @@ class weatherData {
 public:
   //Temperature and humidity
   int id;
-  float temp1, temp2, hum;
+  float temp1, temp1_max, temp1_min;
+  float temp2, temp2_max, temp2_min;
+  float hum, hum_max, hum_min;
   long int pressure;
 
   //Solar Radiation
@@ -43,7 +45,7 @@ public:
   //Anemometer
   double wind_speed, davis_wind_speed;
   double wind_direction;
-  double wind_stdDiv;
+  double wind_max, wind_stdDiv;
 
   //Signal Srength
   int signal_strength;
@@ -55,6 +57,9 @@ public:
   bool flag;  
 
 //public:
+  weatherData() {
+  	this->Reset(0);
+  }
   void Reset(int);
   void CheckIsNan();
   void PrintData();
@@ -64,6 +69,7 @@ double GetWindDirection();
 extern void AddTime(realTime, realTime, realTime&);
 extern void SubtractTime(realTime, realTime, realTime&);
 extern double ArrayAvg(double[], int);
+extern double ArrayMax(double[], int);
 extern double StdDiv(double[], int);
 extern bool Debug();
 

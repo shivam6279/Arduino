@@ -14,6 +14,7 @@
 #include "http.h"
 #include "weatherData.h"
 #include "GSM.h"
+#include "SMS.h"
 #include "SD.h"
 
 //All pin definitions and settings are in "settings.h/cpp"
@@ -166,6 +167,8 @@ void loop() {
   unsigned long int avg_counter = 0;
   bool temp_read, temp_upload, temp_network, temp_sd;
 
+  uint8_t sms_flag;
+
   uint16_t reading_number = 0;
   uint16_t number_of_fail_uploads = 0;
   uint16_t initial_sd_card_uploads = 0;
@@ -178,9 +181,6 @@ void loop() {
   wind_speed_counter = 0;
   reading_number = 0;
 
-  for(i = 0; i < BUFFER_SIZE; i++) {
-    w[i].Reset(ws_id);
-  }
   while(Serial1.available()) Serial1.read();
 
   //Fetch new id
@@ -189,9 +189,17 @@ void loop() {
       ws_id = 0;
   }
   
-  if(SERIAL_OUTPUT) {
+  if(SERIAL_OUTPUT)
     Serial.println(F("\nSeconds till next upload:"));
+
+  while(1) {
+    if(four_sec) {
+      four_sec = false;
+      CheckSMS();
+      sms.Print();
+    }
   }
+  
   
   while(1) {
     Debug();
@@ -201,7 +209,18 @@ void loop() {
       temp_read = read_flag;
       temp_upload = upload_flag;
 
-      CheckOTA();
+      sms_flag = CheckSMS();
+
+      if(sms_flag & 1) {
+        ws_id = 0;
+        GetID(ws_id);
+      }
+
+      if((sms_flag >> 1) & 1)
+        SendTestPacket(ws_id, current_time);
+
+      if((sms_flag >> 2) & 1)
+        OTA();
   
       if(SERIAL_OUTPUT) {
         if(timer1_counter) Serial.println(((DATA_UPLOAD_FREQUENCY * 15) - timer1_counter + 1) * 4);
@@ -223,6 +242,7 @@ void loop() {
         //Read data
         
         w[reading_number].wind_speed = ArrayAvg(wind_speed_buffer, avg_counter);
+        w[reading_number].wind_max = ArrayMax(wind_speed_buffer, avg_counter);
         w[reading_number].wind_stdDiv = StdDiv(wind_speed_buffer, avg_counter);
         
         w[reading_number].rain = rain_counter;
@@ -466,16 +486,25 @@ ISR(TIMER2_COMPA_vect) {
 //Compute the running average of sensor data
 //Takes the number of previous data points as input (c)
 void ReadData(weatherData &w, int c) {
+  float temp1, temp2;
+  float hum;
+
   //SHT
   #if HT_MODE == 0
-    w.hum = (w.hum * float(c) + SHT2x.GetHumidity()) / (float(c) + 1.0);
-    w.temp1 = (w.temp1 * float(c) + SHT2x.GetTemperature()) / (float(c) + 1.0);
+    hum = SHT2x.GetHumidity();
+    temp1 = SHT2x.GetTemperature();
+
+    w.hum = (w.hum * float(c) + hum) / (float(c) + 1.0);
+    w.temp1 = (w.temp1 * float(c) + temp1) / (float(c) + 1.0);
   #endif
   
   //DHT
   #if HT_MODE == 1
-    w.hum = (w.hum * float(c) + dht.readHumidity()) / (float(c) + 1.0);
-    w.temp1 = (w.temp1 * float(c) + dht.readTemperature()) / (float(c) + 1.0);
+    hum = dht.readHumidity();
+    temp1 = dht.readTemperature();
+
+    w.hum = (w.hum * float(c) + hum) / (float(c) + 1.0);
+    w.temp1 = (w.temp1 * float(c) + temp1) / (float(c) + 1.0);
   #endif
 
   //BMP180
@@ -514,7 +543,35 @@ void ReadData(weatherData &w, int c) {
   #endif
   
   sensors.requestTemperatures();
-  w.temp2 = (w.temp2 * float(c) + sensors.getTempCByIndex(0)) / (float(c) + 1.0);
+
+  temp2 = sensors.getTempCByIndex(0);
+  w.temp2 = (w.temp2 * float(c) + temp2) / (float(c) + 1.0);
+
+  if(c == 0) {
+  	w.temp1_max = temp1;
+  	w.temp1_min = temp1;
+
+  	w.temp2_max = temp2;
+  	w.temp2_min = temp2;
+
+  	w.hum_max = hum;
+  	w.hum_min = hum;
+  } else {
+    if(temp1 > w.temp1_max)
+    	w.temp1_max = temp1;
+    if(temp1 < w.temp1_min)
+    	w.temp1_min = temp1;
+
+    if(temp2 > w.temp2_max)
+    	w.temp2_max = temp2;
+    if(temp2 < w.temp2_min)
+    	w.temp2_min = temp2;
+
+    if(hum > w.hum_max)
+    	w.hum_max = hum;
+    if(hum < w.hum_min)
+    	w.hum_min = hum;
+  }
 
   w.CheckIsNan();  
 }
