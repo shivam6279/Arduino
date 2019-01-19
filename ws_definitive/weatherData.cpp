@@ -81,10 +81,10 @@ void weatherData::CheckIsNan() {
 }
 
 void weatherData::PrintData() {
-  Serial.print(F("Temperature 1(C): ")); Serial.println(temp1);
-  Serial.print(F("Temperature 2(C): ")); Serial.println(temp2);
-  Serial.print(F("Humidity(%RH): ")); Serial.println(hum);
-  Serial.print(F("Wind speed (m/s): ")); Serial.println(wind_speed);
+  Serial.print(F("Temperature 1(C): Avg, Min, Max: ")); Serial.print(temp1); Serial.print(", "); Serial.print(temp1_max); Serial.print(", "); Serial.println(temp1_min);
+  Serial.print(F("Temperature 2(C): Avg, Min, Max: ")); Serial.print(temp2); Serial.print(", "); Serial.print(temp2_max); Serial.print(", "); Serial.println(temp2_min);
+  Serial.print(F("Humidity(%RH): ")); Serial.print(hum); Serial.print(", "); Serial.print(hum_min); Serial.print(", "); Serial.println(hum_max);
+  Serial.print(F("Wind speed (m/s): Avg, Max: ")); Serial.print(wind_speed); Serial.print(", "); Serial.println(wind_max);
   Serial.print(F("Wind direction: ")); Serial.println(wind_speed); Serial.print(F("Degrees"));
   Serial.print(F("Standard deviation: ")); Serial.println(wind_stdDiv);
   Serial.print(F("Rain: ")); Serial.println(rain);

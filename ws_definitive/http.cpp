@@ -59,10 +59,22 @@ bool SendWeatherURL(weatherData w) {
   int str_len;
   str_len = URL.length(); // URL string length
   str_len += String(w.id).length() + 4;
+
   str_len += String(w.temp1).length() + 4;
+  str_len += String(w.temp1_min).length() + 7;
+  str_len += String(w.temp1_max).length() + 7;
+
   str_len += String(w.temp2).length() + 4;
+  str_len += String(w.temp2_min).length() + 7;
+  str_len += String(w.temp2_max).length() + 7;
+
   str_len += String(w.hum).length() + 3;
+  str_len += String(w.hum_min).length() + 6;
+  str_len += String(w.hum_max).length() + 6;
+
   str_len += String(w.wind_speed).length() + 3;
+  str_len += String(w.wind_max).length() + 6;
+
   str_len += String(w.rain).length() + 3;
   str_len += String(w.pressure).length() + 3;
   str_len += String(w.amps).length() + 3;
@@ -106,9 +118,16 @@ bool SendWeatherURL(weatherData w) {
     Serial1.write('&');
   }    
   Serial1.print("t1=" + String(w.temp1) + "&");
+  Serial1.print("mint1=" + String(w.temp1_min) + "&");
+  Serial1.print("maxt1=" + String(w.temp1_min) + "&");
   Serial1.print("t2=" + String(w.temp2) + "&");
+  Serial1.print("mint2=" + String(w.temp2_min) + "&");
+  Serial1.print("maxt2=" + String(w.temp2_max) + "&");
   Serial1.print("h=" + String(w.hum) + "&");
+  Serial1.print("minh=" + String(w.hum_min) + "&");
+  Serial1.print("maxh=" + String(w.hum_max) + "&");
   Serial1.print("w=" + String(w.wind_speed) + "&");
+  Serial1.print("maxw" + String(w.wind_max) + "&");
   Serial1.print("r=" + String(w.rain) + "&");
   Serial1.print("p=" + String(w.pressure) + "&");
   Serial1.print("s=" + String(w.amps) + "&");
