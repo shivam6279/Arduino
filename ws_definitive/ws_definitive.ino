@@ -192,13 +192,13 @@ void loop() {
   if(SERIAL_OUTPUT)
     Serial.println(F("\nSeconds till next upload:"));
 
-  while(1) {
+  /*while(1) {
     if(four_sec) {
       four_sec = false;
       CheckSMS();
       sms.Print();
     }
-  }
+  }*/
   
   
   while(1) {
