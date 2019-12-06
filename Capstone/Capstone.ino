@@ -1,39 +1,18 @@
 #include <SPI.h>
 #include <Wire.h>
 
-//#include <SD.h>
-
-//File myFile;
-
-#define LIS3DH_ADDRESS 0x18
-#define CTRL_REG1 0x20
-#define CTRL_REG2 0x21
-#define CTRL_REG3 0x22
-#define CTRL_REG4 0x23
-#define CTRL_REG5 0x24
-#define CTRL_REG6 0x25
-
 #define MATRIX_SIZE 7
+
+struct color{
+  uint8_t r, g, b;
+};
 
 class led_matrix{
 public:
-  uint8_t r[MATRIX_SIZE][MATRIX_SIZE], g[MATRIX_SIZE][MATRIX_SIZE], b[MATRIX_SIZE][MATRIX_SIZE];
+  color rgb[MATRIX_SIZE][MATRIX_SIZE];
 
-  void write_buffer() {
-    int8_t i, j;
-    start_frame();
-    for(i = 0; i < MATRIX_SIZE; i++) {
-      if(i % 2) {
-        for(j = 0; i < MATRIX_SIZE; j++) {
-          LED_frame(r[i][j], g[i][j], b[i][j]);
-        }
-      } else {
-        for(j = MATRIX_SIZE - 1; j >= 0; j--) {
-          LED_frame(r[i][j], g[i][j], b[i][j]);
-        }
-      }
-    }
-    end_frame();
+  led_matrix() {
+    clear_buffer();
   }
 
   void start_frame() {
@@ -50,164 +29,210 @@ public:
     SPI.transfer(0xFF);
   }
 
-  void LED_frame(uint8_t red, uint8_t green, uint8_t blue){
+  void LED_frame(color c){
     SPI.transfer(0xFF);
-    SPI.transfer(blue);
-    SPI.transfer(green);
-    SPI.transfer(red);
+    SPI.transfer(c.b);
+    SPI.transfer(c.g);
+    SPI.transfer(c.r);
+  }
+
+  void clear_buffer() {
+    uint8_t i, j;
+    for(i = 0; i < MATRIX_SIZE; i++) {
+      for(j = 0; j < MATRIX_SIZE; j++) {
+        rgb[i][j] = color{0, 0, 0};
+      }
+    }
+  }
+
+  void write_buffer() {
+    int8_t i, j;
+    start_frame();
+    for(i = 0; i < MATRIX_SIZE; i++) {
+      if(i % 2 == 1) {
+        for(j = 0; j < MATRIX_SIZE; j++) {
+          LED_frame(rgb[i][j]);
+        }
+      } else {
+        for(j = MATRIX_SIZE - 1; j >= 0; j--) {
+          LED_frame(rgb[i][j]);
+        }
+      }
+    }
+    end_frame();
+  }
+
+  void arrow_north(color c) {
+    clear_buffer();
+    rgb[0][3] = c;
+
+    rgb[1][2] = c;
+    rgb[1][3] = c;
+    rgb[1][4] = c;
+
+    rgb[2][1] = c;
+    rgb[2][2] = c;
+    rgb[2][3] = c;
+    rgb[2][4] = c;
+    rgb[2][5] = c;
+
+    rgb[3][2] = c;
+    rgb[3][3] = c;
+    rgb[3][4] = c;
+
+    rgb[4][2] = c;
+    rgb[4][3] = c;
+    rgb[4][4] = c;
+
+    rgb[5][2] = c;
+    rgb[5][3] = c;
+    rgb[5][4] = c;
+
+    rgb[6][2] = c;
+    rgb[6][3] = c;
+    rgb[6][4] = c;
+  }
+
+  void arrow_northeast(color c) {
+    clear_buffer();
+    rgb[0][3] = c;
+    rgb[0][4] = c;
+    rgb[0][5] = c;
+    rgb[0][6] = c;
+
+    rgb[1][4] = c;
+    rgb[1][5] = c;
+    rgb[1][6] = c;
+
+    rgb[2][3] = c;
+    rgb[2][4] = c;
+    rgb[2][5] = c;
+    rgb[2][6] = c;
+
+    rgb[3][2] = c;
+    rgb[3][3] = c;
+    rgb[3][4] = c;
+    rgb[3][6] = c;
+
+    rgb[4][1] = c;
+    rgb[4][2] = c;
+    rgb[4][3] = c;
+
+    rgb[5][0] = c;
+    rgb[5][1] = c;
+    rgb[5][2] = c;
+
+    rgb[6][0] = c;
+    rgb[6][1] = c;
+  }
+
+  void cross(color c) {
+    clear_buffer();
+
+    rgb[0][0] = c;
+    rgb[0][6] = c;
+
+    rgb[1][1] = c;
+    rgb[1][5] = c;
+
+    rgb[2][2] = c;
+    rgb[2][4] = c;
+
+    rgb[3][3] = c;
+
+    rgb[4][2] = c;
+    rgb[4][4] = c;
+
+    rgb[5][1] = c;
+    rgb[5][5] = c;
+
+    rgb[6][0] = c;
+    rgb[6][6] = c;    
+  }
+
+  void line_(color c, uint8_t, t=1) {
+    int8_t i, j;
+    if(t > MATRIX_SIZE/2) {
+      t = 1;
+    }
+    for(i = 0; i < MATRIX_SIZE; i++) {
+      for(j = -t; j <= t; j++) {
+        rgb[i][j] = c;
+      }
+    }
+  }
+
+  // Rotate: 0 = 0 degrees, 1 = 90 degrees, 2 = 180 degrees, 3 = 270 degrees - Clockwise
+  void rotate_buffer(uint8_t dir) {
+    if(dir == 0 || dir > 3) {
+      return;
+    }
+    dir = 4-dir;
+    int8_t i, j, k;
+    for(i = 0; i < MATRIX_SIZE / 2; i++) { 
+      for(j = i; j < MATRIX_SIZE-i-1; j++) { 
+        for(k = 0; k < dir; k++) {
+          color temp = rgb[i][j]; 
+          rgb[i][j] = rgb[j][MATRIX_SIZE-1-i]; 
+          rgb[j][MATRIX_SIZE-1-i] = rgb[MATRIX_SIZE-1-i][MATRIX_SIZE-1-j]; 
+          rgb[MATRIX_SIZE-1-i][MATRIX_SIZE-1-j] = rgb[MATRIX_SIZE-1-j][i];
+          rgb[MATRIX_SIZE-1-j][i] = temp; 
+        }
+      } 
+    }
+  }
+
+  //dir = 0 - 7: 0 = 0 degrees, 1 = 45 degrees, ... , 7 = 315 degrees
+  void draw_arrow(uint8_t dir, color c) {
+    if(dir % 2 == 0) {
+      arrow_north(c);      
+    } else {
+      arrow_northeast(c);
+    }
+    rotate_buffer(dir/2);
+    write_buffer();
+  }
+
+  void draw_cross(color c) {
+    cross(c);
+    write_buffer();
+  }
+  
+  //dir = 0 - 7: 0 = 0 degrees, 1 = 45 degrees, ... , 7 = 315 degrees
+  void draw_line(uint8_t dir, uint8_t t, color c) {
+    if(dir % 2 == 0) {
+      line_north(c, t);      
+    } else {
+      line_northeast(c, t);
+    }
+    rotate_buffer(dir/2);
+    write_buffer();
   }
 };
 
 void setup() {
-  Serial.begin(230400);
-  
+  Serial.begin(9600);  
   Wire.begin();
-
-  // enable all axes, High res 1.3 KHz
-  LIS3DH_write8(CTRL_REG1, 0x97);
-
-  // High res & BDU enabled
-  LIS3DH_write8(CTRL_REG4, 0x88);
-
-  // DRDY on INT1
-  LIS3DH_write8(CTRL_REG3, 0x10);
-
-  // enable adcs
-  LIS3DH_write8(0x1F, 0x80);
-
-//  SD.begin(10);
-//  myFile = SD.open("data.csv", O_WRITE | O_CREAT);
-
-//  start_frame();
-//  for(int i = 0; i < 8; i++) {
-//    LED_frame(50, 0, 50);
-//  }
-//  end_frame();
+  SPI.begin();
 }
 
 void loop() {
-  float x, y, z;
-  float mag;
-  int i;
+  int8_t i, j;
+
+  led_matrix m;
   
-  int t, tt;
-  uint16_t s = millis();
-
-  uint16_t counter = 0;
-
-  tt = millis();
-  while(1) {
-    t = micros();
-    LIS3DH_read(&x, &y, &z);
-
-    Serial.print((int)x);
-    Serial.print(", ");
-    Serial.print((int)y);
-    Serial.print(", ");
-    Serial.println((int)z);
-
-    while((micros() - t) < 750);
-
-    if(millis() - tt > 6000) {
-      while(1);
+  m.draw_arrow(7, color{255,255,255});
+  m.draw_cross(color{255,255,255});
+  
+  for(i = 0; i < MATRIX_SIZE; i++) { 
+    for(j = 0; j < MATRIX_SIZE; j++) { 
+      if(m.rgb[i][j].r != 0) {
+        Serial.print("* ");
+      } else {
+        Serial.print("_ ");
+      }
     }
-  }
-
-//  for(i = 0, counter = 0; i < ARR_SIZE; i++, counter+= 25) {
-//    myFile.print((int)x_arr[i]);
-//    myFile.print(", ");
-//    myFile.print((int)y_arr[i]);
-//    myFile.print(", ");
-//    myFile.println((int)z_arr[i]);
-//
-//    if(counter > 400) {
-//      myFile.flush();
-//      counter = 0;
-//    }
-//  }
-
-//  for(i = 0; i < ARR_SIZE; i++) {
-//    Serial.print((int)x_arr[i]);
-//    Serial.print(", ");
-//    Serial.print((int)y_arr[i]);
-//    Serial.print(", ");
-//    Serial.println((int)z_arr[i]);
-//  }
-//  myFile.flush();
-//  myFile.close();
-
+    Serial.println();
+  }  
   while(1);
-
-  /*mag = sqrt(pow(float(x), 2) + pow(float(y), 2) + pow(float(z), 2)) - 1.0;
-  if(mag < 0.0) mag = 0.0;    
-  
-  if(mag > 0.1) {    
-    hit = true;
-    low_count = 0;
-    
-    if(mag > max_mag) {
-      max_mag = mag;
-      start_frame();
-      for(i = 0; i < ((mag / 2.0) * 8.0) && i < 8; i++) {
-        LED_frame(0, 255, 0);
-      }
-      for(; i < 8; i++) {
-        LED_frame(0, 0, 0);
-      }
-      end_frame();
-    }
-  } else {
-    if(low_count++ > 10) {
-      if(hit) {
-        delay(250);
-      }
-      hit = false;
-      max_mag = 0.0;
-  
-      start_frame();
-      for(i = 0; i < 8; i++) {
-        LED_frame(0, 0, 0);
-        }
-      end_frame();
-    }
-  }*/
-}
-
-void LIS3DH_read(float *x, float *y, float *z) {
-  static const float scale = 1.0 / 16.0;//2.0 /32768.0;
-  
-  Wire.beginTransmission(LIS3DH_ADDRESS);
-  Wire.write(0x28 | 0x80);
-  Wire.endTransmission();
-
-  Wire.requestFrom(LIS3DH_ADDRESS, 6);
-
-  int16_t tx, ty, tz;
-
-  tx = Wire.read();
-  tx |= ((uint16_t)Wire.read()) << 8;
-  ty = Wire.read();
-  ty |= ((uint16_t)Wire.read()) << 8;
-  tz = Wire.read();
-  tz |= ((uint16_t)Wire.read()) << 8;
-
-  *x = float(tx) * scale;
-  *y = float(ty) * scale;
-  *z = float(tz) * scale;
-}
-
-void LIS3DH_write8(uint8_t reg, uint8_t value) {
-  Wire.beginTransmission(LIS3DH_ADDRESS);
-  Wire.write((uint8_t)reg);
-  Wire.write((uint8_t)value);
-  Wire.endTransmission();
-}
-
-uint8_t LIS3DH_read8(uint8_t reg) {
-  Wire.beginTransmission(LIS3DH_ADDRESS);
-  Wire.write((uint8_t)reg);
-  Wire.endTransmission();
-
-  Wire.requestFrom(LIS3DH_ADDRESS, 1);
-  return Wire.read();
 }
