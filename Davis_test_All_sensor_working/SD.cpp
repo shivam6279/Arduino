@@ -724,28 +724,36 @@ bool WriteOldTime(int n, realTime t) {
     datalog.write('1');
 		
     //Read past Id flag
-    for(timeout = millis(); datalog.read() != '/' && (millis() - timeout) < 1000;);
-		
+    for(timeout = millis(); datalog.read() != ',' && (millis() - timeout) < 1000;);
     if((millis() - timeout) > 1000) {
       datalog.close();
       return false;
     }
-		
-    datalog.seekCur(-3);
-		
+    for(timeout = millis(); datalog.read() != ',' && (millis() - timeout) < 1000;);		
+    if((millis() - timeout) > 1000) {
+      datalog.close();
+      return false;
+    }
+
+    str[0] = datalog.read();
+    str[1] = datalog.read();
+    str[2] = datalog.read();
+    str[3] = datalog.read();
+    str[4] = '\0';
+    temp.year = String(str).toInt();
+    datalog.seekCur(1);
+
+    str[0] = datalog.read();
+    str[1] = datalog.read();
+    str[2] = '\0';
+    temp.month = String(str).toInt();
+    datalog.seekCur(1);
+   
     str[0] = datalog.read();
     str[1] = datalog.read();
     str[2] = '\0';
     temp.day = String(str).toInt();
-
-    for(timeout = millis(); datalog.read() != ':' && (millis() - timeout) < 1000;);
-    
-    if((millis() - timeout) > 1000) {
-      datalog.close();
-      return false;
-    }
-
-    datalog.seekCur(-3);
+    datalog.seekCur(1);
 
     str[0] = datalog.read();
     str[1] = datalog.read();
@@ -768,16 +776,16 @@ bool WriteOldTime(int n, realTime t) {
 
     datalog.seekCur(-19);
 
-    datalog.write((temp.day / 10) % 10 + '0'); 
-    datalog.write((temp.day % 10) + '0');
-    datalog.seekCur(1);
-    datalog.write((temp.month / 10) % 10 + '0'); 
-    datalog.write((temp.month % 10) + '0');
-    datalog.seekCur(1);
     datalog.write((temp.year / 1000) % 10 + '0'); 
     datalog.write((temp.year / 100) % 10 + '0'); 
     datalog.write((temp.year / 10) % 10 + '0'); 
     datalog.write((temp.year % 10) + '0');
+    datalog.seekCur(1);
+    datalog.write((temp.month / 10) % 10 + '0'); 
+    datalog.write((temp.month % 10) + '0');
+    datalog.seekCur(1);
+    datalog.write((temp.day / 10) % 10 + '0'); 
+    datalog.write((temp.day % 10) + '0');
     datalog.seekCur(1);
     datalog.write((temp.hours / 10) % 10 + '0'); 
     datalog.write((temp.hours % 10) + '0');
@@ -785,8 +793,10 @@ bool WriteOldTime(int n, realTime t) {
     datalog.write((temp.minutes / 10) % 10 + '0'); 
     datalog.write((temp.minutes % 10) + '0');
     datalog.seekCur(1);
-    datalog.write((temp.seconds / 10) % 10 + '0'); 
-    datalog.write((temp.seconds % 10) + '0');
+//    datalog.write((temp.seconds / 10) % 10 + '0'); 
+//    datalog.write((temp.seconds % 10) + '0');
+     datalog.write('0'); 
+    datalog.write('0');
 
     for(timeout = 0; datalog.read() != '\n' && datalog.available() && timeout < 2000; timeout++);
       delay(1);

@@ -225,12 +225,15 @@ bool CheckOtaSMS(char *number) {
 
 void SendSMS(char *n, char *b) {
   bool t = SERIAL_RESPONSE;
-  SERIAL_RESPONSE = 0;
-  Serial1.print("AT+CMGS=\"" + String(n) + "\"\n");
+
+  GSMModuleWake();
+  
+  SERIAL_RESPONSE = 1;
+  Serial1.print("AT+CMGS=\"" + String(n) + "\"\r\n");
   delay(100);
   Serial1.println(b);
   delay(100);
-  Serial1.write(26);
+  Serial1.write((char)26);
   Serial1.write('\n');
   delay(100);
   Serial1.write('\n');

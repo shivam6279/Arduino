@@ -8,6 +8,8 @@
 #include <DHT.h>
 #include <SHT2x.h>
 #include <SPI.h>
+#include <RTClib.h>
+#include <SHT1X.h>
 //#include <DallasTemperature.h>
 //#include <OneWire.h>
 
@@ -21,6 +23,8 @@
 #if HT_MODE == 1
   #define DHTTYPE DHT22 
   DHT dht(DHTPIN, DHTTYPE);
+#elif HT_MODE == 2
+  SHT1x sht15(SHT15_DATA_PIN, SHT15_CLK_PIN);
 #endif
 
 //BMP180
@@ -91,6 +95,8 @@ int ws_id;
 realTime current_time;
 realTime startup_time;
 
+RTC_DS3231 rtc;
+
 bool startup = true;
 
 //OneWire oneWire(METAL_SENSOR_PIN);
@@ -107,6 +113,12 @@ void setup() {
   pinMode(UPLOAD_LED, OUTPUT);
   pinMode(SD_CARD_CS_PIN, OUTPUT);
   pinMode(RAIN_PIN, INPUT);
+
+#if board_version == 5
+  pinMode(RAIN_CONNECT_PIN, INPUT);
+  pinMode(DOOR_PIN, INPUT);
+#endif
+  
   pinMode(WIND_PIN , INPUT);
   pinMode(GSM_DTR_PIN, OUTPUT);
   digitalWrite(GSM_DTR_PIN, LOW);
@@ -150,8 +162,7 @@ void setup() {
   
   #if HT_MODE == 0 || ENABLE_BMP180 == true
     Wire.begin();
-  #endif
-  #if HT_MODE == 1
+  #elif HT_MODE == 1
     dht.begin();
   #endif
 //  sensors.begin();
@@ -162,14 +173,34 @@ void setup() {
     barometer.Initialize(); 
   #endif
 
+  if (! rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+  }
+
   if(SERIAL_OUTPUT) {
     Serial.print(F("Sensor id: ")); Serial.println(ws_id);
     Serial.print(F("Data upload frequency: ")); Serial.print(DATA_UPLOAD_FREQUENCY); Serial.println(F(" minutes"));
-    Serial.println(F("Data read frequency: ")); Serial.print(DATA_READ_FREQUENCY); Serial.println(F(" minutes"));
-    if(HT_MODE == 0) Serial.println(F("Using SHT21")); else if(HT_MODE == 1) Serial.println(F("Using DHT22")); else Serial.println(F("No HT sensor"));
+    Serial.print(F("Data read frequency: ")); Serial.print(DATA_READ_FREQUENCY); Serial.println(F(" minutes"));
+    if(HT_MODE == 0) Serial.println(F("Using SHT21")); else if(HT_MODE == 1) Serial.println(F("Using DHT22")); else if(HT_MODE == 2) Serial.println(F("Using SHT15"));else Serial.println(F("No HT sensor"));
     if(ENABLE_BMP180) Serial.println(F("BMP180 enabled")); else Serial.println(F("BMP180 disabled"));
     Serial.println();
   }
+
+//  while(1) {
+//    DateTime now = rtc.now();
+//    Serial.print(now.year(), DEC);
+//    Serial.print('/');
+//    Serial.print(now.month(), DEC);
+//    Serial.print('/');
+//    Serial.println(now.day(), DEC);
+//    Serial.print(now.hour(), DEC);
+//    Serial.print(':');
+//    Serial.print(now.minute(), DEC);
+//    Serial.print(':');
+//    Serial.print(now.second(), DEC);
+//    Serial.println();
+//    delay(1000);
+//  }
 
   digitalWrite(UPLOAD_LED, HIGH);
   delay(2000);  //Wait for the GSM module to boot up
@@ -193,6 +224,8 @@ void loop() {
   uint16_t number_of_fail_uploads = 0;
   uint16_t initial_sd_card_uploads = 0;
 
+  bool door_flag = true;
+
   weatherData w[BUFFER_SIZE];
 
   realTime temp_time;
@@ -211,6 +244,13 @@ void loop() {
     if(!GetID(ws_id))
       ws_id = 0;
   }
+
+  delay(5000);
+  if(GetTime(current_time)) {
+    rtc.adjust(DateTime(current_time.year, current_time.month, current_time.day, current_time.hours, current_time.minutes, current_time.seconds));
+  }
+
+  current_time.PrintTime();
   
   if(SERIAL_OUTPUT) {
     Serial.println(F("\nSeconds till next upload:"));
@@ -224,11 +264,30 @@ void loop() {
       temp_read = read_flag;
       temp_upload = upload_flag;
 
+      
+
       CheckOTA();
   
       if(SERIAL_OUTPUT) {
+        Serial.println();
         if(timer1_counter) Serial.println(((DATA_UPLOAD_FREQUENCY * 15) - timer1_counter + 1) * 4);
         else Serial.println(F("4"));
+      }
+
+      ShowSerialData();
+      if(door_flag == true) {
+        if(digitalRead(DOOR_PIN) == HIGH) {
+          door_flag = false;
+          Serial.println("Door opened, sending SMS");
+          char door_sms_str[100], door_admin_str[20];
+          ("Id: " + String(ws_id) + " - door opened").toCharArray(door_sms_str, 100);
+          ADMIN_PHONE_NUMBER.toCharArray(door_admin_str, 20);
+          SendSMS(door_admin_str, door_sms_str);
+          delay(4000);
+          ShowSerialData();
+        }
+      } else if(digitalRead(DOOR_PIN) == LOW) {
+        door_flag = true;
       }
 
       ReadData(w[reading_number], avg_counter);
@@ -247,11 +306,24 @@ void loop() {
         
         w[reading_number].wind_speed = ArrayAvg(wind_speed_buffer, avg_counter);
         w[reading_number].wind_stdDiv = StdDiv(wind_speed_buffer, avg_counter);
-        
-        w[reading_number].rain = rain_counter;
+
+        if(digitalRead(RAIN_CONNECT_PIN) == HIGH)
+          w[reading_number].rain = -1;
+        else
+          w[reading_number].rain = rain_counter;
         rain_counter = 0;
 
-        w[reading_number].t = current_time;
+        realTime rounded_time = current_time;
+        rounded_time.minutes = ((current_time.minutes + DATA_READ_FREQUENCY-1)/DATA_READ_FREQUENCY) * DATA_READ_FREQUENCY;
+        rounded_time.seconds = 0;
+        if(rounded_time.minutes == 60 && current_time.minutes >= 55) {
+          rounded_time.hours++;
+          rounded_time.HandleTimeOverflow();
+        }
+
+        //w[reading_number].t = current_time;
+        w[reading_number].t = rounded_time;
+        rounded_time.PrintTime();
 
         w[reading_number].signal_strength = GetSignalStrength();
 
@@ -516,12 +588,11 @@ void ReadData(weatherData &w, int c) {
 
   w.panel_voltage = (w.panel_voltage * float(c) + (float(analogRead(CHARGE_PIN)) * 5.0 / 1024.0 * ((TR1 + TR2) / TR2))) / (float(c) + 1.0);
 
-  int val = analogRead(LeafSensor1);           //Read Leaf Sensor Pin A3
+  int val = analogRead(LeafSensor1_PIN);           //Read Leaf Sensor Pin A3
   int per = map(val, 0, 1023, 0, 100);        //Convert to Percentage
   w.leaf_wetness = (w.leaf_wetness * float(c) + per) / (float(c) + 1.0);
-  Serial.println(w.leaf_wetness);
 
-  Vo = analogRead(ThermistorPin);
+  Vo = analogRead(ThermistorPin_PIN);
   R2 = R1 * (1023.0 /Vo - 1.7);
   logR2 = log(R2);
   T = (1.0 / (c1 + c2*logR2 + c3*logR2*logR2*logR2));
@@ -529,12 +600,11 @@ void ReadData(weatherData &w, int c) {
   w.ThermistorPin = (w.ThermistorPin * float(c) + Tc) / (float(c) + 1.0);
   //Serial.println(w.ThermistorPin);
 
-  int uvLevel = analogRead(UVOUT);
-  int refLevel = analogRead(REF_3V3);
+  int uvLevel = analogRead(UVOUT_PIN);
+  int refLevel = analogRead(REF_3V3_PIN);
   float outputVoltage = 3.3 / refLevel * uvLevel;
   float uvIntensity = map(outputVoltage, 0.01, 2.5, 0.0, 700.0); //Convert the voltage to a UV intensity level
   w.uv_sensor = (w.uv_sensor * float(c) + uvIntensity) / (float(c) + 1.0);
-  Serial.println(w.uv_sensor);
 
   VaneValue = analogRead(DAVIS_WIND_DIRECTION_PIN); 
   Direction = map(VaneValue, 0, 1023, 0, 360); 
@@ -546,11 +616,11 @@ void ReadData(weatherData &w, int c) {
   if(CalDirection < 0) 
   CalDirection = CalDirection + 360; 
   
-  Serial.println(CalDirection);
   w.wind_direction = (w.wind_direction * float(c) + CalDirection) / (float(c) + 1.0);
 
   unsigned int data[6];
 
+#if HT_MODE == 0
   Wire.beginTransmission(Addr);
   Wire.begin();
   Wire.write(0x2C);
@@ -602,17 +672,20 @@ void ReadData(weatherData &w, int c) {
  
    }}
 
-   int temp = (data[0] * 256) + data[1];
+  int temp = (data[0] * 256) + data[1];
   float cTemp = -45.0 + (175.0 * temp / 65535.0);
-  float fTemp = (cTemp * 1.8) + 32.0;
   float humidity = (100.0 * ((data[3] * 156.0) + data[4])) / 65535.0;
-
-  // Yahan print ho raha hai. Agar print nahin ho raha hai, iska matlab hai ki sensor reading me problem hai.
+#elif HT_MODE == 2
+  float cTemp = sht15.readTemperatureC();
+  float humidity = sht15.readHumidity();
+#endif
   
-  Serial.println(humidity);
   w.temp2 = (w.temp2 * c + cTemp) / (float(c) + 1.0);
   w.hum = (w.hum * float(c) + humidity) / (float(c) + 1.0);
 
+  Serial.println(cTemp);
+  Serial.println(humidity);
+  
   w.CheckIsNan();  
 }
 

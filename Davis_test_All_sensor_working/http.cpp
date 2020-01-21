@@ -77,6 +77,8 @@ bool SendWeatherURL(weatherData w) {
   Serial1.print(URL);   
   //Serial1.print(String(row_number + 1) + "=<"); 
   Serial1.print("id=" + String(w.id) + "&");
+
+     
   if(w.t.flag == 1) {
     Serial1.print("ts=");
     Serial1.write((w.t.year / 1000) % 10 + '0');
@@ -96,8 +98,10 @@ bool SendWeatherURL(weatherData w) {
     Serial1.write((w.t.minutes / 10) % 10 + '0');
     Serial1.write(w.t.minutes % 10 + '0');
     Serial1.write(':');
-    Serial1.write((w.t.seconds / 10) % 10 + '0');
-    Serial1.write(w.t.seconds % 10 + '0');
+    //Serial1.write((w.t.seconds / 10) % 10 + '0');
+    //Serial1.write(w.t.seconds % 10 + '0');
+    Serial1.write('0');
+    Serial1.write('0');
     Serial1.write('&');
   }    
   Serial1.print("t1=" + String(w.temp1) + "&");
@@ -365,6 +369,7 @@ bool GetTime(realTime &w) {
   }
   if(i > 200 || Serial1.available() < 19) {
     ShowSerialData();
+    Serial.println("Fail");
     return false;
   }
   t.year = (Serial1.read() - 48) * 1000; 
@@ -389,6 +394,7 @@ bool GetTime(realTime &w) {
   ShowSerialData();
   t.flag = 1;
   w = t;
+  
   return true;
 }
 

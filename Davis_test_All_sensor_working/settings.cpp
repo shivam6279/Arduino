@@ -10,6 +10,7 @@ String CREATE_ID_URL = "http://www.yobi.tech/create-id?";
 String SD_csv_header = "success,tf,id,ts,t1,t2,h,w,wd,r,p,s,a,v,bv,lw,st,uv,sg";
 
 String SERVER_PHONE_NUMBER = "+919220592205";
+String ADMIN_PHONE_NUMBER = "+919650754998";
 
 bool SERIAL_OUTPUT = true;
 bool SERIAL_RESPONSE = true;
