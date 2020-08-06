@@ -1,7 +1,8 @@
 #include "settings.h"
 #include "Arduino.h"
 
-String URL = "http://enigmatic-caverns-27645.herokuapp.com/maytheforcebewithyou?";
+String URL_HEROKU = "http://enigmatic-caverns-27645.herokuapp.com/maytheforcebewithyou?";
+String URL_CWIG = "http://cwig.ncml.com/WhirlyBirdDataSync/handlers.aspx/?var=";
 String OTA_URL = "http://www.yobi.tech/ota/4";
 String TIME_URL = "http://www.yobi.tech/IST";
 String CHECK_ID_URL = "http://www.yobi.tech/check-id";

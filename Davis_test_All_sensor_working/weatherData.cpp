@@ -4,67 +4,68 @@
 
 void weatherData::Reset(int ws_id){
   id = ws_id;
-  temp1 = 0.0;
-  temp2 = 0.0;
+  
+  temp = 0.0;
+  temp_min = 0;
+  temp_max = 0;
+
   hum = 0.0;
+  hum_min = 0;
+  hum_max = 0;
+  
   solar_radiation = 0.0;
   panel_voltage = 0.0;
   battery_voltage = 0.0;
   amps = 0.0;
   rain = 0;
+  
   wind_speed = 0.0;
-  davis_wind_speed = 0.0;
+  wind_stdDiv = 0.0;
+  wind_speed_min = 0.0;
+  wind_speed_max = 0.0;
   wind_direction = 0.0;
+  
   signal_strength = 0;
   pressure = 0;
-  leaf_wetness= 0;
+  leaf_wetness = 0;
   ThermistorPin = 0;
   uv_sensor = 0;
   flag = 0;
 }
 
 void weatherData::CheckIsNan() {
-  if(isnan(hum)) 
-    hum = 0.0;
-  if(isnan(temp1)) 
-    temp1 = 0.0;
-  if(isnan(temp2)) 
-    temp2 = 0.0;
-  if(isnan(solar_radiation)) 
-    solar_radiation = 0.0;
-  if(isnan(panel_voltage)) 
-    panel_voltage = 0.0;
-  if(isnan(battery_voltage)) 
-    battery_voltage = 0.0;
-  if(isnan(amps)) 
-    amps = 0.0;
-  if(isnan(wind_speed)) 
-    wind_speed = 0.0;
-  if(isnan(davis_wind_speed)) 
-    davis_wind_speed = 0.0;
-  if(isnan(wind_direction)) 
-    wind_direction = 0.0;
-  if(isnan(wind_stdDiv)) 
-    wind_stdDiv = 0.0;
-  if(isnan(pressure)) 
-    pressure = 0;
-  if(isnan(ThermistorPin)) 
-    ThermistorPin = 0;
-  if(isnan(leaf_wetness)) 
-    leaf_wetness = 0;
-  if(isnan(uv_sensor)) 
-    leaf_wetness = 0;
-  if(isnan(signal_strength)) 
-    signal_strength = 0.0;
+  if(isnan(hum))              hum = 0.0;
+  if(isnan(hum_min))          hum_min = 0.0;
+  if(isnan(hum_max))          hum_max = 0.0;
+  
+  if(isnan(temp))             temp = 0.0;
+  if(isnan(temp_min))         temp_min = 0.0;
+  if(isnan(temp_max))         temp_max = 0.0;
+  
+  if(isnan(solar_radiation))  solar_radiation = 0.0;
+  if(isnan(panel_voltage))    panel_voltage = 0.0;
+  if(isnan(battery_voltage))  battery_voltage = 0.0;
+  if(isnan(amps))             amps = 0.0;
+  
+  if(isnan(wind_speed))       wind_speed = 0.0;
+  if(isnan(wind_speed_min))   wind_speed_min = 0.0;
+  if(isnan(wind_speed_max))   wind_speed_max = 0.0;
+  if(isnan(wind_direction))   wind_direction = 0.0;
+  if(isnan(wind_stdDiv))      wind_stdDiv = 0.0;
+  
+  if(isnan(pressure))         pressure = 0;
+  if(isnan(ThermistorPin))    ThermistorPin = 0;
+  if(isnan(leaf_wetness))     leaf_wetness = 0;
+  if(isnan(uv_sensor))        uv_sensor = 0;
+  if(isnan(signal_strength))  signal_strength = 0.0;
 }
 
 void weatherData::PrintData() {
-  Serial.print(F("Temperature 1(C): ")); Serial.println(temp1);
-  Serial.print(F("Temperature 2(C): ")); Serial.println(temp2);
-  Serial.print(F("Humidity(%RH): ")); Serial.println(hum);
-  Serial.print(F("Wind speed (m/s): ")); Serial.println(wind_speed);
-  Serial.print(F("Wind direction: ")); Serial.println(wind_direction); Serial.print(F("Degrees"));
-  Serial.print(F("Standard deviation: ")); Serial.println(wind_stdDiv);
+  Serial.println();
+  Serial.print(F("Temperature 1(C): ")); Serial.println(String(temp) + ", " + String(temp_min) + ", " + String(temp_max));
+  Serial.print(F("Humidity(%RH): ")); Serial.println(String(hum) + ", " + String(hum_min) + ", " + String(hum_max));
+  Serial.print(F("Wind speed (m/s): ")); Serial.println(String(wind_speed) + ", " + String(wind_speed_min) + ", " + String(wind_speed_max));
+  Serial.print(F("Wind direction: ")); Serial.print((wind_direction)); Serial.println(F(" Degrees"));
   Serial.print(F("Rain: ")); Serial.println(rain);
   Serial.print(F("Current(Amps): ")); Serial.println(amps);
   Serial.print(F("Panel Voltage(V): ")); Serial.println(panel_voltage);
@@ -76,6 +77,7 @@ void weatherData::PrintData() {
   Serial.print(F("Soil Temperature: ")); Serial.println(ThermistorPin);
   Serial.print(F("Solar radiation(V): ")); Serial.println(float(uv_sensor) * 5.0 / 1023.0); 
   Serial.print(F("Signal Strength: ")); Serial.println(signal_strength); 
+  Serial.println();
 }
 
 double GetWindDirection() {
@@ -283,6 +285,34 @@ double ArrayAvg(double a[], int n) {
   avg /= double(n);
 
   return avg;
+}
+
+double ArrayMin(double a[], int n) {
+  double temp_min;
+  int i;
+
+  if(n < 0) 
+    return 0.0;
+
+  for(i = 1, temp_min = a[0]; i < n; i++) {
+    if(a[i] < temp_min) 
+      temp_min = a[i];
+  }
+  return temp_min;
+}
+
+double ArrayMax(double a[], int n) {
+  double temp_max;
+  int i;
+
+  if(n < 0) 
+    return 0.0;
+
+  for(i = 1, temp_max = a[0]; i < n; i++) {
+    if(a[i] > temp_max) 
+      temp_max = a[i];
+  }
+  return temp_max;
 }
 
 double StdDiv(double a[], int n) {

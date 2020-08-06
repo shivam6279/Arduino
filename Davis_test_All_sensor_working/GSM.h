@@ -7,6 +7,7 @@ extern bool InitGSM();
 extern bool CheckOtaSMS(char*);
 extern bool GetSMS(char*, char*);
 extern void SendSMS(char*, char*);
+extern void GetIMEI(char*);
 extern int GetSignalStrength();
 extern bool CheckNetwork();
 extern bool GetGSMLoc(float&, float&);

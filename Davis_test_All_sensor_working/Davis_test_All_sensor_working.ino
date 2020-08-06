@@ -6,10 +6,10 @@
 #include <Wire.h>
 //#include <BMP180.h>
 #include <DHT.h>
-#include <SHT2x.h>
+
 #include <SPI.h>
 #include <RTClib.h>
-#include <SHT1X.h>
+
 //#include <DallasTemperature.h>
 //#include <OneWire.h>
 
@@ -17,87 +17,9 @@
 #include "weatherData.h"
 #include "GSM.h"
 #include "SD.h"
+#include "general.h"
 
 //All pin definitions and settings are in "settings.h/cpp"
-
-#if HT_MODE == 1
-  #define DHTTYPE DHT22 
-  DHT dht(DHTPIN, DHTTYPE);
-#elif HT_MODE == 2
-  SHT1x sht15(SHT15_DATA_PIN, SHT15_CLK_PIN);
-#endif
-
-//BMP180
-#if ENABLE_BMP180 == true
-  BMP180 barometer;
-#endif
-
-#define DAVIS_WIND_SPEED_PIN 26
-#define DAVIS_WIND_DIRECTION_PIN A1
-#define DAVIS_WIND_DIRECTION_OFFSET 0.0
-#define REF_3V3 A0
-#define UVOUT A13
-#define Addr 0x44
-#define Addr2 0x45
-
-//SD
-bool SD_flag = false;
-
-//Wind speed
-volatile int wind_speed_counter;
-bool wind_flag = false, wind_temp;
-double wind_speed_buffer[DATA_READ_FREQUENCY * 15 + 1];
-
-//Davis wind speed
-volatile int wind_speed_counter_davis;
-bool wind_flag_davis = false, wind_temp_davis;
-int VaneValue;
-int Direction;
-int CalDirection;
-
-//LeafSensor
-const int LeafSensor1= A3;
-
-//Soil Temperature
-
-int ThermistorPin = A12;
-int Vo;
-float R1 = 10000;
-float logR2, R2, T, Tc, Tf;
-float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
-
-
-//SHT31.h Temperature
-int temp;
-float cTemp;
-float fTemp;
-float humidity;
-
-//Rain guage
-volatile int rain_counter;
-bool rain_flag = false, rain_temp;
-
-//Voltage
-float TR1 = 100000.0;
-float TR2 = 10000.0;
-int mVperAmp = 185; // use 100 for 20A Module and 66 for 30A Module
-int ACSoffset = 2500; 
-
-//Timer interrupt
-uint8_t timer1_counter = 0;
-volatile uint8_t GPS_wait;
-volatile bool four_sec = false, read_flag = false, upload_flag = false;
-
-//Weather data
-int ws_id;
-
-//Times
-realTime current_time;
-realTime startup_time;
-
-RTC_DS3231 rtc;
-
-bool startup = true;
 
 //OneWire oneWire(METAL_SENSOR_PIN);
 //DallasTemperature sensors(&oneWire);
@@ -108,57 +30,36 @@ void setup() {
 
   SdFile datalog;
 
-  pinMode(RAIN_LED, OUTPUT);
-  pinMode(WIND_LED, OUTPUT);
-  pinMode(UPLOAD_LED, OUTPUT);
-  pinMode(SD_CARD_CS_PIN, OUTPUT);
-  pinMode(RAIN_PIN, INPUT);
-
-#if board_version == 5
-  pinMode(RAIN_CONNECT_PIN, INPUT);
-  pinMode(DOOR_PIN, INPUT);
-#endif
+  pinSetup();
   
-  pinMode(WIND_PIN , INPUT);
-  pinMode(GSM_DTR_PIN, OUTPUT);
-  digitalWrite(GSM_DTR_PIN, LOW);
-  #ifdef GSM_PWRKEY_PIN
-    pinMode(GSM_PWRKEY_PIN, OUTPUT);
-    digitalWrite(GSM_PWRKEY_PIN, LOW);
-  #endif
-
-  #ifdef DAVIS_WIND_SPEED_PIN
-    pinMode(DAVIS_WIND_SPEED_PIN , INPUT);
-  #endif
-  #ifdef DAVIS_WIND_DIRECTION_PIN
-    pinMode(DAVIS_WIND_DIRECTION_PIN , INPUT);
-  #endif
-
-  Serial.begin(115200); 
-  Serial1.begin(115200);
-  pinMode(19, INPUT);  
-  digitalWrite(19, HIGH);
-  Serial2.begin(9600);
-  pinMode(17, INPUT);  
-  digitalWrite(17, HIGH);
-  //Serial3.begin(9600);
-
-  SD_flag = sd.begin(SD_CARD_CS_PIN);
   delay(100);
-  if(!sd.exists("id.txt")){
-    if(SERIAL_OUTPUT) {
-      Serial.println(F("\nNo id file found on sd card"));
+
+  #ifdef USE_HEROKU_URL
+    if(!sd.exists("id.txt")){
+      if(SERIAL_OUTPUT) {
+        Serial.println(F("\nNo id file found on sd card"));
+      }
+      ws_id = 0;//BACKUP_ID.toInt();
+    } else {
+      datalog.open("id.txt", FILE_READ);
+      while(datalog.available()) {
+        str[i++] = datalog.read();
+      }
+      str[i] = '\0';
+      ws_id = String(str).toInt();
+      datalog.close();
+   }
+  #endif
+  #ifdef USE_CWIG_URL
+    if(!sd.exists("config.txt")){
+      if(SERIAL_OUTPUT) {
+        Serial.println(F("\nNo config file found on sd card"));
+      }
+      ws_id = 0;//BACKUP_ID.toInt();
+    } else {
+      ReadConfig();
     }
-    ws_id = 0;//BACKUP_ID.toInt();
-  } else {
-    datalog.open("id.txt", FILE_READ);
-    while(datalog.available()) {
-      str[i++] = datalog.read();
-    }
-    str[i] = '\0';
-    ws_id = String(str).toInt();
-    datalog.close();
-  }
+  #endif
   
   #if HT_MODE == 0 || ENABLE_BMP180 == true
     Wire.begin();
@@ -173,34 +74,49 @@ void setup() {
     barometer.Initialize(); 
   #endif
 
-  if (! rtc.begin()) {
-    Serial.println("Couldn't find RTC");
+  // RTC
+  bool RTC_flag = true;
+  DateTime now;
+  if(!rtc.begin()) {
+    RTC_flag = false;    
+  } else {
+    // Read current time from RTC into system
+    now = rtc.now();
+    current_time.year = now.year();
+    current_time.month = now.month();
+    current_time.day = now.day();
+    current_time.hours = now.hour();
+    current_time.minutes = now.minute();
+    current_time.seconds = now.second();
+    current_time.flag = true;
   }
-
+  // Print startup data/configs
   if(SERIAL_OUTPUT) {
-    Serial.print(F("Sensor id: ")); Serial.println(ws_id);
+    Serial.println();
+    Serial.println("Last flashed: " + String(__DATE__) + " " + String(__TIME__));
+    #ifdef USE_HEROKU_URL
+      Serial.print(F("Sensor id: ")); Serial.println(ws_id);
+    #endif
     Serial.print(F("Data upload frequency: ")); Serial.print(DATA_UPLOAD_FREQUENCY); Serial.println(F(" minutes"));
     Serial.print(F("Data read frequency: ")); Serial.print(DATA_READ_FREQUENCY); Serial.println(F(" minutes"));
     if(HT_MODE == 0) Serial.println(F("Using SHT21")); else if(HT_MODE == 1) Serial.println(F("Using DHT22")); else if(HT_MODE == 2) Serial.println(F("Using SHT15"));else Serial.println(F("No HT sensor"));
     if(ENABLE_BMP180) Serial.println(F("BMP180 enabled")); else Serial.println(F("BMP180 disabled"));
+    if(!RTC_flag) Serial.println("Couldn't find RTC");
+    else {      
+      Serial.println("Current Time (RTC):");
+      Serial.print(now.year(), DEC);
+      Serial.print('/');
+      Serial.print(now.month(), DEC);
+      Serial.print('/');
+      Serial.println(now.day(), DEC);
+      Serial.print(now.hour(), DEC);
+      Serial.print(':');
+      Serial.print(now.minute(), DEC);
+      Serial.print(':');
+      Serial.print(now.second(), DEC);      
+    }
     Serial.println();
   }
-
-//  while(1) {
-//    DateTime now = rtc.now();
-//    Serial.print(now.year(), DEC);
-//    Serial.print('/');
-//    Serial.print(now.month(), DEC);
-//    Serial.print('/');
-//    Serial.println(now.day(), DEC);
-//    Serial.print(now.hour(), DEC);
-//    Serial.print(':');
-//    Serial.print(now.minute(), DEC);
-//    Serial.print(':');
-//    Serial.print(now.second(), DEC);
-//    Serial.println();
-//    delay(1000);
-//  }
 
   digitalWrite(UPLOAD_LED, HIGH);
   delay(2000);  //Wait for the GSM module to boot up
@@ -208,12 +124,20 @@ void setup() {
 
   //Initialize GSM module
   InitGSM();
+
+  // Get IMEI number from GSM module
+  GetIMEI(imei_str);
+  if(SERIAL_OUTPUT) {
+    Serial.print(F("Sensor IMEI: ")); Serial.println(imei_str);
+  }
   
   delay(6000);
 
   //Interrupt initialization  
   InitInterrupt();  //Timer1: 0.25hz, Timer2: 8Khz
 }
+
+weatherData w_arr[BUFFER_SIZE];
  
 void loop() {
   int i, j;
@@ -226,7 +150,9 @@ void loop() {
 
   bool door_flag = true;
 
-  weatherData w[BUFFER_SIZE];
+  int wind_speed_buffer_counter = 0;
+
+  weatherData w;
 
   realTime temp_time;
   
@@ -234,28 +160,30 @@ void loop() {
   wind_speed_counter = 0;
   reading_number = 0;
 
-  for(i = 0; i < BUFFER_SIZE; i++) {
-    w[i].Reset(ws_id);
-  }
+  w.Reset(ws_id);
+  for(i = 0; i < BUFFER_SIZE; i++) w_arr[i].Reset(ws_id);
   while(Serial1.available()) Serial1.read();
 
-  //Fetch new id
-  if(ws_id == 0) {
-    if(!GetID(ws_id))
-      ws_id = 0;
-  }
+  #ifdef USE_HEROKU_URL
+    //Fetch new id
+    if(ws_id == 0) {
+      if(!GetID(ws_id)) ws_id = 0;
+    }
+  #endif
+
+  GetIMEI(imei_str);
 
   delay(5000);
-  if(GetTime(current_time)) {
-    rtc.adjust(DateTime(current_time.year, current_time.month, current_time.day, current_time.hours, current_time.minutes, current_time.seconds));
-  }
 
-  current_time.PrintTime();
-  
-  if(SERIAL_OUTPUT) {
-    Serial.println(F("\nSeconds till next upload:"));
+  if(GetTime(current_time)) {
+    // rtc.adjust(DateTime(current_time.year, current_time.month, current_time.day, current_time.hours, current_time.minutes, current_time.seconds));
+    Serial.println(F("Current Time (Server):"));
+    current_time.PrintTime();
   }
   
+  if(SERIAL_OUTPUT) Serial.println(F("\nSeconds till next upload:"));
+
+  //Main loop
   while(1) {
     Debug();
 
@@ -264,53 +192,57 @@ void loop() {
       temp_read = read_flag;
       temp_upload = upload_flag;
 
-      
-
-      CheckOTA();
+      // CheckOTA();
   
       if(SERIAL_OUTPUT) {
-        Serial.println();
         if(timer1_counter) Serial.println(((DATA_UPLOAD_FREQUENCY * 15) - timer1_counter + 1) * 4);
         else Serial.println(F("4"));
       }
 
       ShowSerialData();
+      
       if(door_flag == true) {
         if(digitalRead(DOOR_PIN) == HIGH) {
           door_flag = false;
-          Serial.println("Door opened, sending SMS");
-          char door_sms_str[100], door_admin_str[20];
-          ("Id: " + String(ws_id) + " - door opened").toCharArray(door_sms_str, 100);
-          ADMIN_PHONE_NUMBER.toCharArray(door_admin_str, 20);
-          SendSMS(door_admin_str, door_sms_str);
-          delay(4000);
-          ShowSerialData();
+          Serial.println("Door opened");
+//          Serial.println("Door opened, sending SMS");
+//          char door_sms_str[100], door_admin_str[20];
+//          ("Id: " + String(ws_id) + " - door opened").toCharArray(door_sms_str, 100);
+//          ADMIN_PHONE_NUMBER.toCharArray(door_admin_str, 20);
+//          SendSMS(door_admin_str, door_sms_str);
+//          delay(4000);
+//          ShowSerialData();
         }
       } else if(digitalRead(DOOR_PIN) == LOW) {
         door_flag = true;
       }
 
-      ReadData(w[reading_number], avg_counter);
+      ReadData(w, avg_counter);
 
-      wind_speed_buffer[avg_counter] = double(wind_speed_counter) * WIND_RADIUS * 6.2831 / 4.0 * WIND_SCALER;
+      if((avg_counter + 1) % 5 == 0) {
+        wind_speed_buffer[avg_counter/5] = double(wind_speed_counter) * WIND_RADIUS * 6.2831 / 20.0 * WIND_SCALER;
+      }
       wind_speed_counter = 0;
 
       avg_counter++;
-  
-      if(temp_read) { //Read data
+
+      //Read data
+      if(temp_read) { 
         read_flag = false;
 
         digitalWrite(UPLOAD_LED, HIGH);
         
-        //Read data
-        
-        w[reading_number].wind_speed = ArrayAvg(wind_speed_buffer, avg_counter);
-        w[reading_number].wind_stdDiv = StdDiv(wind_speed_buffer, avg_counter);
+        //Read data   
+        w.imei = String(imei_str);
+        w.wind_speed = ArrayAvg(wind_speed_buffer, avg_counter / 5);
+        w.wind_stdDiv = StdDiv(wind_speed_buffer, avg_counter / 5);
+        w.wind_speed_min = ArrayMin(wind_speed_buffer, avg_counter / 5);
+        w.wind_speed_max = ArrayMax(wind_speed_buffer, avg_counter / 5);
 
+        w.rain = rain_counter;
         if(digitalRead(RAIN_CONNECT_PIN) == HIGH)
-          w[reading_number].rain = -1;
-        else
-          w[reading_number].rain = rain_counter;
+          w.rain = -1;
+          
         rain_counter = 0;
 
         realTime rounded_time = current_time;
@@ -321,45 +253,70 @@ void loop() {
           rounded_time.HandleTimeOverflow();
         }
 
-        //w[reading_number].t = current_time;
-        w[reading_number].t = rounded_time;
+        //w.t = current_time;
+        w.t = rounded_time;
         rounded_time.PrintTime();
+        w.signal_strength = GetSignalStrength();        
+        w.CheckIsNan();
 
-        w[reading_number].signal_strength = GetSignalStrength();
-
-        w[reading_number].CheckIsNan();
-
-        if(SERIAL_OUTPUT)
-          w[reading_number].PrintData();
+        if(SERIAL_OUTPUT) w.PrintData();
 
         //---------------SD Card Datalog---------------
         temp_sd = true;
-        w[reading_number].flag = 0;
+        w.flag = 0;
 
-        if(SERIAL_OUTPUT)
-          Serial.println(F("Writing to the SD card"));
+        if(SERIAL_OUTPUT) Serial.println(F("Writing to the SD card"));
           
-        if(!WriteSD(w[reading_number])) {
-          if(SERIAL_OUTPUT)
-            Serial.println(F("Write failed"));
+        if(!WriteSD(w)) {
+          if(SERIAL_OUTPUT) Serial.println(F("Write failed"));
           temp_sd = false;
           break;
         }
-        if(startup == true) 
-          initial_sd_card_uploads++;
+        if(startup == true) initial_sd_card_uploads++;
         //----------------------------------------------
+
+        w_arr[reading_number] = w;
 
         reading_number++;
         avg_counter = 0;
-        
+                
         digitalWrite(UPLOAD_LED, LOW);
       }
-
-      if(temp_upload) { //Upload data
+      
+      //Upload data
+      if(temp_upload) { 
         digitalWrite(UPLOAD_LED, HIGH);
-
         upload_flag = false;
 
+      #ifdef USE_CWIG_URL
+        if(SERIAL_OUTPUT) {
+          Serial.print("\nUploading data: " + String(reading_number) + " record");
+          if(reading_number > 1) Serial.print("s");
+          Serial.println();
+        }
+
+        if(UploadWeatherData(w_arr, reading_number, current_time)) {  //Upload successful              
+          startup = false;
+          
+          number_of_fail_uploads = 0;
+          
+          if(SERIAL_OUTPUT) Serial.println(F("\nUpload successful"));
+          reading_number = 0;
+        } else {
+          number_of_fail_uploads++;
+
+          if(reading_number >= BUFFER_SIZE) {
+            for(i = 0; i < BUFFER_SIZE - 1; i++) w_arr[i] = w_arr[i + 1];
+            reading_number--;
+            w_arr[reading_number].Reset(ws_id);
+          }            
+          
+          if(SERIAL_OUTPUT) Serial.println(F("\nUpload failed\n"));
+          
+          delay(100);
+        }
+          
+      #else   
         //Fetch new id
         if(ws_id == 0) {
           if(GetID(ws_id)){
@@ -374,13 +331,11 @@ void loop() {
             ws_id = 0;
           }
         }
-        
+           
         //-----------------------------------No SD Card---------------------------------
 
         if(!sd.exists("id.txt") || temp_sd == false) {
-          if(SERIAL_OUTPUT) {
-            Serial.println("\nUploading data");
-          }
+          if(SERIAL_OUTPUT) Serial.println("\nUploading data");
 
           if(UploadWeatherData(w, reading_number, current_time)) {  //Upload successful          
             startup = false;
@@ -392,9 +347,7 @@ void loop() {
             
             number_of_fail_uploads = 0;
             
-            if(SERIAL_OUTPUT) {
-              Serial.println(F("\nUpload successful"));
-            }
+            if(SERIAL_OUTPUT) Serial.println(F("\nUpload successful"));
           } else {
             number_of_fail_uploads++;
             
@@ -402,9 +355,7 @@ void loop() {
               w[i].flag = 0;
             }
 
-            if(SERIAL_OUTPUT) {
-              Serial.println(F("\nUpload failed\n"));
-            }
+            if(SERIAL_OUTPUT) Serial.println(F("\nUpload failed\n"));
 
             delay(100);
             //upload_sms(w[reading_number], SERVER_PHONE_NUMBER);
@@ -414,72 +365,55 @@ void loop() {
           //----------------------------------------------------------------------------
 
           if(current_time.flag == false && startup == true) {
-            if(SERIAL_OUTPUT) {
-              Serial.println(F("\nReading time from server"));
-            }
+            if(SERIAL_OUTPUT) Serial.println(F("\nReading time from server"));
 
             temp_time = current_time;
             if(GetTime(current_time)) {
-              if(SERIAL_OUTPUT) {
-                Serial.println(F("\nCurrent Time:"));
-              }
+              if(SERIAL_OUTPUT) Serial.println(F("\nCurrent Time:"));
               current_time.PrintTime();
               SubtractTime(current_time, temp_time, startup_time);
-              if(SERIAL_OUTPUT) {
-                Serial.println(F("\nStartup Time:"));
-              }
+              if(SERIAL_OUTPUT) Serial.println(F("\nStartup Time:"));
               startup_time.PrintTime();
               if(!WriteOldTime(initial_sd_card_uploads, startup_time)) {
                 temp_sd = false;
-                if(SERIAL_OUTPUT) {
-                  Serial.println(F("SD Card failure"));
-                }
+                if(SERIAL_OUTPUT) Serial.println(F("SD Card failure"));
               }
             } else {
-              if(SERIAL_OUTPUT) {
-                Serial.println(F("Server request failed"));
-              }
+              if(SERIAL_OUTPUT) Serial.println(F("Server request failed"));
               number_of_fail_uploads++; 
+              reading_number = 0;
             }
           }
           
           if(current_time.flag && temp_sd) {
             delay(1000);
-            if(SERIAL_OUTPUT) {
-              Serial.println(F("\nUploading data"));
-            }
+            if(SERIAL_OUTPUT) Serial.println(F("\nUploading data"));
             if(UploadCSV()) {  //Upload successful          
               startup = false;
               w[reading_number - 1].t = current_time;
               
-              for(i = 0; i < reading_number; i++) {
-                w[i].flag = 1;
-              }
+              for(i = 0; i < reading_number; i++)  w[i].flag = 1;
               
               number_of_fail_uploads = 0;
               
-              if(SERIAL_OUTPUT) {
-                Serial.println(F("\nUpload successful"));
-              }
+              if(SERIAL_OUTPUT) Serial.println(F("\nUpload successful"));
             } else {
               number_of_fail_uploads++;
   
-              if(SERIAL_OUTPUT) {
-                Serial.println(F("\nUpload failed\n"));
-              }
-              
+              if(SERIAL_OUTPUT) Serial.println(F("\nUpload failed\n"));
+                            
               //upload_sms(w[reading_number], SERVER_PHONE_NUMBER);
+              reading_number = 0;
             }
           }
         }
-
+      #endif
+        
         #ifdef GSM_PWRKEY_PIN
           if(number_of_fail_uploads % 5 == 0 && number_of_fail_uploads > 0) {
             InitGSM();
           }
         #endif
-        
-        reading_number = 0;
         
         digitalWrite(UPLOAD_LED, LOW);
         if(SERIAL_OUTPUT) {
@@ -543,151 +477,22 @@ ISR(TIMER2_COMPA_vect) {
     } 
   #endif
 
-  #ifdef DAVIS_WIND_SPEED_PIN
-    wind_temp_davis = digitalRead(DAVIS_WIND_SPEED_PIN);
-    //Debounce Pin
-    if(wind_temp_davis == 0 && wind_flag_davis == true) {
-      wind_speed_counter_davis++;
-      wind_flag_davis = false;
-      digitalWrite(WIND_LED, HIGH);
-    } 
-    else if(wind_temp_davis == 1) {
-      wind_flag_davis = true;
-      digitalWrite(WIND_LED, LOW);
-    } 
-  #endif
+//  #ifdef DAVIS_WIND_SPEED_PIN
+//    wind_temp_davis = digitalRead(DAVIS_WIND_SPEED_PIN);
+//    //Debounce Pin
+//    if(wind_temp_davis == 0 && wind_flag_davis == true) {
+//      wind_speed_counter_davis++;
+//      wind_flag_davis = false;
+//      digitalWrite(WIND_LED, HIGH);
+//    } 
+//    else if(wind_temp_davis == 1) {
+//      wind_flag_davis = true;
+//      digitalWrite(WIND_LED, LOW);
+//    } 
+//  #endif
 }
 
-//Compute the running average of sensor data
-//Takes the number of previous data points as input (c)
-void ReadData(weatherData &w, int c) {
-  //SHT
-  #if HT_MODE == 0
-//    w.hum = (w.hum * float(c) + SHT2x.GetHumidity()) / (float(c) + 1.0);
-    w.temp1 = (w.temp1 * float(c) + SHT2x.GetTemperature()) / (float(c) + 1.0);
-    
-  #endif
-  
-  //DHT
-  #if HT_MODE == 1
-//    w.hum = (w.hum * float(c) + dht.readHumidity()) / (float(c) + 1.0);
-    w.temp1 = (w.temp1 * float(c) + dht.readTemperature()) / (float(c) + 1.0);
-  #endif
 
-  //BMP180
-  #if ENABLE_BMP180 == true
-    w.pressure = (w.pressure * float(c) + barometer.GetPressure()) / (float(c) + 1.0);
-    //w.temp2 = (w.temp2 * c + barometer.GetTemperature()) / (float(c) + 1.0);
-  #endif
-  
-  //w.solar_radiation = (w.solar_radiation * float(c) + (float(analogRead(BATTERY_PIN)) * 5.0 / 1024.0)) / (float(c) + 1.0);
-  
-  w.battery_voltage = (w.battery_voltage * float(c) + (float(analogRead(BATTERY_PIN)) * 5.0 / 1024.0 * (TR1 + TR2) / TR2)) / (float(c) + 1.0);
-  
-  w.amps = (w.amps * float(c) + (((float(analogRead(CURRENT_SENSOR_PIN)) / 1023.0 * 5000.0) - ACSoffset) / mVperAmp)) / (float(c) + 1.0);
-
-  w.panel_voltage = (w.panel_voltage * float(c) + (float(analogRead(CHARGE_PIN)) * 5.0 / 1024.0 * ((TR1 + TR2) / TR2))) / (float(c) + 1.0);
-
-  int val = analogRead(LeafSensor1_PIN);           //Read Leaf Sensor Pin A3
-  int per = map(val, 0, 1023, 0, 100);        //Convert to Percentage
-  w.leaf_wetness = (w.leaf_wetness * float(c) + per) / (float(c) + 1.0);
-
-  Vo = analogRead(ThermistorPin_PIN);
-  R2 = R1 * (1023.0 /Vo - 1.7);
-  logR2 = log(R2);
-  T = (1.0 / (c1 + c2*logR2 + c3*logR2*logR2*logR2));
-  Tc = T - 273.15;
-  w.ThermistorPin = (w.ThermistorPin * float(c) + Tc) / (float(c) + 1.0);
-  //Serial.println(w.ThermistorPin);
-
-  int uvLevel = analogRead(UVOUT_PIN);
-  int refLevel = analogRead(REF_3V3_PIN);
-  float outputVoltage = 3.3 / refLevel * uvLevel;
-  float uvIntensity = map(outputVoltage, 0.01, 2.5, 0.0, 700.0); //Convert the voltage to a UV intensity level
-  w.uv_sensor = (w.uv_sensor * float(c) + uvIntensity) / (float(c) + 1.0);
-
-  VaneValue = analogRead(DAVIS_WIND_DIRECTION_PIN); 
-  Direction = map(VaneValue, 0, 1023, 0, 360); 
-  CalDirection = Direction + DAVIS_WIND_DIRECTION_OFFSET; 
-  
-  if(CalDirection > 360) 
-  CalDirection = CalDirection - 360; 
-  
-  if(CalDirection < 0) 
-  CalDirection = CalDirection + 360; 
-  
-  w.wind_direction = (w.wind_direction * float(c) + CalDirection) / (float(c) + 1.0);
-
-  unsigned int data[6];
-
-#if HT_MODE == 0
-  Wire.beginTransmission(Addr);
-  Wire.begin();
-  Wire.write(0x2C);
-  Wire.write(0x06);
-  Wire.endTransmission();
-  Wire.beginTransmission(Addr);
-  Wire.endTransmission();
-
-  Wire.requestFrom(Addr, 6);
-  if (Wire.available() == 6)
-  {
-    data[0] = Wire.read();
-    data[1] = Wire.read();
-    data[2] = Wire.read();
-    data[3] = Wire.read();
-    data[4] = Wire.read();
-    data[5] = Wire.read();
-  }
-  {
-  unsigned int data[6];
-
-  // Start I2C Transmission
-  Wire.beginTransmission(Addr2);
-  // Send 16-bit command byte
-  Wire.write(0x2C);
-  Wire.write(0x06);
-  // Stop I2C transmission
-  Wire.endTransmission();
-  delay(300);
-
-  // Start I2C Transmission
-  Wire.beginTransmission(Addr2);
-  // Stop I2C Transmission
-  Wire.endTransmission();
-
-  // Request 6 bytes of data
-  Wire.requestFrom(Addr2, 6);
-
-  // Read 6 bytes of data
-  // temp msb, temp lsb, temp crc, hum msb, hum lsb, hum crc
-  if (Wire.available() == 6)
-  {
-    data[0] = Wire.read();
-    data[1] = Wire.read();
-    data[2] = Wire.read();
-    data[3] = Wire.read();
-    data[4] = Wire.read();
-    data[5] = Wire.read();
- 
-   }}
-
-  int temp = (data[0] * 256) + data[1];
-  float cTemp = -45.0 + (175.0 * temp / 65535.0);
-  float humidity = (100.0 * ((data[3] * 156.0) + data[4])) / 65535.0;
-#elif HT_MODE == 2
-  float cTemp = sht15.readTemperatureC();
-  float humidity = sht15.readHumidity();
-#endif
-  
-  w.temp2 = (w.temp2 * c + cTemp) / (float(c) + 1.0);
-  w.hum = (w.hum * float(c) + humidity) / (float(c) + 1.0);
-
-  Serial.println(cTemp);
-  Serial.println(humidity);
-  
-  w.CheckIsNan();  
-}
 
 void InitInterrupt() {
   noInterrupts();//stop interrupts

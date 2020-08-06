@@ -22,7 +22,7 @@ bool HttpInit() {
   return true;
 }
 
-bool UploadWeatherData(weatherData w[], uint8_t n, realTime &wt) {
+bool UploadWeatherData(weatherData w[], int n, realTime &wt) {
   uint16_t timeout;
   int i;
   if(!HttpInit()) 
@@ -30,98 +30,253 @@ bool UploadWeatherData(weatherData w[], uint8_t n, realTime &wt) {
 
   if(n < 1) 
     n = 1;
-  
+
+#ifdef USE_HEROKU_URL
   for(i = n - 1; i >= 0; i--) {
     if(!SendWeatherURL(w[i])) 
       return false;
-    ShowSerialData();  
-    if(SendATCommand("AT+QHTTPREAD=30", "OK", 1000) == -1) {
+    ShowSerialData();
+    delay(100); 
+    if(SendATCommand("AT+QHTTPREAD=30", "OK", 5000) == -1) {
       GSMReadUntil("\n", 50); 
       return false;
     }
     GSMReadUntil("\n", 50); 
-    if(i != 0) 
-      ShowSerialData();
+    ShowSerialData();
   }
   //Read Time
   ReadTime(wt);
   return true;
+#endif
+#ifdef USE_CWIG_URL
+  while(n > 0) {
+    if(!SendWeatherURL(w[0])) 
+      return false;
+    ShowSerialData();
+    delay(100); 
+    if(SendATCommand("AT+QHTTPREAD=30", "OK", 5000) == -1) {
+      GSMReadUntil("\n", 50); 
+      return false;
+    }
+    ShowSerialData();
+
+    for(i = 0; i < BUFFER_SIZE - 1; i++) w[i] = w[i + 1];
+    n--;
+  }
+  //Read Time
+//  ReadTimeResponse_NCML(wt);
+  return true;
+#endif
 }
 
 bool SendWeatherURL(weatherData w) {
   uint16_t timeout;
   char ch;
   int str_len;
-  str_len = URL.length(); // URL string length
-  str_len += String(w.id).length() + 4;
-  str_len += String(w.temp1).length() + 4;
-  str_len += String(w.temp2).length() + 4;
-  str_len += String(w.hum).length() + 3;
-  str_len += String(w.wind_speed).length() + 3;
-  str_len += String(w.rain).length() + 3;
-  str_len += String(w.pressure).length() + 3;
-  str_len += String(w.amps).length() + 3;
-  str_len += String(w.panel_voltage).length() + 3;
-  str_len += String(w.battery_voltage).length() + 4;
-  str_len += String(w.signal_strength).length() + 3;
 
-  delay(1000);
-  GSMModuleWake();
+  #ifdef USE_HEROKU_URL 
+    str_len = URL_HEROKU.length(); // URL string length
+    str_len += String(w.id).length() + 4;
+    str_len += String(w.temp).length() + 4;
+    str_len += String(w.hum).length() + 3;
+    str_len += String(w.wind_speed).length() + 3;
+    str_len += String(w.rain).length() + 3;
+    str_len += String(w.pressure).length() + 3;
+    str_len += String(w.amps).length() + 3;
+    str_len += String(w.panel_voltage).length() + 3;
+    str_len += String(w.battery_voltage).length() + 4;
+    str_len += String(w.signal_strength).length() + 3;
   
-  Serial1.print("AT+QHTTPURL=");
-  Serial1.print(str_len);
-  Serial1.print(",30\r");
-  delay(1000);
-  ShowSerialData();   
+    delay(1000);
+    GSMModuleWake();
+    
+    Serial1.print("AT+QHTTPURL=");
+    Serial1.print(str_len);
+    Serial1.print(",30\r");
+    delay(1000);
+    ShowSerialData();   
+    
+    Serial1.print(URL_HEROKU);   
+    //Serial1.print(String(row_number + 1) + "=<"); 
+    Serial1.print("id=" + String(w.id) + "&");
   
-  Serial1.print(URL);   
-  //Serial1.print(String(row_number + 1) + "=<"); 
-  Serial1.print("id=" + String(w.id) + "&");
+       
+    if(w.t.flag == 1) {
+      Serial1.print("ts=");
+      Serial1.write((w.t.year / 1000) % 10 + '0');
+      Serial1.write((w.t.year / 100) % 10 + '0');
+      Serial1.write((w.t.year / 10) % 10 + '0');
+      Serial1.write(w.t.year % 10 + '0');
+      Serial1.write('-');
+      Serial1.write((w.t.month / 10) % 10 + '0');
+      Serial1.write(w.t.month % 10 + '0');
+      Serial1.write('-');
+      Serial1.write((w.t.day / 10) % 10 + '0');
+      Serial1.write(w.t.day % 10 + '0');
+      Serial1.write('T');
+      Serial1.write((w.t.hours / 10) % 10 + '0');
+      Serial1.write(w.t.hours % 10 + '0');
+      Serial1.write(':');
+      Serial1.write((w.t.minutes / 10) % 10 + '0');
+      Serial1.write(w.t.minutes % 10 + '0');
+      Serial1.write(':');
+      //Serial1.write((w.t.seconds / 10) % 10 + '0');
+      //Serial1.write(w.t.seconds % 10 + '0');
+      Serial1.write('0');
+      Serial1.write('0');
+      Serial1.write('&');
+    }    
+    Serial1.print("t1=" + String(w.temp) + "&");
+    Serial1.print("h=" + String(w.hum) + "&");
+    Serial1.print("w=" + String(w.wind_speed) + "&");
+    Serial1.print("r=" + String(w.rain) + "&");
+    Serial1.print("p=" + String(w.pressure) + "&");
+    Serial1.print("s=" + String(w.amps) + "&");
+    Serial1.print("v=" + String(w.panel_voltage) + "&");
+    Serial1.print("bv=" + String(w.battery_voltage) + "&");
+    Serial1.print("sg=" + String(w.signal_strength) + '\r');
+    delay(300);
+  #endif
+  
+  #ifdef USE_CWIG_URL
+    str_len = URL_CWIG.length() + 4; // URL string length
+    str_len += String(w.imei).length() + 1;
+    str_len += String(w.temp_max).length() + 1;
+    str_len += String(w.temp).length() + 1;
+    str_len += String(w.temp_min).length() + 1;
+    str_len += String(w.hum_max).length() + 1;
+    str_len += String(w.hum).length() + 1;
+    str_len += String(w.hum_min).length() + 1;
+    str_len += 24;
+    str_len += String(w.wind_speed_min).length() + 1;
+    str_len += String(w.wind_speed).length() + 1;
+    str_len += String(w.wind_speed_max).length() + 1;
+    str_len += String(w.rain).length() + 1 + 2 + 2;
 
-     
-  if(w.t.flag == 1) {
-    Serial1.print("ts=");
-    Serial1.write((w.t.year / 1000) % 10 + '0');
-    Serial1.write((w.t.year / 100) % 10 + '0');
-    Serial1.write((w.t.year / 10) % 10 + '0');
-    Serial1.write(w.t.year % 10 + '0');
-    Serial1.write('-');
-    Serial1.write((w.t.month / 10) % 10 + '0');
-    Serial1.write(w.t.month % 10 + '0');
-    Serial1.write('-');
-    Serial1.write((w.t.day / 10) % 10 + '0');
-    Serial1.write(w.t.day % 10 + '0');
-    Serial1.write('T');
-    Serial1.write((w.t.hours / 10) % 10 + '0');
-    Serial1.write(w.t.hours % 10 + '0');
-    Serial1.write(':');
-    Serial1.write((w.t.minutes / 10) % 10 + '0');
-    Serial1.write(w.t.minutes % 10 + '0');
-    Serial1.write(':');
-    //Serial1.write((w.t.seconds / 10) % 10 + '0');
-    //Serial1.write(w.t.seconds % 10 + '0');
-    Serial1.write('0');
-    Serial1.write('0');
-    Serial1.write('&');
-  }    
-  Serial1.print("t1=" + String(w.temp1) + "&");
-  Serial1.print("t2=" + String(w.temp2) + "&");
-  Serial1.print("h=" + String(w.hum) + "&");
-  Serial1.print("w=" + String(w.wind_speed) + "&");
-  Serial1.print("r=" + String(w.rain) + "&");
-  Serial1.print("p=" + String(w.pressure) + "&");
-  Serial1.print("s=" + String(w.amps) + "&");
-  Serial1.print("v=" + String(w.panel_voltage) + "&");
-  Serial1.print("bv=" + String(w.battery_voltage) + "&");
-  Serial1.print("sg=" + String(w.signal_strength) + '\r');
-  delay(300);
-  
+    str_len += String(w.wind_direction).length() + 1;
+    str_len += String(w.panel_voltage).length() + 1;
+    str_len += String(w.battery_voltage).length();
+    if(w.t.flag == 1) {
+      str_len += 14;
+      if(w.t.month >= 10)
+        str_len ++;
+    } else {
+      str_len += 2;
+    }
+    delay(1000);
+    GSMModuleWake();
+    
+    Serial1.print("AT+QHTTPURL=");
+    Serial1.print(str_len);
+    Serial1.print(",30\r");
+    delay(1000);
+    ShowSerialData();   
+    
+    Serial1.print(URL_CWIG + "\"<"); 
+    Serial1.print(w.imei + ";");
+    
+    if(w.t.flag == 1) {
+      Serial1.write((w.t.day / 10) % 10 + '0');
+      Serial1.write(w.t.day % 10 + '0');
+      Serial1.write('/');
+      if(w.t.month >= 10)
+        Serial1.write((w.t.month / 10) % 10 + '0');
+      Serial1.write(w.t.month % 10 + '0');
+      Serial1.write('/');
+      Serial1.write((w.t.year / 10) % 10 + '0');
+      Serial1.write(w.t.year % 10 + '0');
+      Serial1.write(';');
+      Serial1.write((w.t.hours / 10) % 10 + '0');
+      Serial1.write(w.t.hours % 10 + '0');
+      Serial1.write(':');
+      Serial1.write((w.t.minutes / 10) % 10 + '0');
+      Serial1.write(w.t.minutes % 10 + '0');
+      Serial1.write(';');
+    } else {
+      Serial1.print("0;");      
+    }
+    Serial1.print(String(w.temp_max) + ";");
+    Serial1.print(String(w.temp) + ";");
+    Serial1.print(String(w.temp_min) + ";");
+    
+    Serial1.print(String(w.hum_max) + ";");
+    Serial1.print(String(w.hum) + ";");
+    Serial1.print(String(w.hum_min) + ";");
+
+    Serial1.print(String(w.rain) + ";");
+    Serial1.print("0;");
+    Serial1.print("0;");
+
+    Serial1.print("0;0;0;0;0;0;0;0;0;0;0;0;");
+
+    Serial1.print(String(w.wind_speed_max) + ";");
+    Serial1.print(String(w.wind_speed) + ";");
+    Serial1.print(String(w.wind_speed_min) + ";");
+
+    Serial1.print(String(w.wind_direction) + ";");
+    Serial1.print(String(w.panel_voltage) + ";");
+    Serial1.print(String(w.battery_voltage) + ">\"\r");
+    delay(300);
+
+    Serial.print(URL_CWIG + "\"<"); 
+    Serial.print(w.imei + ";");
+    
+    if(w.t.flag == 1) {
+      Serial.write((w.t.year / 1000) % 10 + '0');
+      Serial.write((w.t.year / 100) % 10 + '0');
+      Serial.write((w.t.year / 10) % 10 + '0');
+      Serial.write(w.t.year % 10 + '0');
+      Serial.write('/');
+      Serial.write((w.t.month / 10) % 10 + '0');
+      Serial.write(w.t.month % 10 + '0');
+      Serial.write('/');
+      Serial.write((w.t.day / 10) % 10 + '0');
+      Serial.write(w.t.day % 10 + '0');
+      Serial.write(';');
+      Serial.write((w.t.hours / 10) % 10 + '0');
+      Serial.write(w.t.hours % 10 + '0');
+      Serial.write(':');
+      Serial.write((w.t.minutes / 10) % 10 + '0');
+      Serial.write(w.t.minutes % 10 + '0');
+      Serial.write(':');
+      //Serial1.write((w.t.seconds / 10) % 10 + '0');
+      //Serial1.write(w.t.seconds % 10 + '0');
+      Serial.write('0');
+      Serial.write('0');
+      Serial.write(';');
+    } else {
+      Serial.print("0;");      
+    }
+    Serial.print(String(w.temp_max) + ";");
+    Serial.print(String(w.temp) + ";");
+    Serial.print(String(w.temp_min) + ";");
+    
+    Serial.print(String(w.hum_max) + ";");
+    Serial.print(String(w.hum) + ";");
+    Serial.print(String(w.hum_min) + ";");
+
+    Serial.print(String(w.rain) + ";");
+    Serial.print("0;");
+    Serial.print("0;");
+
+    Serial.print("0;0;0;0;0;0;0;0;0;0;0;0;");
+
+    Serial.print(String(w.wind_speed_max) + ";");
+    Serial.print(String(w.wind_speed) + ";");
+    Serial.print(String(w.wind_speed_min) + ";");
+
+    Serial.print(String(w.wind_direction) + ";");
+    Serial.print(String(w.panel_voltage) + ";");
+    Serial.print(String(w.battery_voltage) + ">\"\r");
+    delay(300);
+  #endif
+
   ShowSerialData();  
   if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
-    GSMReadUntil("\n", 50); ShowSerialData();  
+    GSMReadUntil("\n", 50); ShowSerialData();
     return false;
   }
-  GSMReadUntil("\n", 50); ShowSerialData();  
+  GSMReadUntil("\n", 50); ShowSerialData();
   return true;
 }
 
@@ -420,8 +575,7 @@ void UploadSMS(weatherData w, String SERVER_PHONE_NUMBER) {
   delay(100);
   Serial1.print("HK9D7 ");
   Serial1.print("'id':" + String(w.id) + ",");
-  Serial1.print("'t1':" + String(w.temp1) + ",");
-  Serial1.print("'t2':" + String(w.temp2) + ",");
+  Serial1.print("'t1':" + String(w.temp) + ",");
   Serial1.print("'h':" + String(w.hum) + ",");
   Serial1.print("'w':" + String(w.wind_speed) + ",");
   Serial1.print("'r':" + String(w.rain) + ",");

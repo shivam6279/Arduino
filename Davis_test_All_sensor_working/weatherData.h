@@ -28,7 +28,9 @@ class weatherData {
 public:
   //Temperature and humidity
   int id;
-  float temp1, temp2, hum;
+  String imei;
+  float temp, temp_min, temp_max;
+  float hum, hum_min, hum_max;
   long int pressure;
 
   //Solar Radiation
@@ -41,7 +43,7 @@ public:
   int rain;
 
   //Anemometer
-  double wind_speed, davis_wind_speed;
+  double wind_speed, wind_speed_min, wind_speed_max;
   double wind_direction;
   double wind_stdDiv;
 
@@ -73,6 +75,8 @@ double GetWindDirection();
 extern void AddTime(realTime, realTime, realTime&);
 extern void SubtractTime(realTime, realTime, realTime&);
 extern double ArrayAvg(double[], int);
+extern double ArrayMin(double[], int);
+extern double ArrayMax(double[], int);
 extern double StdDiv(double[], int);
 extern bool Debug();
 

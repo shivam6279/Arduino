@@ -98,6 +98,25 @@ bool InitGSM() {
   return flag;
 }
 
+void GetIMEI(char *s) {
+  char ch;
+  
+  GSMModuleWake();
+  
+  Serial1.print("AT+GSN\r");
+  delay(100);
+  while(Serial1.available()) {
+    ch = Serial1.read();
+    if(isDigit(ch)) {
+      *s = ch;
+      s++;
+    } else if(ch == 'r')
+      break;    
+  }
+  *s = '\0';
+  while(Serial1.available()) Serial1.read();
+}
+
 bool CheckOtaSMS(char *number) {
   realTime t;
   int i;

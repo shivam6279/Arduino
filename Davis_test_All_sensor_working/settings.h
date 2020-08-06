@@ -85,11 +85,17 @@ Board versions:
   #define GSM_PWRKEY_PIN 22
   #define Addr 0x44
   #define Addr2 0x45
+
+  #define DAVIS_WIND_SPEED_PIN 26
+  #define DAVIS_WIND_DIRECTION_PIN A1
+  #define DAVIS_WIND_DIRECTION_OFFSET 0.0
+  #define REF_3V3 A0
+  #define UVOUT A13
 #endif  
 
 //---------------------------------------Settings----------------------------------------  
 
-extern String URL;
+extern String URL_HEROKU, URL_CWIG;
 extern String OTA_URL;
 extern String TIME_URL;
 extern String CHECK_ID_URL;
@@ -101,14 +107,17 @@ extern String SERVER_PHONE_NUMBER;
 extern String ADMIN_PHONE_NUMBER;
 extern String BACKUP_ID; //Backup id in case there is no sd card
 
-#define WIND_RADIUS 63.7 / 1000.0	//63.7mm
-#define WIND_SCALER 2.5
+#define USE_CWIG_URL
 
-#define HT_MODE 2			        // 0 for SHT21, 1 for DST, 2 for SHT15, 3 for none
+#define WIND_RADIUS 63.7 / 1000.0	//63.7mm
+#define WIND_SCALER 1.0
+
+#define HT_MODE 0			        // 0 for SHT21, 1 for DST, 2 for SHT15, 3 for none
        
-#define DATA_UPLOAD_FREQUENCY 1	//Minutes -- should be a multiple of the read frequency
-#define DATA_READ_FREQUENCY 1  //Minutes
-#define BUFFER_SIZE (DATA_UPLOAD_FREQUENCY / DATA_READ_FREQUENCY)
+#define DATA_UPLOAD_FREQUENCY 60	//Minutes -- should be a multiple of the read frequency
+#define DATA_READ_FREQUENCY 60  //Minutes
+//#define BUFFER_SIZE (DATA_UPLOAD_FREQUENCY / DATA_READ_FREQUENCY)
+#define BUFFER_SIZE 24
 
 #define ENABLE_BMP180 false 	  //True to enable BMP180
 

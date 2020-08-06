@@ -5,7 +5,7 @@
 
 extern bool GetID(int &id);
 extern bool HttpInit();
-extern bool UploadWeatherData(weatherData[], uint8_t, realTime&);
+extern bool UploadWeatherData(weatherData[], int, realTime&);
 extern bool SendWeatherURL(weatherData);
 extern bool GetTime(realTime&);
 extern bool ReadTime(realTime&);

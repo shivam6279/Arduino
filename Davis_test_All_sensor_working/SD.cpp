@@ -286,6 +286,15 @@ bool SDHexToBin() {
 }
 
 bool WriteSD(weatherData w) {
+  #ifdef USE_HEROKU_URL 
+    WriteSD_old(w);
+  #endif
+  #ifdef USE_CWIG_URL
+    WriteSD_NCML(w);
+  #endif
+}
+
+bool WriteSD_old(weatherData w) {
 	bool flag = false;
 	char ch, str[100];
 	int i;
@@ -387,9 +396,7 @@ bool WriteSD(weatherData w) {
   datalog.write((w.t.seconds / 10) % 10 + '0'); 
   datalog.write((w.t.seconds % 10) + '0');
   datalog.print(',');
-  datalog.print(w.temp1);
-  datalog.print(',');
-  datalog.print(w.temp2);
+  datalog.print(w.temp);
   datalog.print(',');
   datalog.print(w.hum);
   datalog.print(',');
@@ -420,6 +427,134 @@ bool WriteSD(weatherData w) {
   if(!datalog.close())
     return false;
 	
+  return true;
+}
+
+bool WriteSD_NCML(weatherData w) {
+  bool flag = false;
+  char ch, str[100];
+  int i;
+
+  SdFile datalog;
+
+  char filename[11];
+
+  filename[0] = 'Y';
+  filename[1] = (w.t.year / 1000) % 10 + '0';
+  filename[2] = (w.t.year / 100) % 10 + '0';
+  filename[3] = 'M';
+  filename[4] = (w.t.month / 10) % 10 + '0';
+  filename[5] = w.t.month % 10 + '0';
+  filename[6] = '.';
+  filename[7] = 't';
+  filename[8] = 'x';
+  filename[9] = 't';
+  filename[10] = '\0';
+  
+  if(!sd.exists(filename)) {
+    delay(50);
+    if(!datalog.open(filename, FILE_WRITE)) {
+      if(!sd.begin(SD_CARD_CS_PIN)) {
+        datalog.close();
+        if(SERIAL_OUTPUT)
+          Serial.println(F("Could not create CSV file"));
+        
+        return false;
+      }
+      if(!datalog.open(filename, FILE_WRITE)) {
+        datalog.close();
+        if(SERIAL_OUTPUT)
+          Serial.println(F("Could not create CSV file"));
+        
+        return false;
+      }
+    }
+    delay(50);
+    flag = true;
+  } else {
+    if(!datalog.open(filename, FILE_WRITE)) {
+      datalog.close();
+      if(SERIAL_OUTPUT)
+        Serial.println(F("Could not open CSV file"));
+      
+      return false;
+    }
+  }
+  
+  datalog.seekEnd();
+  
+  datalog.print("<" + w.imei + ";");
+  datalog.write((w.t.day / 10) % 10 + '0');
+  datalog.write(w.t.day % 10 + '0');
+  datalog.write('/');
+  if(w.t.month >= 10)
+    datalog.write((w.t.month / 10) % 10 + '0');
+  datalog.write(w.t.month % 10 + '0');
+  datalog.write('/');
+  datalog.write((w.t.year / 10) % 10 + '0');
+  datalog.write(w.t.year % 10 + '0');
+  datalog.write(';');
+  datalog.write((w.t.hours / 10) % 10 + '0');
+  datalog.write(w.t.hours % 10 + '0');
+  datalog.write(':');
+  datalog.write((w.t.minutes / 10) % 10 + '0');
+  datalog.write(w.t.minutes % 10 + '0');
+  datalog.write(';');
+  datalog.print(String(w.temp_max) + ";");
+  datalog.print(String(w.temp) + ";");
+  datalog.print(String(w.temp_min) + ";");
+  
+  datalog.print(String(w.hum_max) + ";");
+  datalog.print(String(w.hum) + ";");
+  datalog.print(String(w.hum_min) + ";");
+
+  datalog.print(String(w.rain) + ";");
+  datalog.print("0;");
+  datalog.print("0;");
+
+  datalog.print("0;0;0;0;0;0;0;0;0;0;0;0;");
+
+  datalog.print(String(w.wind_speed_max) + ";");
+  datalog.print(String(w.wind_speed) + ";");
+  datalog.print(String(w.wind_speed_min) + ";");
+
+  datalog.print(String(w.wind_direction) + ";");
+  datalog.print(String(w.panel_voltage) + ";");
+  datalog.println(String(w.battery_voltage) + ">");
+  delay(300);
+  
+  if(!datalog.close())
+    return false;
+  
+  return true;
+}
+
+bool ReadConfig() {
+  bool flag = false;
+  char ch, str[100], svr[100];
+  int i, j;
+
+  SdFile datalog;
+  
+  if(datalog.open("config.txt", FILE_READ)) {
+    while(datalog.available()) {
+      i = 0;
+      ch = datalog.read();
+      while(ch != '\n'){
+        str[i++] = ch;
+        ch = datalog.read(); 
+      }
+      str[i] = '\0';
+      if(tolower(str[0]) == 's' && tolower(str[1]) == 'v' && tolower(str[2]) == 'r') {
+        for(j = 4; j < (i - 2); j++) {
+          svr[j - 4] = str[j];
+        }
+        svr[j - 4] = '\0';
+        URL_CWIG = String(svr) + "/?var=";
+      }
+    }
+  } 
+  datalog.close();
   return true;
 }
 
