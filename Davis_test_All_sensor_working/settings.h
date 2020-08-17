@@ -114,8 +114,8 @@ extern String BACKUP_ID; //Backup id in case there is no sd card
 
 #define HT_MODE 0			        // 0 for SHT21, 1 for DST, 2 for SHT15, 3 for none
        
-#define DATA_UPLOAD_FREQUENCY 60	//Minutes -- should be a multiple of the read frequency
-#define DATA_READ_FREQUENCY 60  //Minutes
+#define DATA_UPLOAD_FREQUENCY 1	//Minutes -- should be a multiple of the read frequency
+#define DATA_READ_FREQUENCY 1  //Minutes
 //#define BUFFER_SIZE (DATA_UPLOAD_FREQUENCY / DATA_READ_FREQUENCY)
 #define BUFFER_SIZE 24
 

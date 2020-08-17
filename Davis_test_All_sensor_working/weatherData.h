@@ -19,6 +19,8 @@ public:
     flag = 0;
   }
   void PrintTime();
+  realTime RoundToMinute();
+  realTime RoundToHour();
   void HandleTimeOverflow();
   int DaysInMonth();
   bool CheckLeapYear();

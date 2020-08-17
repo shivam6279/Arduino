@@ -245,16 +245,11 @@ void loop() {
           
         rain_counter = 0;
 
-        realTime rounded_time = current_time;
-        rounded_time.minutes = ((current_time.minutes + DATA_READ_FREQUENCY-1)/DATA_READ_FREQUENCY) * DATA_READ_FREQUENCY;
-        rounded_time.seconds = 0;
-        if(rounded_time.minutes == 60 && current_time.minutes >= 55) {
-          rounded_time.hours++;
-          rounded_time.HandleTimeOverflow();
-        }
+        realTime rounded_time = current_time.RoundToMinute();
 
         //w.t = current_time;
         w.t = rounded_time;
+        
         rounded_time.PrintTime();
         w.signal_strength = GetSignalStrength();        
         w.CheckIsNan();

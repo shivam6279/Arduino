@@ -484,7 +484,8 @@ bool WriteSD_NCML(weatherData w) {
   datalog.seekEnd();
   
   datalog.print("<" + w.imei + ";");
-  datalog.write((w.t.day / 10) % 10 + '0');
+  if(w.t.day >= 10)
+    datalog.write((w.t.day / 10) % 10 + '0');
   datalog.write(w.t.day % 10 + '0');
   datalog.write('/');
   if(w.t.month >= 10)

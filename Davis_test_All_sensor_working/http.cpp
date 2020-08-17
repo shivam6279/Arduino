@@ -176,7 +176,8 @@ bool SendWeatherURL(weatherData w) {
     Serial1.print(w.imei + ";");
     
     if(w.t.flag == 1) {
-      Serial1.write((w.t.day / 10) % 10 + '0');
+      if(w.t.day >= 10)
+        Serial1.write((w.t.day / 10) % 10 + '0');
       Serial1.write(w.t.day % 10 + '0');
       Serial1.write('/');
       if(w.t.month >= 10)
@@ -222,27 +223,22 @@ bool SendWeatherURL(weatherData w) {
     Serial.print(w.imei + ";");
     
     if(w.t.flag == 1) {
-      Serial.write((w.t.year / 1000) % 10 + '0');
-      Serial.write((w.t.year / 100) % 10 + '0');
-      Serial.write((w.t.year / 10) % 10 + '0');
-      Serial.write(w.t.year % 10 + '0');
+      if(w.t.day >= 10)
+        Serial.write((w.t.day / 10) % 10 + '0');
+      Serial.write(w.t.day % 10 + '0');
       Serial.write('/');
-      Serial.write((w.t.month / 10) % 10 + '0');
+      if(w.t.month >= 10)
+        Serial.write((w.t.month / 10) % 10 + '0');
       Serial.write(w.t.month % 10 + '0');
       Serial.write('/');
-      Serial.write((w.t.day / 10) % 10 + '0');
-      Serial.write(w.t.day % 10 + '0');
+      Serial.write((w.t.year / 10) % 10 + '0');
+      Serial.write(w.t.year % 10 + '0');
       Serial.write(';');
       Serial.write((w.t.hours / 10) % 10 + '0');
       Serial.write(w.t.hours % 10 + '0');
       Serial.write(':');
       Serial.write((w.t.minutes / 10) % 10 + '0');
       Serial.write(w.t.minutes % 10 + '0');
-      Serial.write(':');
-      //Serial1.write((w.t.seconds / 10) % 10 + '0');
-      //Serial1.write(w.t.seconds % 10 + '0');
-      Serial.write('0');
-      Serial.write('0');
       Serial.write(';');
     } else {
       Serial.print("0;");      

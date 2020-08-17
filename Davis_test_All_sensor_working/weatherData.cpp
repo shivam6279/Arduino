@@ -117,6 +117,34 @@ void realTime::PrintTime() {
   Serial.println(seconds % 10);
 }
 
+realTime realTime::RoundToHour() {
+  realTime temp = *this;
+  if(temp.seconds > 30) {
+    temp.minutes++;
+    temp.HandleTimeOverflow();
+  }
+  temp.seconds = 0;
+
+  if(temp.minutes > 30) {
+    temp.hours++;
+    temp.HandleTimeOverflow();
+  }
+  temp.minutes = 0;
+
+  return temp;
+}
+
+realTime realTime::RoundToMinute() {
+  realTime temp = *this;
+  if(temp.seconds > 30) {
+    temp.minutes++;
+    temp.HandleTimeOverflow();
+  }
+  temp.seconds = 0;
+
+  return temp;
+}
+
 void realTime::HandleTimeOverflow() {
   minutes += seconds / 60;
   seconds = seconds % 60;
@@ -127,7 +155,7 @@ void realTime::HandleTimeOverflow() {
   day += hours / 24;
   hours = hours % 24;
 
-  if(month && flag) {
+  if(month) {
     while(day > DaysInMonth()) { 
       day -= DaysInMonth();
       month++; 
