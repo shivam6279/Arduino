@@ -430,6 +430,164 @@ bool WriteSD_old(weatherData w) {
   return true;
 }
 
+bool WriteFailedData(weatherData w) {
+  bool flag = false;
+  char ch, str[100];
+  int i;
+
+  SdFile datalog;
+  
+  if(!sd.exists("failed.txt")) {
+    delay(50);
+    if(!datalog.open("failed.txt", FILE_WRITE)) {
+      if(!sd.begin(SD_CARD_CS_PIN)) {
+        datalog.close();
+        if(SERIAL_OUTPUT)
+          Serial.println(F("Could not create Failed Data file"));
+        
+        return false;
+      }
+      if(!datalog.open("failed.txt", FILE_WRITE)) {
+        datalog.close();
+        if(SERIAL_OUTPUT)
+          Serial.println(F("Could not create Failed Data file"));
+        
+        return false;
+      }
+    }
+    delay(50);
+  } else {
+    if(!datalog.open("failed.txt", FILE_WRITE)) {
+      datalog.close();
+      if(SERIAL_OUTPUT)
+        Serial.println(F("Could not open Failed Data file"));
+      
+      return false;
+    }
+  }
+
+  datalog.seekEnd();
+
+  datalog.print("<" + w.imei + ";");
+  if(w.t.day >= 10)
+    datalog.write((w.t.day / 10) % 10 + '0');
+  datalog.write(w.t.day % 10 + '0');
+  datalog.write('/');
+  if(w.t.month >= 10)
+    datalog.write((w.t.month / 10) % 10 + '0');
+  datalog.write(w.t.month % 10 + '0');
+  datalog.write('/');
+  datalog.write((w.t.year / 10) % 10 + '0');
+  datalog.write(w.t.year % 10 + '0');
+  datalog.write(';');
+  datalog.write((w.t.hours / 10) % 10 + '0');
+  datalog.write(w.t.hours % 10 + '0');
+  datalog.write(':');
+  datalog.write((w.t.minutes / 10) % 10 + '0');
+  datalog.write(w.t.minutes % 10 + '0');
+  datalog.write(';');
+  datalog.print(String(w.temp_max) + ";");
+  datalog.print(String(w.temp) + ";");
+  datalog.print(String(w.temp_min) + ";");
+  
+  datalog.print(String(w.hum_max) + ";");
+  datalog.print(String(w.hum) + ";");
+  datalog.print(String(w.hum_min) + ";");
+
+  datalog.print(String(w.rain) + ";");
+  datalog.print("0;");
+  datalog.print("0;");
+
+  datalog.print("0;0;0;0;0;0;0;0;0;0;0;0;");
+
+  datalog.print(String(w.wind_speed_max) + ";");
+  datalog.print(String(w.wind_speed) + ";");
+  datalog.print(String(w.wind_speed_min) + ";");
+
+  datalog.print(String(w.wind_direction) + ";");
+  datalog.print(String(w.panel_voltage) + ";");
+  datalog.println(String(w.battery_voltage) + ">");
+  delay(300);
+
+  if(!datalog.close())
+    return false;
+  
+  return true;
+}
+
+bool UploadFailedData() {
+  bool flag = false;
+  char ch;
+  String str;
+  int i;
+
+  SdFile datalog;
+
+  Serial.println();
+  
+  if(!sd.exists("failed.txt")) {
+    if(SERIAL_OUTPUT) Serial.println(F("No failed data file"));
+    return false;
+  } else {
+    if(!datalog.open("failed.txt", FILE_READ)) {
+      datalog.close();
+      if(SERIAL_OUTPUT) Serial.println(F("Could not open failed Data file"));
+      
+      return false;
+    }
+  }
+
+  datalog.seekSet(0);
+
+  if(SERIAL_OUTPUT) Serial.println(F("Uploading past failed records"));
+  
+  while(datalog.available()) {
+    str = "";
+    do {
+      ch = datalog.read();
+      if(ch >= 32 && ch <= 126) {
+        str += ch;
+      }
+    }while(ch != '\n' && datalog.available());
+    
+    Serial1.print("AT+QHTTPURL=");
+    Serial1.print(URL_CWIG.length() + 2 + str.length());
+    Serial1.print(",30\r");
+    delay(1000);
+    ShowSerialData();
+      
+    Serial1.print(URL_CWIG + "\""); 
+    Serial1.print(str);
+    Serial1.print("\"\r");
+
+    Serial.print(URL_CWIG + "\""); 
+    Serial.print(str);
+    Serial.println("\"");
+
+    delay(300);
+
+    ShowSerialData();  
+    if(SendATCommand("AT+QHTTPGET=30", "OK", 30000) < 1) {
+      GSMReadUntil("\n", 50); ShowSerialData();
+      return false;
+    }
+    GSMReadUntil("\n", 50); ShowSerialData();
+      
+    ShowSerialData();
+    delay(100); 
+    if(SendATCommand("AT+QHTTPREAD=30", "OK", 5000) == -1) {
+      GSMReadUntil("\n", 50); 
+      return false;
+    }
+    ShowSerialData();
+  }
+
+  if(!datalog.close())
+    return false;
+    
+   sd.remove("failed.txt");
+}
+
 bool WriteSD_NCML(weatherData w) {
   bool flag = false;
   char ch, str[100];

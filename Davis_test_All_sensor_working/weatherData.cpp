@@ -300,6 +300,27 @@ void SubtractTime(realTime a, realTime b, realTime &c) {
   c.year = a.year;
 }
 
+signed long SecondsBetween(realTime a, realTime b) {
+  signed long s;
+  s = (signed long)a.seconds - (signed long)b.seconds;
+  s += ((signed long)a.minutes - (signed long)b.minutes) * 60;
+  s += ((signed long)a.hours - (signed long)b.hours) * 3600;
+  s += ((signed long)a.day - (signed long)b.day) * 86400;
+
+  if(a.month != b.month) {
+    s += b.DaysInMonth() * 86400;
+  }
+  if(a.year != b.year) {
+    s += b.CheckLeapYear();
+    if(b.CheckLeapYear()) {
+      s += 31622400;
+    } else {
+      s += 31536000;
+    }
+  }
+  return s;
+}
+
 double ArrayAvg(double a[], int n) {
   double avg;
   int i;

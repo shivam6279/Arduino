@@ -22,7 +22,7 @@ extern bool SD_flag;
 //Wind speed
 extern volatile int wind_speed_counter;
 extern bool wind_flag, wind_temp;
-extern double wind_speed_buffer[DATA_READ_FREQUENCY * 3 + 1];
+extern double wind_speed_buffer[DATA_UPLOAD_FREQUENCY * 3 + 1];
 
 //Davis wind speed
 extern volatile int wind_speed_counter_davis;
@@ -49,7 +49,7 @@ extern int mVperAmp;
 extern int ACSoffset; 
 
 //Timer interrupt
-extern uint8_t timer1_counter;
+extern uint16_t timer1_counter;
 extern volatile uint8_t GPS_wait;
 extern volatile bool four_sec, read_flag, upload_flag;
 

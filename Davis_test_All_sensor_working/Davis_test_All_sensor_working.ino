@@ -24,6 +24,8 @@
 //OneWire oneWire(METAL_SENSOR_PIN);
 //DallasTemperature sensors(&oneWire);
 
+uint16_t counter_offset = 0;
+
 void setup() {  
   unsigned int i;
   char str[10];
@@ -90,6 +92,48 @@ void setup() {
     current_time.seconds = now.second();
     current_time.flag = true;
   }
+  
+  if(!RTC_flag) {
+    current_time.year = 1000 * (String(__DATE__)[7] - '0') + 100 * (String(__DATE__)[8] - '0') + 10 * (String(__DATE__)[9] - '0') + (String(__DATE__)[10] - '0');
+    
+    if(String(__DATE__)[0] == 'J' && String(__DATE__)[1] == 'a' && String(__DATE__)[2] == 'n')
+      current_time.month = 1;
+    else if(String(__DATE__)[0] == 'F')
+      current_time.month = 2;
+    else if(String(__DATE__)[0] == 'M' && String(__DATE__)[1] == 'a' && String(__DATE__)[2] == 'r')
+      current_time.month = 3;
+    else if(String(__DATE__)[0] == 'A')
+      current_time.month = 4;
+    else if(String(__DATE__)[0] == 'M' && String(__DATE__)[1] == 'a' && String(__DATE__)[2] == 'y')
+      current_time.month = 5;
+    else if(String(__DATE__)[0] == 'J' && String(__DATE__)[1] == 'u' && String(__DATE__)[2] == 'n')
+      current_time.month = 6;
+    else if(String(__DATE__)[0] == 'J' && String(__DATE__)[1] == 'u' && String(__DATE__)[2] == 'l')
+      current_time.month = 7;
+    else if(String(__DATE__)[0] == 'A')
+      current_time.month = 8;
+    else if(String(__DATE__)[0] == 'S')
+      current_time.month = 9;
+    else if(String(__DATE__)[0] == 'O')
+      current_time.month = 10;
+    else if(String(__DATE__)[0] == 'N')
+      current_time.month = 11;
+    else if(String(__DATE__)[0] == 'D')
+      current_time.month = 12;
+      
+    current_time.day = 10 * (String(__DATE__)[4] - '0') + (String(__DATE__)[5] - '0');
+    current_time.seconds =  10 * (String(__TIME__)[6] - '0') + (String(__TIME__)[7] - '0');
+    current_time.minutes =  10 * (String(__TIME__)[3] - '0') + (String(__TIME__)[4] - '0');
+    current_time.hours =  10 * (String(__TIME__)[0] - '0') + (String(__TIME__)[1] - '0');
+  }
+
+  realTime temp_time = current_time;
+  temp_time.seconds = 0;
+  temp_time.minutes = ((temp_time.minutes + DATA_UPLOAD_FREQUENCY + 1) / DATA_UPLOAD_FREQUENCY) * DATA_UPLOAD_FREQUENCY;
+  temp_time.HandleTimeOverflow();
+
+  counter_offset = SecondsBetween(temp_time, current_time) / 4 - 1;
+  
   // Print startup data/configs
   if(SERIAL_OUTPUT) {
     Serial.println();
@@ -98,7 +142,6 @@ void setup() {
       Serial.print(F("Sensor id: ")); Serial.println(ws_id);
     #endif
     Serial.print(F("Data upload frequency: ")); Serial.print(DATA_UPLOAD_FREQUENCY); Serial.println(F(" minutes"));
-    Serial.print(F("Data read frequency: ")); Serial.print(DATA_READ_FREQUENCY); Serial.println(F(" minutes"));
     if(HT_MODE == 0) Serial.println(F("Using SHT21")); else if(HT_MODE == 1) Serial.println(F("Using DHT22")); else if(HT_MODE == 2) Serial.println(F("Using SHT15"));else Serial.println(F("No HT sensor"));
     if(ENABLE_BMP180) Serial.println(F("BMP180 enabled")); else Serial.println(F("BMP180 disabled"));
     if(!RTC_flag) Serial.println("Couldn't find RTC");
@@ -152,6 +195,7 @@ void loop() {
 
   int wind_speed_buffer_counter = 0;
 
+  DateTime now;
   weatherData w;
 
   realTime temp_time;
@@ -172,14 +216,32 @@ void loop() {
   #endif
 
   GetIMEI(imei_str);
+  
+  // RTC
+  bool RTC_flag = true;
+  if(!rtc.begin()) {
+    RTC_flag = false;    
+  } else {
+    // Read current time from RTC into system
+    now = rtc.now();
+    current_time.year = now.year();
+    current_time.month = now.month();
+    current_time.day = now.day();
+    current_time.hours = now.hour();
+    current_time.minutes = now.minute();
+    current_time.seconds = now.second();
+    current_time.flag = true;
+  }
 
   delay(5000);
 
-  if(GetTime(current_time)) {
-    // rtc.adjust(DateTime(current_time.year, current_time.month, current_time.day, current_time.hours, current_time.minutes, current_time.seconds));
-    Serial.println(F("Current Time (Server):"));
-    current_time.PrintTime();
-  }
+//  if(GetTime(current_time)) {
+//    // rtc.adjust(DateTime(current_time.year, current_time.month, current_time.day, current_time.hours, current_time.minutes, current_time.seconds));
+//    Serial.println(F("Current Time (Server):"));
+//    current_time.PrintTime();
+//  }
+
+  current_time.PrintTime();  
   
   if(SERIAL_OUTPUT) Serial.println(F("\nSeconds till next upload:"));
 
@@ -195,7 +257,7 @@ void loop() {
       // CheckOTA();
   
       if(SERIAL_OUTPUT) {
-        if(timer1_counter) Serial.println(((DATA_UPLOAD_FREQUENCY * 15) - timer1_counter + 1) * 4);
+        if(timer1_counter) Serial.println((counter_offset - timer1_counter + 1) * 4);
         else Serial.println(F("4"));
       }
 
@@ -245,12 +307,14 @@ void loop() {
           
         rain_counter = 0;
 
-        realTime rounded_time = current_time.RoundToMinute();
-
+        realTime rounded_time = current_time.RoundToMinute(); //Round to nearest minute
+        rounded_time.minutes = (rounded_time.minutes+MINUTE_ROUND-1)/MINUTE_ROUND * MINUTE_ROUND; //Round to next x minute mark
+        rounded_time.HandleTimeOverflow();
+        
         //w.t = current_time;
         w.t = rounded_time;
         
-        rounded_time.PrintTime();
+        current_time.PrintTime();
         w.signal_strength = GetSignalStrength();        
         w.CheckIsNan();
 
@@ -271,6 +335,7 @@ void loop() {
         //----------------------------------------------
 
         w_arr[reading_number] = w;
+        w.Reset(ws_id);
 
         reading_number++;
         avg_counter = 0;
@@ -283,7 +348,6 @@ void loop() {
         digitalWrite(UPLOAD_LED, HIGH);
         upload_flag = false;
 
-      #ifdef USE_CWIG_URL
         if(SERIAL_OUTPUT) {
           Serial.print("\nUploading data: " + String(reading_number) + " record");
           if(reading_number > 1) Serial.print("s");
@@ -292,123 +356,41 @@ void loop() {
 
         if(UploadWeatherData(w_arr, reading_number, current_time)) {  //Upload successful              
           startup = false;
+          UploadFailedData();
           
-          number_of_fail_uploads = 0;
-          
-          if(SERIAL_OUTPUT) Serial.println(F("\nUpload successful"));
-          reading_number = 0;
+          if(SERIAL_OUTPUT) Serial.println(F("\nUpload successful"));          
         } else {
           number_of_fail_uploads++;
 
-          if(reading_number >= BUFFER_SIZE) {
-            for(i = 0; i < BUFFER_SIZE - 1; i++) w_arr[i] = w_arr[i + 1];
-            reading_number--;
-            w_arr[reading_number].Reset(ws_id);
-          }            
+          WriteFailedData(w_arr[reading_number-1]);
           
           if(SERIAL_OUTPUT) Serial.println(F("\nUpload failed\n"));
-          
-          delay(100);
         }
-          
-      #else   
-        //Fetch new id
-        if(ws_id == 0) {
-          if(GetID(ws_id)){
-            if(!WriteOldID(initial_sd_card_uploads, ws_id)) {
-              ws_id = 0;
-            } else {
-              for(i = 0; i < BUFFER_SIZE; i++) {
-                w[i].id = ws_id;
-              }
-            }
-          } else {
-            ws_id = 0;
-          }
-        }
-           
-        //-----------------------------------No SD Card---------------------------------
 
-        if(!sd.exists("id.txt") || temp_sd == false) {
-          if(SERIAL_OUTPUT) Serial.println("\nUploading data");
-
-          if(UploadWeatherData(w, reading_number, current_time)) {  //Upload successful          
-            startup = false;
-            w[reading_number - 1].t = current_time;
-            
-            for(i = 0; i < reading_number; i++) {
-              w[i].flag = 1;
-            }
-            
-            number_of_fail_uploads = 0;
-            
-            if(SERIAL_OUTPUT) Serial.println(F("\nUpload successful"));
-          } else {
-            number_of_fail_uploads++;
-            
-            for(i = 0; i < reading_number; i++) {
-              w[i].flag = 0;
-            }
-
-            if(SERIAL_OUTPUT) Serial.println(F("\nUpload failed\n"));
-
-            delay(100);
-            //upload_sms(w[reading_number], SERVER_PHONE_NUMBER);
-          }
-        } else {
-
-          //----------------------------------------------------------------------------
-
-          if(current_time.flag == false && startup == true) {
-            if(SERIAL_OUTPUT) Serial.println(F("\nReading time from server"));
-
-            temp_time = current_time;
-            if(GetTime(current_time)) {
-              if(SERIAL_OUTPUT) Serial.println(F("\nCurrent Time:"));
-              current_time.PrintTime();
-              SubtractTime(current_time, temp_time, startup_time);
-              if(SERIAL_OUTPUT) Serial.println(F("\nStartup Time:"));
-              startup_time.PrintTime();
-              if(!WriteOldTime(initial_sd_card_uploads, startup_time)) {
-                temp_sd = false;
-                if(SERIAL_OUTPUT) Serial.println(F("SD Card failure"));
-              }
-            } else {
-              if(SERIAL_OUTPUT) Serial.println(F("Server request failed"));
-              number_of_fail_uploads++; 
-              reading_number = 0;
-            }
-          }
-          
-          if(current_time.flag && temp_sd) {
-            delay(1000);
-            if(SERIAL_OUTPUT) Serial.println(F("\nUploading data"));
-            if(UploadCSV()) {  //Upload successful          
-              startup = false;
-              w[reading_number - 1].t = current_time;
-              
-              for(i = 0; i < reading_number; i++)  w[i].flag = 1;
-              
-              number_of_fail_uploads = 0;
-              
-              if(SERIAL_OUTPUT) Serial.println(F("\nUpload successful"));
-            } else {
-              number_of_fail_uploads++;
-  
-              if(SERIAL_OUTPUT) Serial.println(F("\nUpload failed\n"));
-                            
-              //upload_sms(w[reading_number], SERVER_PHONE_NUMBER);
-              reading_number = 0;
-            }
-          }
-        }
-      #endif
+        reading_number = 0;
         
         #ifdef GSM_PWRKEY_PIN
           if(number_of_fail_uploads % 5 == 0 && number_of_fail_uploads > 0) {
             InitGSM();
           }
         #endif
+
+        if(RTC_flag) {
+          now = rtc.now();
+          current_time.year = now.year();
+          current_time.month = now.month();
+          current_time.day = now.day();
+          current_time.hours = now.hour();
+          current_time.minutes = now.minute();
+          current_time.seconds = now.second();
+        }
+
+        temp_time = current_time;
+        temp_time.seconds = 0;
+        temp_time.minutes = ((temp_time.minutes + DATA_UPLOAD_FREQUENCY + 1) / DATA_UPLOAD_FREQUENCY) * DATA_UPLOAD_FREQUENCY;
+        temp_time.HandleTimeOverflow();
+      
+        counter_offset = SecondsBetween(temp_time, current_time) / 4 - 1;
         
         digitalWrite(UPLOAD_LED, LOW);
         if(SERIAL_OUTPUT) {
@@ -426,11 +408,11 @@ ISR(TIMER1_COMPA_vect) {
     if(GPS_wait < 2) GPS_wait++;
   #endif
   timer1_counter++;
-  if(timer1_counter == DATA_UPLOAD_FREQUENCY * 15) { 
+  if(timer1_counter == counter_offset) { 
     timer1_counter = 0;
+    read_flag = true;
     upload_flag = true;
   }
-  if(timer1_counter % (DATA_READ_FREQUENCY * 15) == 0) read_flag = true;
   four_sec = true;
 
   //Increment time by 4 seconds and handle overflow

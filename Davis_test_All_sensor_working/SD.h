@@ -14,6 +14,8 @@ extern bool WriteSD_old(weatherData);
 extern bool WriteSD_NCML(weatherData);
 extern bool ReadConfig();
 extern long int GetPreviousFailedUploads(long int &n);
+extern bool WriteFailedData(weatherData);
+extern bool UploadFailedData();
 extern bool UploadCSV();
 extern bool WriteOldTime(int, realTime);
 extern bool WriteOldID(int, int);

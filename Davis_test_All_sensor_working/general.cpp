@@ -30,7 +30,7 @@ bool SD_flag = false;
 //Wind speed
 volatile int wind_speed_counter;
 bool wind_flag = false, wind_temp;
-double wind_speed_buffer[DATA_READ_FREQUENCY * 3 + 1];
+double wind_speed_buffer[DATA_UPLOAD_FREQUENCY * 3 + 1];
 
 //Davis wind speed
 volatile int wind_speed_counter_davis;
@@ -50,7 +50,7 @@ volatile int rain_counter;
 bool rain_flag = false, rain_temp;
 
 //Timer interrupt
-uint8_t timer1_counter = 0;
+uint16_t timer1_counter = 0;
 volatile uint8_t GPS_wait;
 volatile bool four_sec = false, read_flag = false, upload_flag = false;
 

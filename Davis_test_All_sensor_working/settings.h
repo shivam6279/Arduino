@@ -113,10 +113,10 @@ extern String BACKUP_ID; //Backup id in case there is no sd card
 #define WIND_SCALER 1.0
 
 #define HT_MODE 0			        // 0 for SHT21, 1 for DST, 2 for SHT15, 3 for none
+
+#define MINUTE_ROUND 15 // Uploads round to this minute mark
        
-#define DATA_UPLOAD_FREQUENCY 1	//Minutes -- should be a multiple of the read frequency
-#define DATA_READ_FREQUENCY 1  //Minutes
-//#define BUFFER_SIZE (DATA_UPLOAD_FREQUENCY / DATA_READ_FREQUENCY)
+#define DATA_UPLOAD_FREQUENCY 60	//Minutes -- 30 or 60
 #define BUFFER_SIZE 24
 
 #define ENABLE_BMP180 false 	  //True to enable BMP180

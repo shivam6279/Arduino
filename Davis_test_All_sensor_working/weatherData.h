@@ -76,6 +76,7 @@ public:
 double GetWindDirection();
 extern void AddTime(realTime, realTime, realTime&);
 extern void SubtractTime(realTime, realTime, realTime&);
+extern signed long SecondsBetween(realTime a, realTime b);
 extern double ArrayAvg(double[], int);
 extern double ArrayMin(double[], int);
 extern double ArrayMax(double[], int);

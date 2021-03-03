@@ -59,8 +59,7 @@ bool UploadWeatherData(weatherData w[], int n, realTime &wt) {
       return false;
     }
     ShowSerialData();
-
-    for(i = 0; i < BUFFER_SIZE - 1; i++) w[i] = w[i + 1];
+    
     n--;
   }
   //Read Time
@@ -157,8 +156,10 @@ bool SendWeatherURL(weatherData w) {
     str_len += String(w.panel_voltage).length() + 1;
     str_len += String(w.battery_voltage).length();
     if(w.t.flag == 1) {
-      str_len += 14;
+      str_len += 13;
       if(w.t.month >= 10)
+        str_len ++;
+      if(w.t.day >= 10)
         str_len ++;
     } else {
       str_len += 2;
