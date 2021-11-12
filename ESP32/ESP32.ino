@@ -3,136 +3,60 @@
 #include <esp_now.h>
 #include <WiFi.h>
 
-static const int spiClk = 1000000; // 1 MHz
+#include <FS.h>
+#include <SD.h>
 
-#define VSPI_MISO   MISO
-#define VSPI_MOSI   MOSI
-#define VSPI_SCLK   SCK
-#define VSPI_SS     SS
+SPIClass spiSD(HSPI);
 
-SPIClass * vspi = NULL;
+File root;
+uint8_t gif_list(String arr[]) {  
+  String n;
+  uint8_t r = 0;
+  File root = SD.open("/");
+  
+  while(1) {
+    File entry =  root.openNextFile();
+  
+    if(!entry) {      
+      break;
+    }
+
+    String n = entry.name();
+    if(n.endsWith(".gif")) {
+      arr[r] = n;
+      r++;      
+    }
+    entry.close();
+  }
+  return r;
+}
 
 void setup() {
   Serial.begin(115200);
-  vspi = new SPIClass(VSPI);
-  vspi->begin();
-  pinMode(VSPI_SS, OUTPUT); //VSPI SS
+  pinMode(15, OUTPUT); //VSPI SS
+
+//  spiSD.begin();
+  spiSD.begin(14, 12, 13, -1);
+
+  if(!SD.begin(15, spiSD)) {
+    Serial.println("Card Mount Failed");    
+  }   
+
+  root = SD.open("/");
   
-  WiFi.mode(WIFI_STA);
+//  WiFi.mode(WIFI_STA);
   Serial.print("Mac Address in Station: "); 
   Serial.println(WiFi.macAddress());
 }
 
 void loop() {
-  //Power_test(96, 128);
-  LED_test(96, 10);
-}
+  uint8_t r;
+  String arr[15];
+  r = gif_list(arr);
 
-void Power_test(int len, int b) {
-  while(1) { 
-    int i = 0;
-    
-    //use it as you would the regular arduino SPI API
-    vspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE0));
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-  
-    for(i = 0; i < len; i++) {
-      vspi->transfer(255);
-      vspi->transfer(b);
-      vspi->transfer(b);
-      vspi->transfer(b);
-    }
-  
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->endTransaction();
-  
-    delay(50);
+  for(uint8_t i = 0; i < r; i++) {
+    Serial.println(arr[i]);
   }
-}
-
-void LED_test(int len, int b) {
-  while(1) { 
-    int i = 0;
-    vspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE0));
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
   
-    for(i = 0; i < len; i++) {
-      vspi->transfer(255);
-      vspi->transfer(b);
-      vspi->transfer(0);
-      vspi->transfer(0);
-    }
-  
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->endTransaction();
-    delay(1000);
-
-    vspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE0));
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-  
-    for(i = 0; i < len; i++) {
-      vspi->transfer(255);
-      vspi->transfer(0);
-      vspi->transfer(b);
-      vspi->transfer(0);
-    }
-  
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->endTransaction();
-    delay(1000);
-
-    vspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE0));
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-  
-    for(i = 0; i < len; i++) {
-      vspi->transfer(255);
-      vspi->transfer(0);
-      vspi->transfer(0);
-      vspi->transfer(b);
-    }
-  
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->transfer(0);
-    vspi->endTransaction();
-    delay(1000);
-  }
+  while(1);
 }
