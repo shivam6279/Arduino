@@ -14,8 +14,9 @@
  */
 #include <SPI.h>
 #include <WiFi101.h>
-
-char ssid[] = "yourNetwork";     // the name of your network
+#include "arduino_secrets.h" 
+///////please enter your sensitive data in the Secret tab/arduino_secrets.h
+char ssid[] = SECRET_SSID;        // your network SSID (name)
 int status = WL_IDLE_STATUS;     // the WiFi radio's status
 
 void setup() {
@@ -65,17 +66,7 @@ void printWiFiData() {
   byte mac[6];
   WiFi.macAddress(mac);
   Serial.print("MAC address: ");
-  Serial.print(mac[5], HEX);
-  Serial.print(":");
-  Serial.print(mac[4], HEX);
-  Serial.print(":");
-  Serial.print(mac[3], HEX);
-  Serial.print(":");
-  Serial.print(mac[2], HEX);
-  Serial.print(":");
-  Serial.print(mac[1], HEX);
-  Serial.print(":");
-  Serial.println(mac[0], HEX);
+  printMacAddress(mac);
 
   // print your subnet mask:
   IPAddress subnet = WiFi.subnetMask();
@@ -97,17 +88,7 @@ void printCurrentNet() {
   byte bssid[6];
   WiFi.BSSID(bssid);
   Serial.print("BSSID: ");
-  Serial.print(bssid[5], HEX);
-  Serial.print(":");
-  Serial.print(bssid[4], HEX);
-  Serial.print(":");
-  Serial.print(bssid[3], HEX);
-  Serial.print(":");
-  Serial.print(bssid[2], HEX);
-  Serial.print(":");
-  Serial.print(bssid[1], HEX);
-  Serial.print(":");
-  Serial.println(bssid[0], HEX);
+  printMacAddress(bssid);
 
   // print the received signal strength:
   long rssi = WiFi.RSSI();
@@ -120,3 +101,15 @@ void printCurrentNet() {
   Serial.println(encryption, HEX);
 }
 
+void printMacAddress(byte mac[]) {
+  for (int i = 5; i >= 0; i--) {
+    if (mac[i] < 16) {
+      Serial.print("0");
+    }
+    Serial.print(mac[i], HEX);
+    if (i > 0) {
+      Serial.print(":");
+    }
+  }
+  Serial.println();
+}

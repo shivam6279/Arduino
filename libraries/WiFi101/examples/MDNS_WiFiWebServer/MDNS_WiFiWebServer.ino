@@ -32,8 +32,10 @@
 #include <WiFi101.h>
 #include <WiFiMDNSResponder.h>
 
-char ssid[] = "yourNetwork";      // your network SSID (name)
-char pass[] = "secretPassword";   // your network password
+#include "arduino_secrets.h" 
+///////please enter your sensitive data in the Secret tab/arduino_secrets.h
+char ssid[] = SECRET_SSID;        // your network SSID (name)
+char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
 int keyIndex = 0;                 // your network key Index number (needed only for WEP)
 
 char mdnsName[] = "wifi101"; // the MDNS name that the board will respond to
@@ -101,7 +103,7 @@ void loop() {
   if (client) {
     Serial.println("new client");
     // an http request ends with a blank line
-    boolean currentLineIsBlank = true;
+    bool currentLineIsBlank = true;
     while (client.connected()) {
       if (client.available()) {
         char c = client.read();

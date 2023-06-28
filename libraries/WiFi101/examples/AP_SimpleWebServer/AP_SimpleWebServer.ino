@@ -18,13 +18,13 @@
 
 #include <SPI.h>
 #include <WiFi101.h>
-
-int led =  LED_BUILTIN;
-
-char ssid[] = "wifi101-network"; // created AP name
-char pass[] = "1234567890";      // AP password (needed only for WEP, must be exactly 10 or 26 characters in length)
+#include "arduino_secrets.h" 
+///////please enter your sensitive data in the Secret tab/arduino_secrets.h
+char ssid[] = SECRET_SSID;        // your network SSID (name)
+char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
 int keyIndex = 0;                // your network key Index number (needed only for WEP)
 
+int led =  LED_BUILTIN;
 int status = WL_IDLE_STATUS;
 WiFiServer server(80);
 
@@ -85,17 +85,7 @@ void loop() {
       // a device has connected to the AP
       Serial.print("Device connected to AP, MAC address: ");
       WiFi.APClientMacAddress(remoteMac);
-      Serial.print(remoteMac[5], HEX);
-      Serial.print(":");
-      Serial.print(remoteMac[4], HEX);
-      Serial.print(":");
-      Serial.print(remoteMac[3], HEX);
-      Serial.print(":");
-      Serial.print(remoteMac[2], HEX);
-      Serial.print(":");
-      Serial.print(remoteMac[1], HEX);
-      Serial.print(":");
-      Serial.println(remoteMac[0], HEX);
+      printMacAddress(remoteMac);
     } else {
       // a device has disconnected from the AP, and we are back in listening mode
       Serial.println("Device disconnected from AP");
@@ -173,4 +163,17 @@ void printWiFiStatus() {
   Serial.print("To see this page in action, open a browser to http://");
   Serial.println(ip);
 
+}
+
+void printMacAddress(byte mac[]) {
+  for (int i = 5; i >= 0; i--) {
+    if (mac[i] < 16) {
+      Serial.print("0");
+    }
+    Serial.print(mac[i], HEX);
+    if (i > 0) {
+      Serial.print(":");
+    }
+  }
+  Serial.println();
 }

@@ -20,8 +20,10 @@
 #include <SPI.h>
 #include <WiFi101.h>
 
-char ssid[] = "yourNetwork";      //  your network SSID (name)
-char pass[] = "secretPassword";   // your network password
+#include "arduino_secrets.h" 
+///////please enter your sensitive data in the Secret tab/arduino_secrets.h
+char ssid[] = SECRET_SSID;        // your network SSID (name)
+char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
 int keyIndex = 0;            // your network key Index number (needed only for WEP)
 
 int status = WL_IDLE_STATUS;
@@ -30,7 +32,7 @@ int status = WL_IDLE_STATUS;
 WiFiClient client;
 
 // server address:
-char server[] = "www.arduino.cc";
+char server[] = "example.org";
 //IPAddress server(64,131,82,241);
 
 unsigned long lastConnectionTime = 0;            // last time you connected to the server, in milliseconds
@@ -91,8 +93,8 @@ void httpRequest() {
   if (client.connect(server, 80)) {
     Serial.println("connecting...");
     // send the HTTP PUT request:
-    client.println("GET /latest.txt HTTP/1.1");
-    client.println("Host: www.arduino.cc");
+    client.println("GET / HTTP/1.1");
+    client.println("Host: example.org");
     client.println("User-Agent: ArduinoWiFi/1.1");
     client.println("Connection: close");
     client.println();
