@@ -19,7 +19,7 @@ const uint8_t clockPin = 12;
 APA102<dataPin, clockPin> ledStrip;
 
 // Set the number of LEDs to control.
-const uint16_t ledCount = 180;
+const uint16_t ledCount = 35;
 
 // Create a buffer for holding the colors (3 bytes per color).
 rgb_color colors[ledCount];
@@ -33,6 +33,7 @@ void setup()
 
 void loop()
 {
+
   for(uint16_t i = 0; i < ledCount; i++)
     colors[i] = rgb_color(255, 0, 0);
   ledStrip.write(colors, ledCount, brightness);
