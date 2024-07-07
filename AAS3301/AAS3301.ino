@@ -33,15 +33,15 @@ bool seventeenBitTransfer = false;
 
 void setup()
 {
-  uint16_t flags;
-  uint16_t angle;
-  uint32_t flagsAndZeroOffset;
+    uint16_t flags;
+    uint16_t angle;
+    uint32_t flagsAndZeroOffset;
 
     // Initialize SPI
     SPI.begin(); 
 
     pinMode(ChipSelectPin, OUTPUT);
-//    SPI.setSCK(14);
+    //    SPI.setSCK(14);
 
     pinMode(LEDPin, OUTPUT);
 
@@ -54,35 +54,40 @@ void setup()
     digitalWrite(ChipSelectPin, HIGH);
     digitalWrite(14, HIGH);
 
-  // Unlock the device
-  PrimaryWrite(ChipSelectPin, 0x3C, 0x2700);
-  PrimaryWrite(ChipSelectPin, 0x3C, 0x8100);
-  PrimaryWrite(ChipSelectPin, 0x3C, 0x1F00);
-  PrimaryWrite(ChipSelectPin, 0x3C, 0x7700);
+    // Unlock the device
+    PrimaryWrite(ChipSelectPin, 0x3C, 0x2700);
+    PrimaryWrite(ChipSelectPin, 0x3C, 0x8100);
+    PrimaryWrite(ChipSelectPin, 0x3C, 0x1F00);
+    PrimaryWrite(ChipSelectPin, 0x3C, 0x7700);
 
-  // Make sure the device is unlocked
-  PrimaryRead(ChipSelectPin, 0x3C, flags);
-  if ((flags & 0x0001) != 0x0001)
-  {
+    // Make sure the device is unlocked
+    PrimaryRead(ChipSelectPin, 0x3C, flags);
+    if ((flags & 0x0001) != 0x0001)
+    {
     Serial.println("Device is not Unlocked");
-  }
+    }
 
-  // Zero the angle
-  // Extended location 0x1C contains flags in the MSW and the Zero Angle values in the LSW
-  // so get both and zero out ZeroAngle
-  ExtendedRead(ChipSelectPin, 0x5C, flagsAndZeroOffset);
-  flagsAndZeroOffset = flagsAndZeroOffset & 0x00FFF000;
-  ExtendedWrite(ChipSelectPin, 0x5C, flagsAndZeroOffset); // Zero out the Shadow
+    // Zero the angle
+    // Extended location 0x1C contains flags in the MSW and the Zero Angle values in the LSW
+    // so get both and zero out ZeroAngle
+    // ExtendedRead(ChipSelectPin, 0x5C, flagsAndZeroOffset);
+    // flagsAndZeroOffset = flagsAndZeroOffset & 0x00FFF000;
+    // ExtendedWrite(ChipSelectPin, 0x5C, flagsAndZeroOffset); // Zero out the Shadow
 
-  // Get the current angle. It is now without the ZeroAngle correction
-  PrimaryRead(ChipSelectPin, 0x20, angle);
+    // Get the current angle. It is now without the ZeroAngle correction
+    // PrimaryRead(ChipSelectPin, 0x20, angle);
 
-  // Copy the read angle into location 0x5C preserving the flags
-  flagsAndZeroOffset = flagsAndZeroOffset | (angle & 0x000FFF);
-  ExtendedWrite(ChipSelectPin, 0x5C, flagsAndZeroOffset);
+    // Copy the read angle into location 0x5C preserving the flags
+    // flagsAndZeroOffset = flagsAndZeroOffset | (angle & 0x000FFF);
+    // ExtendedWrite(ChipSelectPin, 0x5C, flagsAndZeroOffset);
 
-  // Write config
-  ExtendedWrite(ChipSelectPin, 0x19, 0b0010000001000000100011);
+    // Write config
+    ExtendedWrite(ChipSelectPin, 0x19, 0b000000000001000000100010);
+
+    uint32_t t;
+    ExtendedRead(ChipSelectPin, 0x19, t);
+    Serial.println(t);
+    // while(1);
 }
 
 void loop()
@@ -90,78 +95,58 @@ void loop()
     uint16_t angle;
     uint16_t temperature;
     uint16_t fieldStrength;
-  uint16_t  turnsCount;
+    uint16_t  turnsCount;
 
-  // Every second, read the angle, temperature, field strength and turns count
-    if (nextTime < millis())
-    {
-        if (PrimaryRead(ChipSelectPin, 0x20, angle) == kNOERROR)
-    {
-            if (CalculateParity(angle))
-            {
+    // Every second, read the angle, temperature, field strength and turns count
+    if (nextTime < millis()) {
+        if (PrimaryRead(ChipSelectPin, 0x20, angle) == kNOERROR) {
+            if (CalculateParity(angle)) {
                 Serial.print("Angle = ");
                 Serial.print((float)(angle & 0x0FFF) * 360.0 / 4096.0);
                 Serial.println(" Degrees");
-            }
-            else
-            {
+            } else {
                 Serial.println("Parity error on Angle read");
             }
-    }
-    else
-    {
-      Serial.println("Unable to read Angle");
-    }
+        } else {
+            Serial.println("Unable to read Angle");
+        }
 
-        if (PrimaryRead(ChipSelectPin, 0x28, temperature) == kNOERROR)
-    {
-      Serial.print("Temperature = ");
-      Serial.print(((float)(temperature & 0x0FFF) / 8.0) + 25.0);
-      Serial.println(" C");
-    }
-    else
-    {
-      Serial.println("Unable to read Temperature");
-    }
+        /*
+        if (PrimaryRead(ChipSelectPin, 0x28, temperature) == kNOERROR) {
+            Serial.print("Temperature = ");
+            Serial.print(((float)(temperature & 0x0FFF) / 8.0) + 25.0);
+            Serial.println(" C");
+        } else {
+            Serial.println("Unable to read Temperature");
+        }
 
-        if (PrimaryRead(ChipSelectPin, 0x2A, fieldStrength) == kNOERROR)
-    {
-      Serial.print("Field Strength = ");
-      Serial.print(fieldStrength & 0x0FFF);
-      Serial.println(" Gauss");
-    }
-    else
-    {
-      Serial.println("Unable to read Field Strength");
-    }
+        if (PrimaryRead(ChipSelectPin, 0x2A, fieldStrength) == kNOERROR) {
+            Serial.print("Field Strength = ");
+            Serial.print(fieldStrength & 0x0FFF);
+            Serial.println(" Gauss");
+        } else {
+            Serial.println("Unable to read Field Strength");
+        }
 
-        if (PrimaryRead(ChipSelectPin, 0x2C, turnsCount) == kNOERROR)
-    {
-            if (CalculateParity(turnsCount))
-            {
+        if (PrimaryRead(ChipSelectPin, 0x2C, turnsCount) == kNOERROR) {
+            if (CalculateParity(turnsCount)) {
                 Serial.print("Turns Count = ");
                 Serial.println(SignExtendBitfield(turnsCount, 12));
-            }
-            else
-            {
+            } else {
                  Serial.println("Parity error on Turns Count read");
-           }
-    }
-    else
-    {
-      Serial.println("Unable to read Turns Count");
-    }
+            }
+        } else {
+            Serial.println("Unable to read Turns Count");
+        }
+        */
 
         nextTime = millis() + 500L;
 
     // Blink the LED every half second
-        if (ledOn)
-        {
+        if (ledOn) {
             digitalWrite(LEDPin, LOW);
             ledOn = false;
-        }
-        else
-        {
+        } else {
             digitalWrite(LEDPin, HIGH);
             ledOn = true;
         }
