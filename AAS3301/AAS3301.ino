@@ -82,11 +82,13 @@ void setup()
     // ExtendedWrite(ChipSelectPin, 0x5C, flagsAndZeroOffset);
 
     // Write config
-    ExtendedWrite(ChipSelectPin, 0x19, 0b000000000001000000100010);
+    ExtendedWrite(ChipSelectPin, 0x19, 0b000000000001000000100100);
+
+    delay(100);
 
     uint32_t t;
     ExtendedRead(ChipSelectPin, 0x19, t);
-    Serial.println(t);
+    Serial.println(t & 0xFFFFFF);
     // while(1);
 }
 
