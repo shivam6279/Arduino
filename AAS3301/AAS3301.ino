@@ -31,11 +31,46 @@ bool ledOn = false;
 bool includeCRC = false;
 bool seventeenBitTransfer = false;
 
+int16_t linearization_data[32] = {  0, // 0 degrees
+                                    7, // 11.25 degrees
+                                    6, // 22.5 degrees
+                                    7, // 33.75 degrees
+                                    11, // 45 degrees
+                                    13, // 56.25 degrees
+                                    12, // 67.5 degrees
+                                    8, // 78.75 degrees
+                                    6, // 90 degrees
+                                    5, // 101.25 degrees
+                                    -7, // 112.5 degrees
+                                    -5, // 123.75 degrees
+                                    -12, // 135 degrees
+                                    -10, // 146.25 degrees
+                                    -8, // 157.50 degrees
+                                    -3, // 168.75 degrees
+                                    -2, // 180 degrees
+                                    6, // 191.25 degrees
+                                    4, // 202.5 degrees
+                                    5, // 213.75 degrees
+                                    13, // 225 degrees
+                                    13, // 236.25 degrees
+                                    13, // 247.5 degrees
+                                    14, // 258.75 degrees
+                                    13, // 270 degrees
+                                    16, // 281.25 degrees
+                                    3, // 292.5 degrees
+                                    -1, // 303.75 degrees
+                                    4, // 315 degrees
+                                    -5, // 326.25 degrees
+                                    -7, // 337.5 degrees
+                                    -1, // 348.75 degrees
+                                    };
+
 void setup()
 {
     uint16_t flags;
     uint16_t angle;
     uint32_t flagsAndZeroOffset;
+    uint8_t i;
 
     // Initialize SPI
     SPI.begin(); 
@@ -70,26 +105,38 @@ void setup()
     // Zero the angle
     // Extended location 0x1C contains flags in the MSW and the Zero Angle values in the LSW
     // so get both and zero out ZeroAngle
-    // ExtendedRead(ChipSelectPin, 0x5C, flagsAndZeroOffset);
+    // ExtendedRead(ChipSelectPin, 0x1C, flagsAndZeroOffset);
     // flagsAndZeroOffset = flagsAndZeroOffset & 0x00FFF000;
-    // ExtendedWrite(ChipSelectPin, 0x5C, flagsAndZeroOffset); // Zero out the Shadow
+    // ExtendedWrite(ChipSelectPin, 0x1C, flagsAndZeroOffset); // Zero out the Shadow
 
     // Get the current angle. It is now without the ZeroAngle correction
     // PrimaryRead(ChipSelectPin, 0x20, angle);
 
     // Copy the read angle into location 0x5C preserving the flags
     // flagsAndZeroOffset = flagsAndZeroOffset | (angle & 0x000FFF);
-    // ExtendedWrite(ChipSelectPin, 0x5C, flagsAndZeroOffset);
+    // ExtendedWrite(ChipSelectPin, 0x1C, flagsAndZeroOffset);
 
     // Write config
-    ExtendedWrite(ChipSelectPin, 0x19, 0b000000000001000000100100);
+    // ExtendedWrite(ChipSelectPin, 0x19, 0b000000000001000000100100);
 
     delay(100);
 
     uint32_t t;
     ExtendedRead(ChipSelectPin, 0x19, t);
     Serial.println(t & 0xFFFFFF);
-    // while(1);
+
+    ExtendedRead(ChipSelectPin, 0x1B, t);
+    Serial.println(t & 0xFFFFFF);
+    // ExtendedWrite(ChipSelectPin, 0x1B, t | (1<<11));
+    ExtendedRead(ChipSelectPin, 0x1B, t);
+    Serial.println(t & 0xFFFFFF);
+
+    // for(i = 0; i < 32; i += 2) {
+    //     ExtendedWrite(ChipSelectPin, 0x20+i/2, linearization_data[i+1] << 12 | linearization_data[i]);
+    //     Serial.print(0x20+i/2, HEX);
+    //     Serial.print(": ");
+    //     Serial.print(linearization_data[i+1] << 12 | linearization_data[i]);
+    // }
 }
 
 void loop()
@@ -98,6 +145,28 @@ void loop()
     uint16_t temperature;
     uint16_t fieldStrength;
     uint16_t  turnsCount;
+    float i;
+    char ch;
+
+    /*while(1) {
+        for(i = 0; i < 360; i+= 11.25) {
+            do{
+                PrimaryRead(ChipSelectPin, 0x20, angle);
+                angle = angle & (0xFFF);
+                int32_t t = angle;
+                Serial.print(i);
+                Serial.print(", ");
+                Serial.print(i * 4096/360);
+                Serial.print(", ");
+                Serial.println(i * 4096/360 - angle);
+                delay(250);
+                ch = 0;
+                if(Serial.available()) {
+                    ch = Serial.read();
+                }
+            }while(ch != 'A');
+        }
+    }*/
 
     // Every second, read the angle, temperature, field strength and turns count
     if (nextTime < millis()) {
