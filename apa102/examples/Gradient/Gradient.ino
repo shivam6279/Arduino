@@ -19,33 +19,43 @@ const uint8_t clockPin = 12;
 APA102<dataPin, clockPin> ledStrip;
 
 // Set the number of LEDs to control.
-const uint16_t ledCount = 35;
+const uint16_t ledCount = 500;
 
 // Create a buffer for holding the colors (3 bytes per color).
 rgb_color colors[ledCount];
 
 // Set the brightness to use (the maximum is 31).
-const uint8_t brightness = 5;
+const uint8_t brightness = 1;
 
 void setup()
 {
 }
 
 void loop()
-{
+{   
+    const uint16_t t = 5;
 
-  for(uint16_t i = 0; i < ledCount; i++)
-    colors[i] = rgb_color(255, 0, 0);
-  ledStrip.write(colors, ledCount, brightness);
-  delay(1000);
+    for(uint16_t i = 0; i < ledCount; i++)
+        colors[i] = rgb_color(255, 0, 0);
 
-  for(uint16_t i = 0; i < ledCount; i++)
-    colors[i] = rgb_color(0, 255, 0);
-  ledStrip.write(colors, ledCount, brightness);
-  delay(1000);
+    for(uint16_t i = 0; i < t; i++) {
+        ledStrip.write(colors, ledCount, brightness);
+        delay(5);
+    }
 
-  for(uint16_t i = 0; i < ledCount; i++)
-    colors[i] = rgb_color(0, 0, 255);
-  ledStrip.write(colors, ledCount, brightness);
-  delay(1000);
+    for(uint16_t i = 0; i < ledCount; i++)
+        colors[i] = rgb_color(0, 255, 0);
+
+    for(uint16_t i = 0; i < t; i++) {
+        ledStrip.write(colors, ledCount, brightness);
+        delay(5);
+    }
+
+    for(uint16_t i = 0; i < ledCount; i++)
+        colors[i] = rgb_color(0, 0, 255);
+
+    for(uint16_t i = 0; i < t; i++) {
+        ledStrip.write(colors, ledCount, brightness);
+        delay(5);
+    }
 }

@@ -116,20 +116,47 @@ void setup()
     // flagsAndZeroOffset = flagsAndZeroOffset | (angle & 0x000FFF);
     // ExtendedWrite(ChipSelectPin, 0x1C, flagsAndZeroOffset);
 
-    // Write config
-    // ExtendedWrite(ChipSelectPin, 0x19, 0b000000000001000000100100);
-
     delay(100);
 
-    uint32_t t;
+    uint32_t t = 0;
+
+    uint32_t slew_time = 0b000000;
+    uint32_t inv = 0b0;
+    uint32_t ahe = 0b0;
+    uint32_t index_mode = 0b00;
+    uint32_t wdh = 0b0;
+    uint32_t plh = 0b0;
+    uint32_t ioe = 0b1;
+    uint32_t uvw = 0b0;
+    uint32_t resolution_pairs = 0x4;
+    // 0x3: 8192
+    // 0x4: 4096
+    uint32_t ABI = (slew_time << 16) | (inv << 15) | (ahe << 12) | (index_mode << 8) | (wdh << 7) | (plh << 6) | (ioe << 5) | (uvw << 4) | (resolution_pairs << 0);
     ExtendedRead(ChipSelectPin, 0x19, t);
-    Serial.println(t & 0xFFFFFF);
+    Serial.print("0x19: 0x");
+    Serial.println(t & 0xFFFFFF, HEX);
+    ExtendedWrite(ChipSelectPin, 0x19, ABI);
+    ExtendedRead(ChipSelectPin, 0x19, t);
+    Serial.println(t & 0xFFFFFF, HEX);
 
     ExtendedRead(ChipSelectPin, 0x1B, t);
-    Serial.println(t & 0xFFFFFF);
+    Serial.print("0x1B: 0x");
+    Serial.println(t & 0xFFFFFF, HEX);
     // ExtendedWrite(ChipSelectPin, 0x1B, t | (1<<11));
-    ExtendedRead(ChipSelectPin, 0x1B, t);
-    Serial.println(t & 0xFFFFFF);
+    // ExtendedWrite(ChipSelectPin, 0x1B, 0x670100);
+    // ExtendedRead(ChipSelectPin, 0x1B, t);
+    // Serial.println(t & 0xFFFFFF);
+
+    uint32_t orate = 0x0;
+    uint32_t hysteresis = 0x4; // 0x3F = 1.384 degrees, 0x1 = 0.02197265625 degrees
+    uint32_t ANG = (orate << 20) | (hysteresis << 12);
+    
+    ExtendedRead(ChipSelectPin, 0x1C, t);
+    Serial.print("0x1C: 0x");
+    Serial.println(t & 0xFFFFFF, HEX);
+    ExtendedWrite(ChipSelectPin, 0x1C, ANG);
+    ExtendedRead(ChipSelectPin, 0x1C, t);
+    Serial.println(t & 0xFFFFFF, HEX);
 
     // for(i = 0; i < 32; i += 2) {
     //     ExtendedWrite(ChipSelectPin, 0x20+i/2, linearization_data[i+1] << 12 | linearization_data[i]);
@@ -137,6 +164,8 @@ void setup()
     //     Serial.print(": ");
     //     Serial.print(linearization_data[i+1] << 12 | linearization_data[i]);
     // }
+
+    while(1);
 }
 
 void loop()
